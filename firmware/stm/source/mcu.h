@@ -1,0 +1,37 @@
+#ifndef __MCU_H
+#define __MCU_H
+
+#include "typedefs.h"
+
+// Причина остановки
+typedef enum
+{
+    // Не удалось запустить HSE осцилятор или он встал
+    MCU_HALT_REASON_RCC,
+    // Не удалось запустить LSE осцилятор или он встал
+    MCU_HALT_REASON_RTC,
+    
+    // Не обработнанное прерывание
+    MCU_HALT_REASON_IRQ,
+    // Исключение Hard Fault
+    MCU_HALT_REASON_SYS,
+    // Исключение Memory Fault
+    MCU_HALT_REASON_MEM,
+    // Исключение Bus Fault
+    MCU_HALT_REASON_BUS,
+    // Исключение Usage Fault
+    MCU_HALT_REASON_USG
+} mcu_halt_reason_t;
+
+// Инициализация модуля
+void mcu_init(void);
+// Обработчик аварийной остановки приложения
+__noreturn void mcu_halt(mcu_halt_reason_t reason);
+
+// Импульс на выводе для отладки
+void mcu_debug_pulse(void);
+
+// Обновение участка бит регистра
+void mcu_reg_update_32(volatile uint32_t *reg, uint32_t value_bits, uint32_t valid_bits);
+
+#endif // __MCU_H

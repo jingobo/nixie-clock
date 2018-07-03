@@ -1,0 +1,4 @@
+# IAR
+*.dep
+/output/
+/settings/
