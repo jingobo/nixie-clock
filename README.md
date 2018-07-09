@@ -1,3 +1,7 @@
+[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/c843050f193b43f386815034419c3617)](https://www.codacy.com/app/exclude/nixie-clock?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jingobo/nixie-clock&amp;utm_campaign=Badge_Grade)
+![Beer](https://img.shields.io/beerpay/hashdog/scrapfy-chrome-extension.svg)
+
 # Настольные часы на ИН-12
 ## Ключевые особенности
 * Связка STM32F103 (Master) + ESP8266 (Slave) по SPI
