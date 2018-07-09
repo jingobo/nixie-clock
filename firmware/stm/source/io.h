@@ -8,7 +8,7 @@
 #define IO_MODE_DECLARE(m, c)       (MASK_32(m, 0) | MASK_32(c, 2))
 // ¬ход
 #define IO_MODE_INPUT_ANALOG        IO_MODE_DECLARE(0, 0)
-#define IO_MODE_INPUT_FLOATING      IO_MODE_DECLARE(0, 1)
+#define IO_MODE_INPUT_FLOAT         IO_MODE_DECLARE(0, 1)
 #define IO_MODE_INPUT_PULL          IO_MODE_DECLARE(0, 2)
 // ¬ыход на 10 ћ√ц
 #define IO_MODE_OUTPUT_PP_10MHZ     IO_MODE_DECLARE(1, 0)

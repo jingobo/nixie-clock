@@ -4,13 +4,13 @@
 #define GPIO_BLINK_DELAY 250
 
 // Обработчик таймера мигалки
-static void blink_timer_cb(void *arg)
+static void ICACHE_FLASH_ATTR blink_timer_cb(void *arg)
 {
 	gpio_t *ref = (gpio_t *)arg;
 	gpio_state_set(ref, !ref->state);
 }
 
-void gpio_setup(gpio_t *ref, uint8_t index, uint32_t mux, uint8_t func, bool inverse)
+void ICACHE_FLASH_ATTR gpio_setup(gpio_t *ref, uint8_t index, uint32_t mux, uint8_t func, bool inverse)
 {
 	if (!ref)
 		return;
@@ -20,21 +20,22 @@ void gpio_setup(gpio_t *ref, uint8_t index, uint32_t mux, uint8_t func, bool inv
 	// Инициализация пина
 	PIN_FUNC_SELECT(mux, func);
 	// Инициализация таймера
-	gpio_blink_set(ref, false);
+	memset(&ref->blink_timer, 0, sizeof(ref->blink_timer));
 	os_timer_setfn(&ref->blink_timer, blink_timer_cb, ref);
+	gpio_blink_set(ref, false);
 }
 
-void gpio_state_set(gpio_t *ref, bool state)
+void ICACHE_FLASH_ATTR gpio_state_set(gpio_t *ref, bool state)
 {
 	if (!ref)
 		return;
 	ref->state = state;
 	if (ref->inverse)
 		state = !state;
-	GPIO_OUTPUT_SET(ref->index, state ? 1 : 0);
+	GPIO_OUTPUT_SET(ref->index, (state ? 1 : 0));
 }
 
-void gpio_blink_set(gpio_t *ref, bool state)
+void ICACHE_FLASH_ATTR gpio_blink_set(gpio_t *ref, bool state)
 {
 	if (!ref)
 		return;

@@ -1,4 +1,5 @@
 #include "mcu.h"
+#include "esp.h"
 #include "nvic.h"
 #include "system.h"
 
@@ -142,7 +143,7 @@ __root const nvic_vtbl_t __vector_table @ SEGMENT_VTBL =
         nvic_interrupt_dummy,                   // EXTI Line 3
         nvic_interrupt_dummy,                   // EXTI Line 4
         nvic_interrupt_dummy,                   // DMA1 Channel 1
-        nvic_interrupt_dummy,                   // DMA1 Channel 2
+        esp_interrupt_dma,                      // DMA1 Channel 2
         nvic_interrupt_dummy,                   // DMA1 Channel 3
         nvic_interrupt_dummy,                   // DMA1 Channel 4
         nvic_interrupt_dummy,                   // DMA1 Channel 5

@@ -1,6 +1,6 @@
+#include "mcu.h"
 #include "led.h"
 #include "nvic.h"
-#include "system.h"
 
 // Alias
 #define DMA1_C6                 DMA1_Channel6
@@ -52,9 +52,9 @@ public:
     }
 
     // Получает указатель на буфер для DMA
-    uint32_t dma_pointer_get(void) const
+    void * dma_pointer_get(void)
     {
-        return (uint32_t)&dma_buffer;
+        return &dma_buffer;
     }
 };
 
@@ -121,15 +121,14 @@ void led_init(void)
     TIM1->ARR = LED_TIMER_PERIOD - 1;                                           // Period 800 kHz (1.25 uS)
     TIM1->BDTR = TIM_BDTR_MOE;                                                  // Main Output enable
     
-    // Тактирование DMA
-    RCC->AHBENR |= RCC_AHBENR_DMA1EN;                                           // DMA1 clock enable
     // Конфигурирование DMA
-    DMA1_C6->CCR = 0;                                                           // Channel reset
     DMA1->IFCR |= DMA_IFCR_CTCIF6;                                              // Clear CTCIF
-    WARNING_SUPPRESS(Pa039)
-        DMA1_C6->CPAR = (uint32_t)&TIM1->CCR3;                                  // Peripheral address
-    WARNING_DEFAULT(Pa039)
-    DMA1_C6->CMAR = led_driver.dma_pointer_get();                               // Memory address
+    // Канал 6
+    mcu_dma_channel_setup_pm(DMA1_C6,
+        // В TIM CC3
+        TIM1->CCR3, 
+        // Из памяти
+        led_driver.dma_pointer_get());
     DMA1_C6->CCR |= DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 |              // Memory to peripheral, Memory increment (8-bit), Peripheral size 16-bit
                     DMA_CCR_PL | DMA_CCR_TCIE;                                  // Very high priority, Transfer complete interrupt enable
     // Включаем прерывание канала DMA

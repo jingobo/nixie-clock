@@ -1206,6 +1206,9 @@
         <name>$PROJ_DIR$\source\display.c</name>
     </file>
     <file>
+        <name>$PROJ_DIR$\source\esp.c</name>
+    </file>
+    <file>
         <name>$PROJ_DIR$\source\event.c</name>
     </file>
     <file>

@@ -3,9 +3,10 @@
 #include "wdt.h"
 #include "clk.h"
 #include "rtc.h"
-#include "nvic.h"
 #include "led.h"
+#include "esp.h"
 #include "tube.h"
+#include "nvic.h"
 #include "event.h"
 #include "display.h"
 
@@ -21,6 +22,7 @@ static void main_init(void)
     rtc_init();
     event_init();
     // Остальные модули
+    esp_init();
     led_init();
     tube_init();
     display_init();
@@ -112,7 +114,9 @@ static void main_tests(void)
     event_timer_start_hz(neon_sat_test, 100, EVENT_TIMER_FLAG_LOOP);
 
     event_timer_start_us(led_enable_switch, 10000000, EVENT_TIMER_FLAG_LOOP);
-    
+
+    event_timer_start_hz(esp_transaction, 1, EVENT_TIMER_FLAG_LOOP);
+
     
     
     // Проверка вывода частоты
@@ -142,10 +146,7 @@ static void main_tests(void)
         
     GPIOC->CRH |= GPIO_CRH_MODE13_0 | GPIO_CRH_MODE13_1;                        // Output 50 MHz
     
-    rtc_clock_output(true);*/
-    
-    //rtc_clock_output(true);
-    
+    rtc_clock_output(true);*/    
 }
 
 static void led_sat_test(void)

@@ -6,10 +6,11 @@
 
 /* Используемая переферия:
    rtc - RTC
-   led - TIM1 (CH3), DMA (CH6)
+   led - TIM1 (CH3), DMA1 (CH6)
    wdt - IWDG (2 Hz)
    event - TIM3 (CH1)
    tube - TIM4 (CH2), TIM2 (CH3)
+   esp - SPI1 (master), DMA1 (CH2, CH3)
 */
 
 // Частота ядра при старте

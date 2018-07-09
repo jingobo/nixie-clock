@@ -1,7 +1,7 @@
 #ifndef __MCU_H
 #define __MCU_H
 
-#include "typedefs.h"
+#include "system.h"
 
 // Причина остановки
 typedef enum
@@ -25,13 +25,14 @@ typedef enum
 
 // Инициализация модуля
 void mcu_init(void);
+// Импульс на выводе для отладки
+void mcu_debug_pulse(void);
 // Обработчик аварийной остановки приложения
 __noreturn void mcu_halt(mcu_halt_reason_t reason);
 
-// Импульс на выводе для отладки
-void mcu_debug_pulse(void);
-
 // Обновение участка бит регистра
 void mcu_reg_update_32(volatile uint32_t *reg, uint32_t value_bits, uint32_t valid_bits);
+// Установка указателей каналу DMA (переферия <-> память)
+void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, volatile void *mem);
 
 #endif // __MCU_H
