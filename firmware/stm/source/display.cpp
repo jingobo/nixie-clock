@@ -1,9 +1,9 @@
-#include "led.h"
+п»ї#include "led.h"
 
 #include "event.h"
 #include "display.h"
 
-// Обработчик обновления дисплея
+// РћР±СЂР°Р±РѕС‚С‡РёРє РѕР±РЅРѕРІР»РµРЅРёСЏ РґРёСЃРїР»РµСЏ
 static void display_refresh(void)
 {
     led.refresh();
@@ -11,6 +11,6 @@ static void display_refresh(void)
 
 void display_init(void)
 {
-    // Запуск задания на обновление экрана
+    // Р—Р°РїСѓСЃРє Р·Р°РґР°РЅРёСЏ РЅР° РѕР±РЅРѕРІР»РµРЅРёРµ СЌРєСЂР°РЅР°
     //event_timer_start_hz(DELEGATE_PROC(display_refresh), HMI_FRAME_RATE, EVENT_TIMER_PRI_DEFAULT | EVENT_TIMER_FLAG_LOOP);
 }

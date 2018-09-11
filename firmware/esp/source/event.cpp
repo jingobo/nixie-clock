@@ -1,4 +1,4 @@
-#include "event.h"
+﻿#include "event.h"
 
 ROM bool event_auto_t::wait(uint32_t mills)
 {

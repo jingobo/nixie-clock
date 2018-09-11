@@ -1,21 +1,21 @@
-#include "ipc.h"
+п»ї#include "ipc.h"
 
-// Заполнитель для отсутствущих данных
+// Р—Р°РїРѕР»РЅРёС‚РµР»СЊ РґР»СЏ РѕС‚СЃСѓС‚СЃС‚РІСѓС‰РёС… РґР°РЅРЅС‹С…
 #define IPC_FILLER      0xFF
-// Значение магическое числа начала пакета
+// Р—РЅР°С‡РµРЅРёРµ РјР°РіРёС‡РµСЃРєРѕРµ С‡РёСЃР»Р° РЅР°С‡Р°Р»Р° РїР°РєРµС‚Р°
 #define IPC_MAGIC       0xAA
 
 ROM bool ipc_command_data_t::decode_buffer(ipc_dir_t dir, const void *buffer, size_t size)
 {
-    // Получаем буфер и его размер
+    // РџРѕР»СѓС‡Р°РµРј Р±СѓС„РµСЂ Рё РµРіРѕ СЂР°Р·РјРµСЂ
     auto psize = buffer_size(dir);
     auto ptr = (void *)buffer_pointer(dir);
-    // Проверка длинны
+    // РџСЂРѕРІРµСЂРєР° РґР»РёРЅРЅС‹
     if (psize < size)
         return false;
-    // Копирование данных
+    // РљРѕРїРёСЂРѕРІР°РЅРёРµ РґР°РЅРЅС‹С…
     memcpy(ptr, buffer, size);
-    // Декодирование
+    // Р”РµРєРѕРґРёСЂРѕРІР°РЅРёРµ
     return decode(dir, size);
 }
 
@@ -59,18 +59,18 @@ ROM ipc_slots_t::ipc_slots_t(void)
 
 ROM void ipc_slots_t::use(ipc_slot_t &slot)
 {
-    // Проверка состояния
+    // РџСЂРѕРІРµСЂРєР° СЃРѕСЃС‚РѕСЏРЅРёСЏ
     assert(slot.list() == &unused);
-    // Смена списков
+    // РЎРјРµРЅР° СЃРїРёСЃРєРѕРІ
     slot.unlink();
     slot.link(used);
 }
 
 ROM void ipc_slots_t::free(ipc_slot_t &slot)
 {
-    // Проверка состояния
+    // РџСЂРѕРІРµСЂРєР° СЃРѕСЃС‚РѕСЏРЅРёСЏ
     assert(slot.list() == &used);
-    // Смена списков
+    // РЎРјРµРЅР° СЃРїРёСЃРєРѕРІ
     slot.unlink();
     slot.link(unused);
 }
@@ -83,7 +83,7 @@ ROM void ipc_slots_t::clear(void)
 
 ROM ipc_controller_t::ipc_controller_t(void)
 {
-    // Установка магического поля
+    // РЈСЃС‚Р°РЅРѕРІРєР° РјР°РіРёС‡РµСЃРєРѕРіРѕ РїРѕР»СЏ
     for (auto i = tx.unused.head(); i != NULL; i = list_item_t::next(i))
         i->dll.magic = IPC_MAGIC;
 }
@@ -96,7 +96,7 @@ ROM void ipc_controller_t::clear_slots(void)
 
 ROM ipc_handler_command_t * ipc_controller_t::handler_command_find(ipc_command_t command) const
 {
-    // Поиск обработчика с такой командой
+    // РџРѕРёСЃРє РѕР±СЂР°Р±РѕС‚С‡РёРєР° СЃ С‚Р°РєРѕР№ РєРѕРјР°РЅРґРѕР№
     for (auto i = command_handlers.head(); i != NULL; i = list_item_t::next(i))
         if (i->data_get().command == command)
             return i;
@@ -123,41 +123,41 @@ ROM void ipc_controller_t::transmit_flow(ipc_command_flow_t::reason_t reason)
 ROM void ipc_controller_t::reset_layer(ipc_command_flow_t::reason_t reason, bool internal)
 {
     assert(reason > ipc_command_flow_t::REASON_NOP);
-    // Сброс всех слотов
+    // РЎР±СЂРѕСЃ РІСЃРµС… СЃР»РѕС‚РѕРІ
     clear_slots();
-    // Отправка команды
+    // РћС‚РїСЂР°РІРєР° РєРѕРјР°РЅРґС‹
     if (internal)
         transmit_flow(reason);
 }
 
 ROM void ipc_controller_t::handler_add_idle(ipc_handler_idle_t &handler)
 {
-    // Поиск обработчика с таким адресом
+    // РџРѕРёСЃРє РѕР±СЂР°Р±РѕС‚С‡РёРєР° СЃ С‚Р°РєРёРј Р°РґСЂРµСЃРѕРј
     assert(!idle_handlers.contains(handler));
-    // Добавление
+    // Р”РѕР±Р°РІР»РµРЅРёРµ
     handler.link(idle_handlers);
 }
 
 ROM void ipc_controller_t::handler_add_command(ipc_handler_command_t &handler)
 {
-    // Поиск обработчика с такой командой
+    // РџРѕРёСЃРє РѕР±СЂР°Р±РѕС‚С‡РёРєР° СЃ С‚Р°РєРѕР№ РєРѕРјР°РЅРґРѕР№
     assert(handler_command_find(handler.data_get().command) == NULL);
-    // Добавление
+    // Р”РѕР±Р°РІР»РµРЅРёРµ
     handler.link(command_handlers);
 }
 
 ROM bool ipc_controller_t::receive_prepare(const ipc_packet_t &packet, receive_args_t &args)
 {
-    // Поиск обработчика по команде
+    // РџРѕРёСЃРє РѕР±СЂР°Р±РѕС‚С‡РёРєР° РїРѕ РєРѕРјР°РЅРґРµ
     auto handler = handler_command_find(packet.dll.command);
     assert(handler != NULL);
-    // Получаем команду
+    // РџРѕР»СѓС‡Р°РµРј РєРѕРјР°РЅРґСѓ
     auto &data = handler->data_get();
-    // Проверка длинны
+    // РџСЂРѕРІРµСЂРєР° РґР»РёРЅРЅС‹
     auto dir = packet.dll.dir;
     if (data.buffer_size(dir) < args.size)
         return false;
-    // Заполняем аргументы
+    // Р—Р°РїРѕР»РЅСЏРµРј Р°СЂРіСѓРјРµРЅС‚С‹
     args.cookie = handler;
     args.buffer = (void *)data.buffer_pointer(dir);
     return true;
@@ -165,47 +165,47 @@ ROM bool ipc_controller_t::receive_prepare(const ipc_packet_t &packet, receive_a
 
 ROM bool ipc_controller_t::receive_finalize(const ipc_packet_t &packet, const receive_args_t &args)
 {
-    // Проверка состояния
+    // РџСЂРѕРІРµСЂРєР° СЃРѕСЃС‚РѕСЏРЅРёСЏ
     assert(args.cookie != NULL);
-    // Получаем обработчик
+    // РџРѕР»СѓС‡Р°РµРј РѕР±СЂР°Р±РѕС‚С‡РёРє
     auto dir = packet.dll.dir;
     auto &handler = *(ipc_handler_command_t *)args.cookie;
-    // Декодирование
+    // Р”РµРєРѕРґРёСЂРѕРІР°РЅРёРµ
     if (!handler.data_get().decode(dir, args.size))
         return false;
-    // Оповешение
+    // РћРїРѕРІРµС€РµРЅРёРµ
     handler.notify(dir);
     return true;
 }
 
 ROM bool ipc_controller_t::transmit_raw(ipc_dir_t dir, ipc_command_t command, const void *source, size_t size)
 {
-    // Проверка аргументов
+    // РџСЂРѕРІРµСЂРєР° Р°СЂРіСѓРјРµРЅС‚РѕРІ
     assert(size <= 0 || source != NULL);
-    // Проверяем на размер
+    // РџСЂРѕРІРµСЂСЏРµРј РЅР° СЂР°Р·РјРµСЂ
     auto slot_count = (size <= 0) ? 1 : DIV_CEIL(size, IPC_APL_SIZE);
     if (tx.unused.count() < slot_count)
         return false;
-    // Проверяем, есть ли такая команда с таким же направлением
+    // РџСЂРѕРІРµСЂСЏРµРј, РµСЃС‚СЊ Р»Рё С‚Р°РєР°СЏ РєРѕРјР°РЅРґР° СЃ С‚Р°РєРёРј Р¶Рµ РЅР°РїСЂР°РІР»РµРЅРёРµРј
     for (auto i = tx.used.head(); i != NULL; i = list_item_t::next(i))
         if (i->dll.command == command && i->dll.dir == dir)
             return false;
-    // Рзбиваем на слоты
+    // Р Р·Р±РёРІР°РµРј РЅР° СЃР»РѕС‚С‹
     for (auto src = (const uint8_t *)source; slot_count > 0; slot_count--)
     {
         auto &item = *tx.unused.head();
         auto more = size > IPC_APL_SIZE;
         auto len = more ? IPC_APL_SIZE : (uint8_t)size;
-        // Заполнение команды и опций
+        // Р—Р°РїРѕР»РЅРµРЅРёРµ РєРѕРјР°РЅРґС‹ Рё РѕРїС†РёР№
         item.dll.command = command;
         item.dll.dir = dir;
         item.dll.more = more;
         item.dll.length = len;
-        // Полезные данные
+        // РџРѕР»РµР·РЅС‹Рµ РґР°РЅРЅС‹Рµ
         memcpy(&item.apl, src, len);
-        // Перенос в список используемых
+        // РџРµСЂРµРЅРѕСЃ РІ СЃРїРёСЃРѕРє РёСЃРїРѕР»СЊР·СѓРµРјС‹С…
         tx.use(item);
-        // Переход к следующим данным
+        // РџРµСЂРµС…РѕРґ Рє СЃР»РµРґСѓСЋС‰РёРј РґР°РЅРЅС‹Рј
         size -= len;
         src += len;
     }
@@ -219,35 +219,35 @@ ROM bool ipc_controller_t::transmit(ipc_dir_t dir, const ipc_command_data_t &dat
 
 ROM void ipc_controller_t::packet_output(ipc_packet_t &packet)
 {
-    // Проверяем, есть ли данные
+    // РџСЂРѕРІРµСЂСЏРµРј, РµСЃС‚СЊ Р»Рё РґР°РЅРЅС‹Рµ
     for (auto try_idle = false;;)
     {
-        // Получаем первый слот
+        // РџРѕР»СѓС‡Р°РµРј РїРµСЂРІС‹Р№ СЃР»РѕС‚
         auto head = tx.used.head();
         if (head != NULL)
         {
-            // Перенос слота в не используемые
+            // РџРµСЂРµРЅРѕСЃ СЃР»РѕС‚Р° РІ РЅРµ РёСЃРїРѕР»СЊР·СѓРµРјС‹Рµ
             tx.free(*head);
             packet = *head;
             break;
         }
         if (try_idle)
         {
-            // Нет команды
+            // РќРµС‚ РєРѕРјР°РЅРґС‹
             transmit_flow(ipc_command_flow_t::REASON_NOP);
             continue;
         }
-        // Обход обработчиков простоя
+        // РћР±С…РѕРґ РѕР±СЂР°Р±РѕС‚С‡РёРєРѕРІ РїСЂРѕСЃС‚РѕСЏ
         for (auto i = idle_handlers.head(); i != NULL;)
         {
             i->notify_event();
-            // Если ничего не записал...
+            // Р•СЃР»Рё РЅРёС‡РµРіРѕ РЅРµ Р·Р°РїРёСЃР°Р»...
             if (tx_empty())
             {
                 i = list_item_t::next(i);
                 continue;
             }
-            // Что то было записано, этот обрабочтик в конец
+            // Р§С‚Рѕ С‚Рѕ Р±С‹Р»Рѕ Р·Р°РїРёСЃР°РЅРѕ, СЌС‚РѕС‚ РѕР±СЂР°Р±РѕС‡С‚РёРє РІ РєРѕРЅРµС†
             i->unlink();
             i->link(idle_handlers);
             break;
@@ -255,64 +255,64 @@ ROM void ipc_controller_t::packet_output(ipc_packet_t &packet)
         try_idle = true;
     }
     auto len = packet.dll.length;
-    // Заполнение DLL полей
+    // Р—Р°РїРѕР»РЅРµРЅРёРµ DLL РїРѕР»РµР№
     packet.dll.fast = tx.used.count() > 0;
     packet.dll.checksum = checksum(&packet.apl, len);
-    // Заполнение пустых данных
+    // Р—Р°РїРѕР»РЅРµРЅРёРµ РїСѓСЃС‚С‹С… РґР°РЅРЅС‹С…
     memset(packet.apl.u8 + len, IPC_FILLER, IPC_APL_SIZE - len);
 }
 
 ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
 {
     auto temp = rx.unused.head();
-    // Если нет свободных
+    // Р•СЃР»Рё РЅРµС‚ СЃРІРѕР±РѕРґРЅС‹С…
     if (temp == NULL)
     {
         reset_layer(ipc_command_flow_t::REASON_OVERFLOW);
         return;
     }
-    // Валидация
+    // Р’Р°Р»РёРґР°С†РёСЏ
     {
         auto len = packet.dll.length;
-        if (packet.dll.magic != IPC_MAGIC || len > IPC_APL_SIZE ||  // Проверка магического поля и длинны
-            packet.dll.checksum != checksum(&packet.apl, len))      // Проверка контрольной суммы
+        if (packet.dll.magic != IPC_MAGIC || len > IPC_APL_SIZE ||  // РџСЂРѕРІРµСЂРєР° РјР°РіРёС‡РµСЃРєРѕРіРѕ РїРѕР»СЏ Рё РґР»РёРЅРЅС‹
+            packet.dll.checksum != checksum(&packet.apl, len))      // РџСЂРѕРІРµСЂРєР° РєРѕРЅС‚СЂРѕР»СЊРЅРѕР№ СЃСѓРјРјС‹
         {
             reset_layer(ipc_command_flow_t::REASON_CORRUPTION);
             return;
         }
     }
-    // Обработка команды управления потоком
+    // РћР±СЂР°Р±РѕС‚РєР° РєРѕРјР°РЅРґС‹ СѓРїСЂР°РІР»РµРЅРёСЏ РїРѕС‚РѕРєРѕРј
     if (packet.dll.command == command_flow.command)
     {
-        // Декодирование
+        // Р”РµРєРѕРґРёСЂРѕРІР°РЅРёРµ
         if (!command_flow.decode_packet(packet))
         {
             reset_layer(ipc_command_flow_t::REASON_BAD_CONTENT);
             return;
         }
-        // Обработка
+        // РћР±СЂР°Р±РѕС‚РєР°
         auto reason = command_flow.request.reason;
         if (reason > ipc_command_flow_t::REASON_NOP)
             reset_layer(reason, false);
         return;
     }
-    // Используем
+    // РСЃРїРѕР»СЊР·СѓРµРј
     rx.use(*temp);
-    // Копирование пакета
+    // РљРѕРїРёСЂРѕРІР°РЅРёРµ РїР°РєРµС‚Р°
     temp->assign(packet);
-    // Последний пакет?
+    // РџРѕСЃР»РµРґРЅРёР№ РїР°РєРµС‚?
     if (packet.dll.more)
         return;
-    // Определение команды и направления
+    // РћРїСЂРµРґРµР»РµРЅРёРµ РєРѕРјР°РЅРґС‹ Рё РЅР°РїСЂР°РІР»РµРЅРёСЏ
     auto dir = packet.dll.dir;
     auto command = packet.dll.command;
-    // Подсчет общего количества байт
+    // РџРѕРґСЃС‡РµС‚ РѕР±С‰РµРіРѕ РєРѕР»РёС‡РµСЃС‚РІР° Р±Р°Р№С‚
     size_t size = 0;
     for (auto i = rx.used.head(); i != NULL; i = list_item_t::next(i))
-        // Фильтрация по команде и направлению
+        // Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕ РєРѕРјР°РЅРґРµ Рё РЅР°РїСЂР°РІР»РµРЅРёСЋ
         if (i->dll.command == command && i->dll.dir == dir)
             size += i->dll.length;
-    // Оповешение о начале сброки
+    // РћРїРѕРІРµС€РµРЅРёРµ Рѕ РЅР°С‡Р°Р»Рµ СЃР±СЂРѕРєРё
     receive_args_t args(size);
     if (!receive_prepare(packet, args))
     {
@@ -320,27 +320,27 @@ ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
         return;
     }
     assert(args.buffer != NULL);
-    // Сборка пакета
+    // РЎР±РѕСЂРєР° РїР°РєРµС‚Р°
     auto buffer = (uint8_t *)args.buffer;
     for (auto i = rx.used.head(); i != NULL;)
     {
-        // Фильтрация по команде и направлению
+        // Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕ РєРѕРјР°РЅРґРµ Рё РЅР°РїСЂР°РІР»РµРЅРёСЋ
         if (i->dll.command != command || i->dll.dir != dir)
         {
             i = list_item_t::next(i);
             continue;
         }
         auto len = i->dll.length;
-        // Копирование данных, смещения
+        // РљРѕРїРёСЂРѕРІР°РЅРёРµ РґР°РЅРЅС‹С…, СЃРјРµС‰РµРЅРёСЏ
         memcpy(buffer, &i->apl, len);
         buffer += len;
-        // Переход к следующему слоту
+        // РџРµСЂРµС…РѕРґ Рє СЃР»РµРґСѓСЋС‰РµРјСѓ СЃР»РѕС‚Сѓ
         auto tmp = i;
         i = list_item_t::next(i);
-        // Освобождение слота
+        // РћСЃРІРѕР±РѕР¶РґРµРЅРёРµ СЃР»РѕС‚Р°
         rx.free(*tmp);
     }
-    // Вызов события о завершении сборки пакета
+    // Р’С‹Р·РѕРІ СЃРѕР±С‹С‚РёСЏ Рѕ Р·Р°РІРµСЂС€РµРЅРёРё СЃР±РѕСЂРєРё РїР°РєРµС‚Р°
     if (!receive_finalize(packet, args))
     {
         reset_layer(ipc_command_flow_t::REASON_BAD_CONTENT);
@@ -348,7 +348,7 @@ ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
     }
 }
 
-// Заполнение всех байт пакета байтом заполнения
+// Р—Р°РїРѕР»РЅРµРЅРёРµ РІСЃРµС… Р±Р°Р№С‚ РїР°РєРµС‚Р° Р±Р°Р№С‚РѕРј Р·Р°РїРѕР»РЅРµРЅРёСЏ
 RAM void ipc_controller_t::packet_clear(ipc_packet_t &packet)
 {
     memset(&packet, IPC_FILLER, sizeof(packet));

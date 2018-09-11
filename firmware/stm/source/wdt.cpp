@@ -1,28 +1,28 @@
-#include "wdt.h"
+п»ї#include "wdt.h"
 #include "event.h"
 #include "system.h"
 
-// Для тестов зависания TODO:
+// Р”Р»СЏ С‚РµСЃС‚РѕРІ Р·Р°РІРёСЃР°РЅРёСЏ TODO:
 #define WDT_UNUSED          MACRO_EMPTY
 
-// Ключи для управления IWDG
+// РљР»СЋС‡Рё РґР»СЏ СѓРїСЂР°РІР»РµРЅРёСЏ IWDG
 #define WDT_KEY_CONFIG      0x5555
 #define WDT_KEY_RELOAD      0xAAAA
 #define WDT_KEY_START       0xCCCC
-// Период таймера в Гц
+// РџРµСЂРёРѕРґ С‚Р°Р№РјРµСЂР° РІ Р“С†
 #define WDT_PERIOD_HZ       2
 
 void wdt_init(void)
 {
 #ifndef WDT_UNUSED
-    // Конфигурирование IWDG
+    // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ IWDG
     IWDG->KR = WDT_KEY_CONFIG;                                                  // Enable write access
         IWDG->PR = IWDG_PR_PR_0 | IWDG_PR_PR_1;                                 // Prescaler /32
         IWDG->RLR = FLSI_HZ / WDT_PERIOD_HZ / 32 - 1;                           // Reload value
     IWDG->KR = WDT_KEY_START;                                                   // Enable watchdog
     IWDG->KR = WDT_KEY_RELOAD;                                                  // Reload period
 #endif
-    // Выставление задачи на сброс таймера (в два раза чаще чем частота таймера)
+    // Р’С‹СЃС‚Р°РІР»РµРЅРёРµ Р·Р°РґР°С‡Рё РЅР° СЃР±СЂРѕСЃ С‚Р°Р№РјРµСЂР° (РІ РґРІР° СЂР°Р·Р° С‡Р°С‰Рµ С‡РµРј С‡Р°СЃС‚РѕС‚Р° С‚Р°Р№РјРµСЂР°)
     //event_timer_start_hz(DELEGATE_PROC(wdt_pulse), WDT_PERIOD_HZ * 2, EVENT_TIMER_PRI_DEFAULT | EVENT_TIMER_FLAG_LOOP); TODO:
 }
 

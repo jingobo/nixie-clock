@@ -1,13 +1,13 @@
-#ifndef __LOG_H
+п»ї#ifndef __LOG_H
 #define __LOG_H
 
-// Сырой вывод
+// РЎС‹СЂРѕР№ РІС‹РІРѕРґ
 void log_raw(const char *format, ...);
-// Вывод строки
+// Р’С‹РІРѕРґ СЃС‚СЂРѕРєРё
 void log_line(const char *format, ...);
-// Вывод количества памяти
+// Р’С‹РІРѕРґ РєРѕР»РёС‡РµСЃС‚РІР° РїР°РјСЏС‚Рё
 void log_heap(const char *module);
-// Модульный вывод
+// РњРѕРґСѓР»СЊРЅС‹Р№ РІС‹РІРѕРґ
 void log_module(const char *module, const char *format, ...);
 
 #endif // __LOG_H

@@ -1,77 +1,77 @@
-#ifndef __EVENT_H
+п»ї#ifndef __EVENT_H
 #define __EVENT_H
 
 #include <list.h>
 
-// Класс базового события
+// РљР»Р°СЃСЃ Р±Р°Р·РѕРІРѕРіРѕ СЃРѕР±С‹С‚РёСЏ
 class event_base_t : public list_item_t, public notify_t
 {
     friend class event_t;
-    // Указывает, что элемент добавлен и ожидает обработки
+    // РЈРєР°Р·С‹РІР°РµС‚, С‡С‚Рѕ СЌР»РµРјРµРЅС‚ РґРѕР±Р°РІР»РµРЅ Рё РѕР¶РёРґР°РµС‚ РѕР±СЂР°Р±РѕС‚РєРё
     bool pending;
 public:
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     event_base_t(void) : pending(false)
     { }
 protected:
-    // Установка флага ожидания обработки
+    // РЈСЃС‚Р°РЅРѕРІРєР° С„Р»Р°РіР° РѕР¶РёРґР°РЅРёСЏ РѕР±СЂР°Р±РѕС‚РєРё
     virtual bool pending_set(void)
     {
-        // Если уже установлен - выходим
+        // Р•СЃР»Рё СѓР¶Рµ СѓСЃС‚Р°РЅРѕРІР»РµРЅ - РІС‹С…РѕРґРёРј
         if (pending)
             return false;
-        // Блокирование
+        // Р‘Р»РѕРєРёСЂРѕРІР°РЅРёРµ
         pending = true;
         return true;
     }
 
-    // Сброс ожидания обработки
+    // РЎР±СЂРѕСЃ РѕР¶РёРґР°РЅРёСЏ РѕР±СЂР°Р±РѕС‚РєРё
     virtual void pending_reset(void)
     {
         pending = false;
     }
     
-    // Вызов события
+    // Р’С‹Р·РѕРІ СЃРѕР±С‹С‚РёСЏ
     virtual void notify(void)
     {
-        // Проверка состояния
+        // РџСЂРѕРІРµСЂРєР° СЃРѕСЃС‚РѕСЏРЅРёСЏ
         assert(pending);
-        // Вызов события
+        // Р’С‹Р·РѕРІ СЃРѕР±С‹С‚РёСЏ
         notify_event();
     }
 };
 
-// Инициализация модуля (аппаратная часть)
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ (Р°РїРїР°СЂР°С‚РЅР°СЏ С‡Р°СЃС‚СЊ)
 void event_init(void);
-// Обработчка очереди событий
+// РћР±СЂР°Р±РѕС‚С‡РєР° РѕС‡РµСЂРµРґРё СЃРѕР±С‹С‚РёР№
 void event_execute(void);
-// Добавление события в очередь
+// Р”РѕР±Р°РІР»РµРЅРёРµ СЃРѕР±С‹С‚РёСЏ РІ РѕС‡РµСЂРµРґСЊ
 void event_add(event_base_t &ev);
 void event_add(event_base_t *ev);
 
-// Флаги для создания таймера
+// Р¤Р»Р°РіРё РґР»СЏ СЃРѕР·РґР°РЅРёСЏ С‚Р°Р№РјРµСЂР°
 typedef uint8_t event_timer_flag_t;
 #define EVENT_TIMER_FLAG_DECLARE(n)     MASK(event_timer_flag_t, 1, n)
-#define EVENT_TIMER_FLAG_NONE           ((event_timer_flag_t)0)     // Маска флагов пуста
-#define EVENT_TIMER_FLAG_LOOP           EVENT_TIMER_FLAG_DECLARE(0) // Таймер периодичный
-#define EVENT_TIMER_FLAG_HEAD           EVENT_TIMER_FLAG_DECLARE(1) // Обрабатываются в первую очередь
-#define EVENT_TIMER_FLAG_CIRQ           EVENT_TIMER_FLAG_DECLARE(2) // Вызывается из прерывания
+#define EVENT_TIMER_FLAG_NONE           ((event_timer_flag_t)0)     // РњР°СЃРєР° С„Р»Р°РіРѕРІ РїСѓСЃС‚Р°
+#define EVENT_TIMER_FLAG_LOOP           EVENT_TIMER_FLAG_DECLARE(0) // РўР°Р№РјРµСЂ РїРµСЂРёРѕРґРёС‡РЅС‹Р№
+#define EVENT_TIMER_FLAG_HEAD           EVENT_TIMER_FLAG_DECLARE(1) // РћР±СЂР°Р±Р°С‚С‹РІР°СЋС‚СЃСЏ РІ РїРµСЂРІСѓСЋ РѕС‡РµСЂРµРґСЊ
+#define EVENT_TIMER_FLAG_CIRQ           EVENT_TIMER_FLAG_DECLARE(2) // Р’С‹Р·С‹РІР°РµС‚СЃСЏ РёР· РїСЂРµСЂС‹РІР°РЅРёСЏ
 
-// Приоритеты обработки таймера
+// РџСЂРёРѕСЂРёС‚РµС‚С‹ РѕР±СЂР°Р±РѕС‚РєРё С‚Р°Р№РјРµСЂР°
 #define EVENT_TIMER_PRI_DEFAULT         EVENT_TIMER_FLAG_NONE
 #define EVENT_TIMER_PRI_HIGHEST         EVENT_TIMER_FLAG_HEAD
 #define EVENT_TIMER_PRI_CRITICAL        (EVENT_TIMER_FLAG_HEAD | EVENT_TIMER_FLAG_CIRQ)
 
-// Тип данных для хранения интервала в тиках
+// РўРёРї РґР°РЅРЅС‹С… РґР»СЏ С…СЂР°РЅРµРЅРёСЏ РёРЅС‚РµСЂРІР°Р»Р° РІ С‚РёРєР°С…
 typedef uint32_t event_interval_t;
 
-// Старт программного таймера
+// РЎС‚Р°СЂС‚ РїСЂРѕРіСЂР°РјРјРЅРѕРіРѕ С‚Р°Р№РјРµСЂР°
 void event_timer_start_hz(notify_t &handler, float_t hz, event_timer_flag_t flags = EVENT_TIMER_FLAG_NONE);
 void event_timer_start_us(notify_t &handler, event_interval_t us, event_timer_flag_t flags = EVENT_TIMER_FLAG_NONE);
-// Стоп программного таймера (возвращает - нашелся ли таймер)
+// РЎС‚РѕРї РїСЂРѕРіСЂР°РјРјРЅРѕРіРѕ С‚Р°Р№РјРµСЂР° (РІРѕР·РІСЂР°С‰Р°РµС‚ - РЅР°С€РµР»СЃСЏ Р»Рё С‚Р°Р№РјРµСЂ)
 bool event_timer_stop(const notify_t &handler);
 
-// Обработчик прерывания аппаратного таймера
+// РћР±СЂР°Р±РѕС‚С‡РёРє РїСЂРµСЂС‹РІР°РЅРёСЏ Р°РїРїР°СЂР°С‚РЅРѕРіРѕ С‚Р°Р№РјРµСЂР°
 void event_interrupt_timer(void);
 
 #endif // __EVENT_H

@@ -1,37 +1,37 @@
-#include "io.h"
+ï»¿#include "io.h"
 
-// Çàãðóçêà ðåãèñòðîâ â áóôåðû
+// Ð—Ð°Ð³Ñ€ÑƒÐ·ÐºÐ° Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€Ð¾Ð² Ð² Ð±ÑƒÑ„ÐµÑ€Ñ‹
 #define IO_LOAD(p)              \
     odr = 0;                    \
     crl = GPIO##p->CRL;         \
     crh = GPIO##p->CRH
 
-// Âîçâðàò â ðåãèñòðû èç áóôåðîâ
+// Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‚ Ð² Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€Ñ‹ Ð¸Ð· Ð±ÑƒÑ„ÐµÑ€Ð¾Ð²
 #define IO_SAVE(p)              \
     GPIO##p->ODR = odr;         \
     GPIO##p->CRL = crl;         \
     GPIO##p->CRH = crh
 
-// Èíèöèàëèçàöèÿ âûâîäà ïîðòà
+// Ð˜Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð°Ñ†Ð¸Ñ Ð²Ñ‹Ð²Ð¾Ð´Ð° Ð¿Ð¾Ñ€Ñ‚Ð°
 #define IO_INIT(out, mode)      IO_PORT_CFG_EXT(out, mode, crl, crh)
-// Óñòàíîâêà ñîñòîÿíèÿ âûâîäà
+// Ð£ÑÑ‚Ð°Ð½Ð¾Ð²ÐºÐ° ÑÐ¾ÑÑ‚Ð¾ÑÐ½Ð¸Ñ Ð²Ñ‹Ð²Ð¾Ð´Ð°
 #define IO_HIGH(out)            odr |= IO_MASK(out)
 
 OPTIMIZE_SIZE
 void io_init(void)
 {
-    // Ïðîìåæóòî÷íûå áóôåðû äëÿ ôîðìèîðâàíèÿ çíà÷åíèé ðåãèñòðîâ
+    // ÐŸÑ€Ð¾Ð¼ÐµÐ¶ÑƒÑ‚Ð¾Ñ‡Ð½Ñ‹Ðµ Ð±ÑƒÑ„ÐµÑ€Ñ‹ Ð´Ð»Ñ Ñ„Ð¾Ñ€Ð¼Ð¸Ð¾Ñ€Ð²Ð°Ð½Ð¸Ñ Ð·Ð½Ð°Ñ‡ÐµÐ½Ð¸Ð¹ Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€Ð¾Ð²
     uint32_t crl, crh, odr;
-    // Êîíôèãóðèðîâàíèå IO ïî óìîë÷àíèþ
+    // ÐšÐ¾Ð½Ñ„Ð¸Ð³ÑƒÑ€Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð¸Ðµ IO Ð¿Ð¾ ÑƒÐ¼Ð¾Ð»Ñ‡Ð°Ð½Ð¸ÑŽ
     RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_IOPBEN |                   // PA, PB clock enable
                     RCC_APB2ENR_IOPCEN | RCC_APB2ENR_IOPDEN;                    // PC, PD clock enable
-    // Ïîðò A
+    // ÐŸÐ¾Ñ€Ñ‚ A
     IO_LOAD(A);
         IO_INIT(IO_RSV0,        IO_MODE_INPUT_PULL);
         IO_INIT(IO_RSV1,        IO_MODE_INPUT_PULL);
         IO_INIT(IO_DBG_TX,      IO_MODE_OUTPUT_APP);    IO_HIGH(IO_DBG_TX);
         IO_INIT(IO_DBG_RX,      IO_MODE_INPUT_PULL);    IO_HIGH(IO_DBG_RX);
-        IO_INIT(IO_RSV4,        IO_MODE_OUTPUT_PP); // TODO: â IO_MODE_INPUT_PULL
+        IO_INIT(IO_RSV4,        IO_MODE_OUTPUT_PP); // TODO: Ð² IO_MODE_INPUT_PULL
         IO_INIT(IO_TSELA0,      IO_MODE_OUTPUT_PP);
         IO_INIT(IO_TSELA1,      IO_MODE_OUTPUT_PP);
         IO_INIT(IO_TSELA2,      IO_MODE_OUTPUT_PP);
@@ -44,7 +44,7 @@ void io_init(void)
         IO_INIT(IO_SWCLK,       IO_MODE_INPUT_PULL);
         IO_INIT(IO_ESP_CS,      IO_MODE_OUTPUT_PP);     IO_HIGH(IO_ESP_CS);
     IO_SAVE(A);
-    // Ïîðò B
+    // ÐŸÐ¾Ñ€Ñ‚ B
     IO_LOAD(B);
         IO_INIT(IO_RSV5,        IO_MODE_INPUT_PULL);
         IO_INIT(IO_RSV6,        IO_MODE_INPUT_PULL);
@@ -63,19 +63,19 @@ void io_init(void)
         IO_INIT(IO_TSELC2,      IO_MODE_OUTPUT_PP);
         IO_INIT(IO_TSELC3,      IO_MODE_OUTPUT_PP);
     IO_SAVE(B);
-    // Ïîðò C
+    // ÐŸÐ¾Ñ€Ñ‚ C
     IO_LOAD(C);
         IO_INIT(IO_ESP_RST,     IO_MODE_OUTPUT_PP);
         IO_INIT(IO_OSC32_IN,    IO_MODE_INPUT_PULL);
         IO_INIT(IO_OSC32_OUT,   IO_MODE_INPUT_PULL);
     IO_SAVE(C);
-    // Ïîðò D
+    // ÐŸÐ¾Ñ€Ñ‚ D
     IO_LOAD(D);
         IO_INIT(IO_OSC_IN,      IO_MODE_INPUT_PULL);
         IO_INIT(IO_OSC_OUT,     IO_MODE_INPUT_PULL);
     IO_SAVE(D);
 
-    // Ðåìàï
+    // Ð ÐµÐ¼Ð°Ð¿
     RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;                                         // AFIO clock enable
     AFIO->MAPR = AFIO_MAPR_TIM2_REMAP_PARTIALREMAP2 |                           // TIM2 partial remap (CH1/ETR/PA0, CH2/PA1, CH3/PB10, CH4/PB11)
                  AFIO_MAPR_SPI1_REMAP |                                         // SPI1 remap (NSS/PA15, SCK/PB3, MISO/PB4, MOSI/PB5)

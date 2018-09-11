@@ -1,37 +1,37 @@
-#ifndef __IO_H
+п»ї#ifndef __IO_H
 #define __IO_H
 
 #include "system.h"
 
-// --- Режимы порта IO --- //
+// --- Р РµР¶РёРјС‹ РїРѕСЂС‚Р° IO --- //
 
 #define IO_MODE_DECLARE(m, c)       (MASK_32(m, 0) | MASK_32(c, 2))
-// Вход
+// Р’С…РѕРґ
 #define IO_MODE_INPUT_ANALOG        IO_MODE_DECLARE(0, 0)
 #define IO_MODE_INPUT_FLOAT         IO_MODE_DECLARE(0, 1)
 #define IO_MODE_INPUT_PULL          IO_MODE_DECLARE(0, 2)
-// Выход на 10 МГц
+// Р’С‹С…РѕРґ РЅР° 10 РњР“С†
 #define IO_MODE_OUTPUT_PP_10MHZ     IO_MODE_DECLARE(1, 0)
 #define IO_MODE_OUTPUT_OD_10MHZ     IO_MODE_DECLARE(1, 1)
 #define IO_MODE_OUTPUT_APP_10MHZ    IO_MODE_DECLARE(1, 2)
 #define IO_MODE_OUTPUT_AOD_10MHZ    IO_MODE_DECLARE(1, 3)
-// Выход на 2 МГц
+// Р’С‹С…РѕРґ РЅР° 2 РњР“С†
 #define IO_MODE_OUTPUT_PP_2MHZ      IO_MODE_DECLARE(2, 0)
 #define IO_MODE_OUTPUT_OD_2MHZ      IO_MODE_DECLARE(2, 1)
 #define IO_MODE_OUTPUT_APP_2MHZ     IO_MODE_DECLARE(2, 2)
 #define IO_MODE_OUTPUT_AOD_2MHZ     IO_MODE_DECLARE(2, 3)
-// Выход на 50 МГц
+// Р’С‹С…РѕРґ РЅР° 50 РњР“С†
 #define IO_MODE_OUTPUT_PP_50MHZ     IO_MODE_DECLARE(3, 0)
 #define IO_MODE_OUTPUT_OD_50MHZ     IO_MODE_DECLARE(3, 1)
 #define IO_MODE_OUTPUT_APP_50MHZ    IO_MODE_DECLARE(3, 2)
 #define IO_MODE_OUTPUT_AOD_50MHZ    IO_MODE_DECLARE(3, 3)
-// Выход по умолчанию
+// Р’С‹С…РѕРґ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
 #define IO_MODE_OUTPUT_PP           IO_MODE_OUTPUT_PP_10MHZ
 #define IO_MODE_OUTPUT_OD           IO_MODE_OUTPUT_OD_10MHZ
 #define IO_MODE_OUTPUT_APP          IO_MODE_OUTPUT_APP_10MHZ
 #define IO_MODE_OUTPUT_AOD          IO_MODE_OUTPUT_AOD_10MHZ
 
-// Конфигурирование режима порта (расширенное)
+// РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ СЂРµР¶РёРјР° РїРѕСЂС‚Р° (СЂР°СЃС€РёСЂРµРЅРЅРѕРµ)
 #define IO_PORT_CFG_EXT(n, mode, crl, crh)              \
     SAFE_BLOCK(                                         \
         (((n) > 7) ?                                    \
@@ -41,25 +41,25 @@
             ((crh) |= MASK_32(mode, ((n) - 8) * 4)) :   \
             ((crl) |= MASK_32(mode, (n) * 4)))          \
     )
-// Конфигурирование режима порта (по выводу)
+// РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ СЂРµР¶РёРјР° РїРѕСЂС‚Р° (РїРѕ РІС‹РІРѕРґСѓ)
 #define IO_PORT_CFG(out, mode)          IO_PORT_CFG_EXT(out, mode, (out##_PORT)->CRL, (out##_PORT)->CRH)
 
-// --- Установка/Сброс вывода порта --- //
+// --- РЈСЃС‚Р°РЅРѕРІРєР°/РЎР±СЂРѕСЃ РІС‹РІРѕРґР° РїРѕСЂС‚Р° --- //
 
-// Получает маску порта по индексу
+// РџРѕР»СѓС‡Р°РµС‚ РјР°СЃРєСѓ РїРѕСЂС‚Р° РїРѕ РёРЅРґРµРєСЃСѓ
 #define IO_MASK(index)                  MASK_32(1, index)
         
-// Установка порта в LOW (по маске)
+// РЈСЃС‚Р°РЅРѕРІРєР° РїРѕСЂС‚Р° РІ LOW (РїРѕ РјР°СЃРєРµ)
 #define IO_PORT_RESET_MASK(port, mask)  (port)->BSRR |= MASK_32(mask, 16)
-// Установка порта в LOW (по выводу)
+// РЈСЃС‚Р°РЅРѕРІРєР° РїРѕСЂС‚Р° РІ LOW (РїРѕ РІС‹РІРѕРґСѓ)
 #define IO_PORT_RESET(out)              IO_PORT_RESET_MASK(out##_PORT, IO_MASK(out))
 
-// Установка порта в HIGH (по маске)
+// РЈСЃС‚Р°РЅРѕРІРєР° РїРѕСЂС‚Р° РІ HIGH (РїРѕ РјР°СЃРєРµ)
 #define IO_PORT_SET_MASK(port, mask)    (port)->BSRR |= MASK_32(mask, 0)
-// Установка порта в HIGH (по выводу)
+// РЈСЃС‚Р°РЅРѕРІРєР° РїРѕСЂС‚Р° РІ HIGH (РїРѕ РІС‹РІРѕРґСѓ)
 #define IO_PORT_SET(out)                IO_PORT_SET_MASK(out##_PORT, IO_MASK(out))
         
-// --- Порт A --- //
+// --- РџРѕСЂС‚ A --- //
 
 #define IO_RSV0                         0
 #define IO_RSV0_PORT                    GPIOA
@@ -73,7 +73,7 @@
 #define IO_DBG_RX                       3
 #define IO_DBG_RX_PORT                  GPIOA
 
-// Зарезервирован под отладочный пульс
+// Р—Р°СЂРµР·РµСЂРІРёСЂРѕРІР°РЅ РїРѕРґ РѕС‚Р»Р°РґРѕС‡РЅС‹Р№ РїСѓР»СЊСЃ
 #define IO_RSV4                         4
 #define IO_RSV4_PORT                    GPIOA
 
@@ -110,7 +110,7 @@
 #define IO_ESP_CS                       15
 #define IO_ESP_CS_PORT                  GPIOA
 
-// --- Порт B --- //
+// --- РџРѕСЂС‚ B --- //
 
 #define IO_RSV5                         0
 #define IO_RSV5_PORT                    GPIOB
@@ -160,7 +160,7 @@
 #define IO_TSELC3                       15
 #define IO_TSELC3_PORT                  GPIOB
 
-// --- Порт C --- //
+// --- РџРѕСЂС‚ C --- //
 
 #define IO_ESP_RST                      13
 #define IO_ESP_RST_PORT                 GPIOC
@@ -171,7 +171,7 @@
 #define IO_OSC32_OUT                    15
 #define IO_OSC32_OUT_PORT               GPIOC
 
-// --- Порт D --- //
+// --- РџРѕСЂС‚ D --- //
 
 #define IO_OSC_IN                       0
 #define IO_OSC_IN_PORT                  GPIOD
@@ -179,13 +179,13 @@
 #define IO_OSC_OUT                      1
 #define IO_OSC_OUT_PORT                 GPIOD
 
-// --- Вывод тактовой частоты ---- //
+// --- Р’С‹РІРѕРґ С‚Р°РєС‚РѕРІРѕР№ С‡Р°СЃС‚РѕС‚С‹ ---- //
 
 #define IO_MCO                          IO_SSEL0
 #define IO_MCO_PORT                     IO_SSEL0_PORT
 #define IO_MCO_OUTPUT_MODE              IO_MODE_OUTPUT_PP
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void io_init(void);
 
 #endif // __IO_H

@@ -1,4 +1,4 @@
-#include "io.h"
+п»ї#include "io.h"
 #include "mcu.h"
 #include "wdt.h"
 #include "clk.h"
@@ -10,10 +10,10 @@
 #include "event.h"
 #include "display.h"
 
-// Инициализация модулей
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»РµР№
 static void main_init(void)
 {
-    // Системные модули
+    // РЎРёСЃС‚РµРјРЅС‹Рµ РјРѕРґСѓР»Рё
     wdt_init();
     mcu_init();
     io_init();
@@ -21,7 +21,7 @@ static void main_init(void)
     clk_init();
     rtc_init();
     event_init();
-    // Остальные модули
+    // РћСЃС‚Р°Р»СЊРЅС‹Рµ РјРѕРґСѓР»Рё
     esp_init();
     led_init();
     tube_init();
@@ -100,7 +100,7 @@ static void led_enable_switch(void)
     }
 }
 
-// Для тестов
+// Р”Р»СЏ С‚РµСЃС‚РѕРІ
 static void main_tests(void)
 {
     led_filter_gamma.gamma_set(0.4f);
@@ -115,7 +115,7 @@ static void main_tests(void)
 
     //event_timer_start_us(led_enable_switch, 10000000, EVENT_TIMER_FLAG_LOOP);
     
-    // Проверка вывода частоты
+    // РџСЂРѕРІРµСЂРєР° РІС‹РІРѕРґР° С‡Р°СЃС‚РѕС‚С‹
     //RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;                                         // PA clock enable
     
     //util_reg_update_32(&GPIOA->CRH, /*GPIO_CRH_CNF8_1*/0, GPIO_CRH_CNF8);       // /Alt push pull
@@ -136,8 +136,8 @@ static void main_tests(void)
     
     clk_mco_output(CLK_MCO_SOURCE_SYS);*/
     
-    // Проверка частоты RTC
-    /*RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;                                         // PС clock enable
+    // РџСЂРѕРІРµСЂРєР° С‡Р°СЃС‚РѕС‚С‹ RTC
+    /*RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;                                         // PРЎ clock enable
     util_reg_update_32(&GPIOC->CRH, GPIO_CRH_CNF13_1, GPIO_CRH_CNF13);          // Alt push pull
         
     GPIOC->CRH |= GPIO_CRH_MODE13_0 | GPIO_CRH_MODE13_1;                        // Output 50 MHz
@@ -161,16 +161,16 @@ static void led_sat_test(void)
     }
 }
 
-// Точка входа в приложение
+// РўРѕС‡РєР° РІС…РѕРґР° РІ РїСЂРёР»РѕР¶РµРЅРёРµ
 __task __noreturn void main()
 {
     main_init();
-    // Выставление задач
+    // Р’С‹СЃС‚Р°РІР»РµРЅРёРµ Р·Р°РґР°С‡
     
-    // Тесты
+    // РўРµСЃС‚С‹
     main_tests();
     
-    // Обработка событий
+    // РћР±СЂР°Р±РѕС‚РєР° СЃРѕР±С‹С‚РёР№
     for (;;)
         event_execute();
 }

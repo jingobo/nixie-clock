@@ -1,53 +1,53 @@
-#include "io.h"
+п»ї#include "io.h"
 #include "clk.h"
 #include "mcu.h"
 #include "wdt.h"
 #include "nvic.h"
 
-// Точность измерения времени SysTick [1...1000]
+// РўРѕС‡РЅРѕСЃС‚СЊ РёР·РјРµСЂРµРЅРёСЏ РІСЂРµРјРµРЅРё SysTick [1...1000]
 #define CLK_SYSTICK_DIVIDER        10
 
-// Отсчет тиков системного таймера в мС
+// РћС‚СЃС‡РµС‚ С‚РёРєРѕРІ СЃРёСЃС‚РµРјРЅРѕРіРѕ С‚Р°Р№РјРµСЂР° РІ РјРЎ
 static volatile __no_init clk_period_ms_t clk_systick;
 
-// Проверки готовности HSE
+// РџСЂРѕРІРµСЂРєРё РіРѕС‚РѕРІРЅРѕСЃС‚Рё HSE
 static bool clk_check_hse(void)
 {
     return RCC->CR & RCC_CR_HSERDY;                                             // Check HSE ready flag
 }
 
-// Проверка готовности PLL
+// РџСЂРѕРІРµСЂРєР° РіРѕС‚РѕРІРЅРѕСЃС‚Рё PLL
 static bool clk_check_pll(void)
 {
     return RCC->CR & RCC_CR_PLLRDY;                                             // Check PLL ready flag
 }
 
-// Проверка PLL как источкник HCLK
+// РџСЂРѕРІРµСЂРєР° PLL РєР°Рє РёСЃС‚РѕС‡РєРЅРёРє HCLK
 static bool clk_check_pll_hclk(void)
 {
     return (RCC->CFGR & RCC_CFGR_SWS) == RCC_CFGR_SWS_PLL;                      // Check PLL as system clock
 }
 
-// Обновление системного таймера при смене тактирования
+// РћР±РЅРѕРІР»РµРЅРёРµ СЃРёСЃС‚РµРјРЅРѕРіРѕ С‚Р°Р№РјРµСЂР° РїСЂРё СЃРјРµРЅРµ С‚Р°РєС‚РёСЂРѕРІР°РЅРёСЏ
 static void clk_systick_update(void)
 {
-    // Определяем частоту ядра
+    // РћРїСЂРµРґРµР»СЏРµРј С‡Р°СЃС‚РѕС‚Сѓ СЏРґСЂР°
     uint32_t f_mcu = clk_check_pll_hclk() ? FMCU_NORMAL_MHZ : FMCU_STARTUP_MHZ;
-    // Инициализация SysTick на 1 мС
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ SysTick РЅР° 1 РјРЎ
     SysTick_Config(f_mcu * (1000 / CLK_SYSTICK_DIVIDER));
 }
 
-// Внутрення функция инициализация системы тактирования (пришлось разогнать до 96МГц)
+// Р’РЅСѓС‚СЂРµРЅРЅСЏ С„СѓРЅРєС†РёСЏ РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ СЃРёСЃС‚РµРјС‹ С‚Р°РєС‚РёСЂРѕРІР°РЅРёСЏ (РїСЂРёС€Р»РѕСЃСЊ СЂР°Р·РѕРіРЅР°С‚СЊ РґРѕ 96РњР“С†)
 INLINE_FORCED
 static bool clk_init_internal(void)
 {
-    // Запуск HSE
+    // Р—Р°РїСѓСЃРє HSE
     RCC->CR &= ~RCC_CR_HSEBYP;                                                  // HSE bypass disable
     RCC->CR |= RCC_CR_HSEON;                                                    // HSE enable
-    // Ожидание запуска HSE, 100 мС
+    // РћР¶РёРґР°РЅРёРµ Р·Р°РїСѓСЃРєР° HSE, 100 РјРЎ
     if (!clk_pool(clk_check_hse, 100))                                          // Wait for HSE ready
         return true;
-    // Конфигурирование высокочастотной части системы тактирования
+    // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ РІС‹СЃРѕРєРѕС‡Р°СЃС‚РѕС‚РЅРѕР№ С‡Р°СЃС‚Рё СЃРёСЃС‚РµРјС‹ С‚Р°РєС‚РёСЂРѕРІР°РЅРёСЏ
     mcu_reg_update_32(&RCC->CFGR,                                               // HPRE /1, AHB /1, APB1 /2, APB2 /1, PLLSRC HSE, PLLXTPRE /1, PLL x12, USBPRE /1.5
         // Value
         RCC_CFGR_HPRE_DIV1 | RCC_CFGR_PPRE1_DIV2 | RCC_CFGR_PPRE2_DIV1 |
@@ -55,28 +55,28 @@ static bool clk_init_internal(void)
         // Mask
         RCC_CFGR_HPRE | RCC_CFGR_PPRE1 | RCC_CFGR_PPRE2 | RCC_CFGR_PLLSRC |
         RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL | RCC_CFGR_USBPRE);
-    // Запуск PLL и ожидание стабилизации, 2 мС
+    // Р—Р°РїСѓСЃРє PLL Рё РѕР¶РёРґР°РЅРёРµ СЃС‚Р°Р±РёР»РёР·Р°С†РёРё, 2 РјРЎ
     RCC->CR |= RCC_CR_PLLON;                                                    // PLL enable
     if (!clk_pool(clk_check_pll))                                               // Wait for PLL ready
         return true;
     mcu_reg_update_32(&FLASH->ACR, FLASH_ACR_LATENCY_1, FLASH_ACR_LATENCY);     // Flash latency 2 wait states
-    // Переключение тактовой частоты
+    // РџРµСЂРµРєР»СЋС‡РµРЅРёРµ С‚Р°РєС‚РѕРІРѕР№ С‡Р°СЃС‚РѕС‚С‹
     mcu_reg_update_32(&RCC->CFGR, RCC_CFGR_SW_PLL, RCC_CFGR_SW);                // PLL select
-    // Ожидание перехода на PLL, 1 мС
+    // РћР¶РёРґР°РЅРёРµ РїРµСЂРµС…РѕРґР° РЅР° PLL, 1 РјРЎ
     if (!clk_pool(clk_check_pll_hclk))                                          // Wait for PLL ready
         return true;
     clk_systick_update();
-    // Запуск CSS на HSE
+    // Р—Р°РїСѓСЃРє CSS РЅР° HSE
     RCC->CR |= RCC_CR_CSSON;                                                    // CSS on HSE enable
     return false;
 }
 
 void clk_init(void)
 {
-    // Явно включать прерывание SysTick нельзя, оно немаскируемое
+    // РЇРІРЅРѕ РІРєР»СЋС‡Р°С‚СЊ РїСЂРµСЂС‹РІР°РЅРёРµ SysTick РЅРµР»СЊР·СЏ, РѕРЅРѕ РЅРµРјР°СЃРєРёСЂСѓРµРјРѕРµ
     clk_systick_update();
     nvic_irq_priority_set(SysTick_IRQn, NVIC_IRQ_PRIORITY_LOWEST);              // Lowest SysTick IRQ priority
-    // Инициализация тактирования
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ С‚Р°РєС‚РёСЂРѕРІР°РЅРёСЏ
     if (clk_init_internal())
         mcu_halt(MCU_HALT_REASON_RCC);
 }
@@ -99,7 +99,7 @@ void clk_mco_output(clk_mco_source_t source)
     }
 }
 
-// Шаблон для функции ожидания
+// РЁР°Р±Р»РѕРЅ РґР»СЏ С„СѓРЅРєС†РёРё РѕР¶РёРґР°РЅРёСЏ
 #define CLK_DELAY_TEMPLATE(code)                                \
     assert(ms <= ((clk_period_ms_t)-1) / CLK_SYSTICK_DIVIDER);  \
     ms *= CLK_SYSTICK_DIVIDER;                                  \

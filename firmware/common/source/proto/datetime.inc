@@ -1,43 +1,43 @@
-ALIGN_FIELD_8
-// Загрушка для структры запроса/ответа
+п»їALIGN_FIELD_8
+// Р—Р°РіСЂСѓС€РєР° РґР»СЏ СЃС‚СЂСѓРєС‚СЂС‹ Р·Р°РїСЂРѕСЃР°/РѕС‚РІРµС‚Р°
 struct command_common_dummy_t
 {
     uint8_t dummy;
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     command_common_dummy_t(void) : dummy(0)
     { }
 
-    // Проверка значения
+    // РџСЂРѕРІРµСЂРєР° Р·РЅР°С‡РµРЅРёСЏ
     ROM bool check(void) const
     {
         return dummy == 0;
     }
 };
 
-// Данные ответа команды даты/времени
+// Р”Р°РЅРЅС‹Рµ РѕС‚РІРµС‚Р° РєРѕРјР°РЅРґС‹ РґР°С‚С‹/РІСЂРµРјРµРЅРё
 struct command_datetime_response_t
 {
-    // Дата/время (возможно не валидная)
+    // Р”Р°С‚Р°/РІСЂРµРјСЏ (РІРѕР·РјРѕР¶РЅРѕ РЅРµ РІР°Р»РёРґРЅР°СЏ)
     datetime_t datetime;
-    // Код качества
+    // РљРѕРґ РєР°С‡РµСЃС‚РІР°
     enum quality_t
     {
-        // Нормальное время
+        // РќРѕСЂРјР°Р»СЊРЅРѕРµ РІСЂРµРјСЏ
         QUALITY_SUCCESS = 0,
-        // Нет списка серверов
+        // РќРµС‚ СЃРїРёСЃРєР° СЃРµСЂРІРµСЂРѕРІ
         QUALITY_NOLIST,
-        // Проблемы с сетью
+        // РџСЂРѕР±Р»РµРјС‹ СЃ СЃРµС‚СЊСЋ
         QUALITY_NETWORK,
 
-        // Для определения количества значений
+        // Р”Р»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ РєРѕР»РёС‡РµСЃС‚РІР° Р·РЅР°С‡РµРЅРёР№
         QUALITY_COUNT
     } quality : 8;
 
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     command_datetime_response_t(void) : quality(QUALITY_SUCCESS)
     { }
 
-    // Провера полей
+    // РџСЂРѕРІРµСЂР° РїРѕР»РµР№
     ROM bool check(void) const
     {
         if (quality >= QUALITY_COUNT)
@@ -50,30 +50,30 @@ ALIGN_FIELD_DEF
 class command_datetime_t : public ipc_command_data_template_t<command_common_dummy_t, command_datetime_response_t>
 {
 public:
-    // Конструктор по умолчанию
-    command_datetime_t(void) : ipc_command_data_template_t(1) // 1 - код команды DATETIME
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
+    command_datetime_t(void) : ipc_command_data_template_t(1) // 1 - РєРѕРґ РєРѕРјР°РЅРґС‹ DATETIME
     { }
 protected:
-    // Кодирование данных, возвращает количество записанных данных
+    // РљРѕРґРёСЂРѕРІР°РЅРёРµ РґР°РЅРЅС‹С…, РІРѕР·РІСЂР°С‰Р°РµС‚ РєРѕР»РёС‡РµСЃС‚РІРѕ Р·Р°РїРёСЃР°РЅРЅС‹С… РґР°РЅРЅС‹С…
     virtual size_t encode(ipc_dir_t dir) const;
-    // Декодирование данных
+    // Р”РµРєРѕРґРёСЂРѕРІР°РЅРёРµ РґР°РЅРЅС‹С…
     virtual bool decode(ipc_dir_t dir, size_t size);
 };
 
-// Кодирование данных, возвращает количество записанных данных
+// РљРѕРґРёСЂРѕРІР°РЅРёРµ РґР°РЅРЅС‹С…, РІРѕР·РІСЂР°С‰Р°РµС‚ РєРѕР»РёС‡РµСЃС‚РІРѕ Р·Р°РїРёСЃР°РЅРЅС‹С… РґР°РЅРЅС‹С…
 ROM size_t command_datetime_t::encode(ipc_dir_t dir) const
 {
-    // Проверка данных
+    // РџСЂРѕРІРµСЂРєР° РґР°РЅРЅС‹С…
     assert(dir != IPC_DIR_RESPONSE || response.check());
     assert(dir != IPC_DIR_REQUEST || request.check());
-    // Базовый метод
+    // Р‘Р°Р·РѕРІС‹Р№ РјРµС‚РѕРґ
     return ipc_command_data_template_t::encode(dir);
 }
 
-// Декодирование данных
+// Р”РµРєРѕРґРёСЂРѕРІР°РЅРёРµ РґР°РЅРЅС‹С…
 ROM bool command_datetime_t::decode(ipc_dir_t dir, size_t size)
 {
-    // Проверка данных
+    // РџСЂРѕРІРµСЂРєР° РґР°РЅРЅС‹С…
     switch (dir)
     {
         case IPC_DIR_REQUEST:
@@ -87,7 +87,7 @@ ROM bool command_datetime_t::decode(ipc_dir_t dir, size_t size)
         default:
             return false;
     }
-    // Базовый метод
+    // Р‘Р°Р·РѕРІС‹Р№ РјРµС‚РѕРґ
     return ipc_command_data_template_t::decode(dir, size);
 }
 

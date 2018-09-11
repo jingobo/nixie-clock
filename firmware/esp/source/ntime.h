@@ -1,9 +1,9 @@
-#ifndef __NTIME_H
+п»ї#ifndef __NTIME_H
 #define __NTIME_H
 
 #include "system.h"
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void ntime_init(void);
 
 #endif // __NTIME_H

@@ -1,14 +1,14 @@
-#ifndef __CORE_H
+п»ї#ifndef __CORE_H
 #define __CORE_H
 
 #include <ipc.h>
 #include "system.h"
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void core_init(void);
-// Добавление обработчика в список
+// Р”РѕР±Р°РІР»РµРЅРёРµ РѕР±СЂР°Р±РѕС‚С‡РёРєР° РІ СЃРїРёСЃРѕРє
 void core_handler_add_command(ipc_handler_command_t &handler);
-// Передача данных (потокобезопасно)
+// РџРµСЂРµРґР°С‡Р° РґР°РЅРЅС‹С… (РїРѕС‚РѕРєРѕР±РµР·РѕРїР°СЃРЅРѕ)
 bool core_transmit(ipc_dir_t dir, const ipc_command_data_t &data);
 
 #endif // __CORE_H

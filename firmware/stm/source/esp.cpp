@@ -1,4 +1,4 @@
-#include "io.h"
+п»ї#include "io.h"
 #include "esp.h"
 #include "mcu.h"
 #include "nvic.h"
@@ -8,61 +8,61 @@
 #define DMA1_C2                 DMA1_Channel2
 #define DMA1_C3                 DMA1_Channel3
 
-// Команда ESP8266 TX & RX подчиненного устройства
+// РљРѕРјР°РЅРґР° ESP8266 TX & RX РїРѕРґС‡РёРЅРµРЅРЅРѕРіРѕ СѓСЃС‚СЂРѕР№СЃС‚РІР°
 #define ESP_SPI_CMD_RD_WR       0x06
 
-// Класс работы с ESP
+// РљР»Р°СЃСЃ СЂР°Р±РѕС‚С‹ СЃ ESP
 static class esp_t : public ipc_controller_t, public event_base_t
 {
-    // Счетчик ошибок передачи
+    // РЎС‡РµС‚С‡РёРє РѕС€РёР±РѕРє РїРµСЂРµРґР°С‡Рё
     uint32_t corruption_count;
     
-    // Ввода/вывод
+    // Р’РІРѕРґР°/РІС‹РІРѕРґ
     class io_t : public event_base_t
     {
-        // Буфер пакета для DMA
+        // Р‘СѓС„РµСЂ РїР°РєРµС‚Р° РґР»СЏ DMA
         ALIGN_FIELD_8
         struct
         {
-            // Для выравнивания к четному адресу
+            // Р”Р»СЏ РІС‹СЂР°РІРЅРёРІР°РЅРёСЏ Рє С‡РµС‚РЅРѕРјСѓ Р°РґСЂРµСЃСѓ
             uint8_t pads[3];
             struct
             {
-                // Байт команды для ESP8266
+                // Р‘Р°Р№С‚ РєРѕРјР°РЅРґС‹ РґР»СЏ ESP8266
                 uint8_t command;
-                // Пакет приёма и передачи
+                // РџР°РєРµС‚ РїСЂРёС‘РјР° Рё РїРµСЂРµРґР°С‡Рё
                 ipc_packet_t tx, rx;
             } dma;
         };
         ALIGN_FIELD_DEF
-        // Родительский класс
+        // Р РѕРґРёС‚РµР»СЊСЃРєРёР№ РєР»Р°СЃСЃ
         esp_t &esp;
-        // Флаг активности транзакцими
+        // Р¤Р»Р°Рі Р°РєС‚РёРІРЅРѕСЃС‚Рё С‚СЂР°РЅР·Р°РєС†РёРјРё
         bool active;
         
-        // Инициализация канала DMA
+        // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєР°РЅР°Р»Р° DMA
         void dma_channel_init(DMA_Channel_TypeDef *channel, uint32_t flags) const
         {
-            // Конфигурирование DMA
+            // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ DMA
             mcu_dma_channel_setup_pm(channel,
-                // Из SPI
+                // РР· SPI
                 SPI1->DR, 
-                // В память
+                // Р’ РїР°РјСЏС‚СЊ
                 &dma);
             channel->CCR |= DMA_CCR_MINC | DMA_CCR_PL_1 | flags;                // Direction (flags), Memory increment (8-bit), Peripheral size 8-bit, High priority
         }
     protected:
-        // Обработчик события начала ввода/вывод
+        // РћР±СЂР°Р±РѕС‚С‡РёРє СЃРѕР±С‹С‚РёСЏ РЅР°С‡Р°Р»Р° РІРІРѕРґР°/РІС‹РІРѕРґ
         virtual void notify_event(void)
         {
             if (active)
                 return;
             active = true;
-            // Подготовка данных
+            // РџРѕРґРіРѕС‚РѕРІРєР° РґР°РЅРЅС‹С…
             packet_clear(dma.rx);
             esp.packet_output(dma.tx);
             dma.command = ESP_SPI_CMD_RD_WR;
-            // Начало передачи
+            // РќР°С‡Р°Р»Рѕ РїРµСЂРµРґР°С‡Рё
             IO_PORT_RESET(IO_ESP_CS);                                           // Slave select
             // DMA
             DMA1_C2->CNDTR = DMA1_C3->CNDTR = sizeof(dma);                      // Transfer data size
@@ -70,66 +70,66 @@ static class esp_t : public ipc_controller_t, public event_base_t
             DMA1_C3->CCR |= DMA_CCR_EN;                                         // Channel enable
         }
     public:
-        // Конструктор по умолчанию
+        // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
         io_t(esp_t &parent) : esp(parent), active(false)
         { }
         
-        // Инициализация каналов DMA
+        // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєР°РЅР°Р»РѕРІ DMA
         void init(void) const
         {
-            // Канал 2 (RX)
+            // РљР°РЅР°Р» 2 (RX)
             dma_channel_init(DMA1_C2, DMA_CCR_TCIE);                            // Transfer complete IRQ enable
-            // Канал 3 (TX)
+            // РљР°РЅР°Р» 3 (TX)
             dma_channel_init(DMA1_C3, DMA_CCR_DIR);                             // Memory to peripheral
         }
         
-        // Завершение ввода/вывода (возвращает - нужно ли форсировать опрос)
+        // Р—Р°РІРµСЂС€РµРЅРёРµ РІРІРѕРґР°/РІС‹РІРѕРґР° (РІРѕР·РІСЂР°С‰Р°РµС‚ - РЅСѓР¶РЅРѕ Р»Рё С„РѕСЂСЃРёСЂРѕРІР°С‚СЊ РѕРїСЂРѕСЃ)
         bool finalize(void)
         {
             active = false;
-            // Извлекаем пакет
+            // РР·РІР»РµРєР°РµРј РїР°РєРµС‚
             esp.packet_input(dma.rx);
-            // Определение форсирования
+            // РћРїСЂРµРґРµР»РµРЅРёРµ С„РѕСЂСЃРёСЂРѕРІР°РЅРёСЏ
             return dma.rx.dll.fast;
         }
     } io;
     
-    // Cброс чипа
+    // CР±СЂРѕСЃ С‡РёРїР°
     class reset_chip_t : public notify_t
     {
-        // Родительский класс
+        // Р РѕРґРёС‚РµР»СЊСЃРєРёР№ РєР»Р°СЃСЃ
         esp_t &esp;
     protected:
-        // Обработчик события начала ввода/вывод
+        // РћР±СЂР°Р±РѕС‚С‡РёРє СЃРѕР±С‹С‚РёСЏ РЅР°С‡Р°Р»Р° РІРІРѕРґР°/РІС‹РІРѕРґ
         virtual void notify_event(void)
         {
             IO_PORT_SET(IO_ESP_CS);                                             // Slave deselect
-            // Запуск таймера опроса на 10 Гц
+            // Р—Р°РїСѓСЃРє С‚Р°Р№РјРµСЂР° РѕРїСЂРѕСЃР° РЅР° 10 Р“С†
             event_timer_start_hz(esp.io, 10, EVENT_TIMER_FLAG_LOOP);
         }
     public:
-        // Конструктор по умолчанию
+        // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
         reset_chip_t(esp_t &parent) : esp(parent)
         { }
         
-        // Сброс чипа
+        // РЎР±СЂРѕСЃ С‡РёРїР°
         void operator ()(void)
         {
-            // Остановка таймера опроса
+            // РћСЃС‚Р°РЅРѕРІРєР° С‚Р°Р№РјРµСЂР° РѕРїСЂРѕСЃР°
             event_timer_stop(esp.io);
-            // Начало сброса
+            // РќР°С‡Р°Р»Рѕ СЃР±СЂРѕСЃР°
             IO_PORT_RESET(IO_ESP_CS);                                           // Slave select
             IO_PORT_RESET(IO_ESP_RST);                                          // Esp reset
-                // Сброс слотов
+                // РЎР±СЂРѕСЃ СЃР»РѕС‚РѕРІ
                 esp.clear_slots();
-                // Таймер на ожидание инициализации на 150 мС
+                // РўР°Р№РјРµСЂ РЅР° РѕР¶РёРґР°РЅРёРµ РёРЅРёС†РёР°Р»РёР·Р°С†РёРё РЅР° 150 РјРЎ
                 event_timer_start_us(*this, 150000);
             IO_PORT_SET(IO_ESP_RST);                                            // Esp unreset
         }
     } reset_chip;
     
 protected:
-    // Сброс прикладного уровня
+    // РЎР±СЂРѕСЃ РїСЂРёРєР»Р°РґРЅРѕРіРѕ СѓСЂРѕРІРЅСЏ
     virtual void reset_layer(ipc_command_flow_t::reason_t reason, bool internal = true)
     {
         ipc_controller_t::reset_layer(reason, internal);
@@ -137,7 +137,7 @@ protected:
             corruption_count += 2;
     }
     
-    // Добавление данных к передаче
+    // Р”РѕР±Р°РІР»РµРЅРёРµ РґР°РЅРЅС‹С… Рє РїРµСЂРµРґР°С‡Рµ
     virtual bool transmit_raw(ipc_dir_t dir, ipc_command_t command, const void *source, size_t size)
     {
         auto result = ipc_controller_t::transmit_raw(dir, command, source, size);
@@ -146,12 +146,12 @@ protected:
         return result;
     }
     
-    // Обработчик события получения пакета
+    // РћР±СЂР°Р±РѕС‚С‡РёРє СЃРѕР±С‹С‚РёСЏ РїРѕР»СѓС‡РµРЅРёСЏ РїР°РєРµС‚Р°
     virtual void notify_event(void)
     {
-        // Завершение ввода/вывода
+        // Р—Р°РІРµСЂС€РµРЅРёРµ РІРІРѕРґР°/РІС‹РІРѕРґР°
         auto force = io.finalize();
-        // Обработка счетчика ошибок передачи
+        // РћР±СЂР°Р±РѕС‚РєР° СЃС‡РµС‚С‡РёРєР° РѕС€РёР±РѕРє РїРµСЂРµРґР°С‡Рё
         if (corruption_count > 0 && --corruption_count >= 10)
         {
             reset_chip();
@@ -159,21 +159,21 @@ protected:
         }
         if (!tx_empty())
             force = true;
-        // Форсирование передачи
+        // Р¤РѕСЂСЃРёСЂРѕРІР°РЅРёРµ РїРµСЂРµРґР°С‡Рё
         if (force)
             event_add(io);
     }
 public:
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     esp_t(void) : io(*this), reset_chip(*this), corruption_count(0)
     { }
     
-    // Инициализация контроллера
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєРѕРЅС‚СЂРѕР»Р»РµСЂР°
     void init(void)
     {
-        // Инициализация каналов DMA
+        // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєР°РЅР°Р»РѕРІ DMA
         io.init();
-        // Сброс чипаа
+        // РЎР±СЂРѕСЃ С‡РёРїР°Р°
         reset_chip();
     }    
 } esp;
@@ -181,21 +181,21 @@ public:
 void esp_init(void)
 {
     IPC_PKT_SIZE_CHECK();
-    // Тактирование и сброс SPI
+    // РўР°РєС‚РёСЂРѕРІР°РЅРёРµ Рё СЃР±СЂРѕСЃ SPI
     RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;                                         // SPI1 clock enable
     RCC->APB2RSTR |= RCC_APB2RSTR_SPI1RST;                                      // SPI1 reset
     RCC->APB2RSTR &= ~RCC_APB2RSTR_SPI1RST;                                     // SPI1 unreset
-    // Конфигурирование SPI (6 МГц @ MCU 96 МГц)
+    // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ SPI (6 РњР“С† @ MCU 96 РњР“С†)
     SPI1->CR1 = SPI_CR1_MSTR | SPI_CR1_BR_1 | SPI_CR1_BR_0 |                    // SPI disable, CPHA first, CPOL low, Master, Clock /16, MSB, 8-bit, No CRC, Full Duplex
                 SPI_CR1_SSM | SPI_CR1_SSI;                                      // SSM on, SSI on
     SPI1->CR2 = SPI_CR2_TXDMAEN | SPI_CR2_RXDMAEN;                              // DMA TX RX enable
     SPI1->CR1 |= SPI_CR1_SPE;                                                   // SPI1 enable
 
-    // Конфигурирование DMA
+    // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ DMA
     DMA1->IFCR |= DMA_IFCR_CTCIF2;                                              // Clear CTCIF
-    // Включаем прерывание канала DMA
+    // Р’РєР»СЋС‡Р°РµРј РїСЂРµСЂС‹РІР°РЅРёРµ РєР°РЅР°Р»Р° DMA
     nvic_irq_enable_set(DMA1_Channel2_IRQn, true);
-    // Инициализация контроллера
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РєРѕРЅС‚СЂРѕР»Р»РµСЂР°
     esp.init();
 }
 

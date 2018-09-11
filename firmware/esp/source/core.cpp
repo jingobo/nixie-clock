@@ -1,26 +1,26 @@
-#include "io.h"
+п»ї#include "io.h"
 #include "core.h"
 #include "task.h"
 #include "event.h"
 #include "ntime.h"
 
-// Номера модулей SPI
+// РќРѕРјРµСЂР° РјРѕРґСѓР»РµР№ SPI
 #define SPI             0
 #define HSPI            1
-// Адрес статусного регистра прерываний SPI (HSPI, I2S)
+// РђРґСЂРµСЃ СЃС‚Р°С‚СѓСЃРЅРѕРіРѕ СЂРµРіРёСЃС‚СЂР° РїСЂРµСЂС‹РІР°РЅРёР№ SPI (HSPI, I2S)
 #define IRQ_SRC_REG     0x3ff00020
-// Источники прерывания
+// РСЃС‚РѕС‡РЅРёРєРё РїСЂРµСЂС‹РІР°РЅРёСЏ
 #define IRQ_SRC_SPI     BIT4
 #define IRQ_SRC_HSPI    BIT7
 #define IRQ_SRC_I2S     BIT9
-// Имя модуля для логирования
+// РРјСЏ РјРѕРґСѓР»СЏ РґР»СЏ Р»РѕРіРёСЂРѕРІР°РЅРёСЏ
 #define MODULE_NAME     "CORE"
 
 #ifndef NDEBUG
-    // Отладочный вывод содержимого SPI регистров
+    // РћС‚Р»Р°РґРѕС‡РЅС‹Р№ РІС‹РІРѕРґ СЃРѕРґРµСЂР¶РёРјРѕРіРѕ SPI СЂРµРіРёСЃС‚СЂРѕРІ
     ROM static void core_spi_debug(void)
     {
-        // Основные регистры
+        // РћСЃРЅРѕРІРЅС‹Рµ СЂРµРіРёСЃС‚СЂС‹
         log_module(MODULE_NAME, "SPI_CMD       [0x%08x]", READ_PERI_REG(SPI_CMD(HSPI)));
         log_module(MODULE_NAME, "SPI_CTRL      [0x%08x]", READ_PERI_REG(SPI_CTRL(HSPI)));
         log_module(MODULE_NAME, "SPI_CTRL2     [0x%08x]", READ_PERI_REG(SPI_CTRL2(HSPI)));
@@ -39,87 +39,87 @@
             log_module(MODULE_NAME, "ADDR[0x%08x],Value[0x%08x]", reg, READ_PERI_REG(reg));
         }
     }
-    // Отладочный вывод
+    // РћС‚Р»Р°РґРѕС‡РЅС‹Р№ РІС‹РІРѕРґ
     #define CORE_SPI_DEBUG()    core_spi_debug()
 #else // NDEBUG
-    // Отладочный вывод
+    // РћС‚Р»Р°РґРѕС‡РЅС‹Р№ РІС‹РІРѕРґ
     #define CORE_SPI_DEBUG()    BLOCK_EMPTY
 #endif // NDEBUG
 
-// Контроллер пакетов
+// РљРѕРЅС‚СЂРѕР»Р»РµСЂ РїР°РєРµС‚РѕРІ
 static class core_t : public ipc_controller_t, public task_wrapper_t
 {
-    // Буфер для пакетов приёма/передачи
+    // Р‘СѓС„РµСЂ РґР»СЏ РїР°РєРµС‚РѕРІ РїСЂРёС‘РјР°/РїРµСЂРµРґР°С‡Рё
     union
     {
-        // Пакеты приёма/передачи
+        // РџР°РєРµС‚С‹ РїСЂРёС‘РјР°/РїРµСЂРµРґР°С‡Рё
         struct
         {
             ipc_packet_t rx, tx;
         };
-        // Для FIFO
+        // Р”Р»СЏ FIFO
         uint32_t raw[IPC_PKT_SIZE  / sizeof(uint32_t) * 2];
     } buffer;
 
-    // Данные последнего полученного пакета TODO: нужно нормально рассчитать длинну массива
+    // Р”Р°РЅРЅС‹Рµ РїРѕСЃР»РµРґРЅРµРіРѕ РїРѕР»СѓС‡РµРЅРЅРѕРіРѕ РїР°РєРµС‚Р° TODO: РЅСѓР¶РЅРѕ РЅРѕСЂРјР°Р»СЊРЅРѕ СЂР°СЃСЃС‡РёС‚Р°С‚СЊ РґР»РёРЅРЅСѓ РјР°СЃСЃРёРІР°
     uint8_t data[256];
-    // Событие готовности данных
+    // РЎРѕР±С‹С‚РёРµ РіРѕС‚РѕРІРЅРѕСЃС‚Рё РґР°РЅРЅС‹С…
     event_auto_t event_data_ready;
 
-    // Выполнение транзакции
+    // Р’С‹РїРѕР»РЅРµРЅРёРµ С‚СЂР°РЅР·Р°РєС†РёРё
     void transaction(void);
 protected:
-    // Обработчик события подготовки к получению данных (получение буфера и печенек)
+    // РћР±СЂР°Р±РѕС‚С‡РёРє СЃРѕР±С‹С‚РёСЏ РїРѕРґРіРѕС‚РѕРІРєРё Рє РїРѕР»СѓС‡РµРЅРёСЋ РґР°РЅРЅС‹С… (РїРѕР»СѓС‡РµРЅРёРµ Р±СѓС„РµСЂР° Рё РїРµС‡РµРЅРµРє)
     virtual bool receive_prepare(const ipc_packet_t &packet, receive_args_t &args);
-    // Обработчик события завершения получения данных (пакеты собраны)
+    // РћР±СЂР°Р±РѕС‚С‡РёРє СЃРѕР±С‹С‚РёСЏ Р·Р°РІРµСЂС€РµРЅРёСЏ РїРѕР»СѓС‡РµРЅРёСЏ РґР°РЅРЅС‹С… (РїР°РєРµС‚С‹ СЃРѕР±СЂР°РЅС‹)
     virtual bool receive_finalize(const ipc_packet_t &packet, const receive_args_t &args);
-    // Полный сброс прикладного уровня
+    // РџРѕР»РЅС‹Р№ СЃР±СЂРѕСЃ РїСЂРёРєР»Р°РґРЅРѕРіРѕ СѓСЂРѕРІРЅСЏ
     virtual void reset_layer(ipc_command_flow_t::reason_t reason, bool internal = true);
-    // Обработчик задачи
+    // РћР±СЂР°Р±РѕС‚С‡РёРє Р·Р°РґР°С‡Рё
     virtual void execute(void);
 public:
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     core_t(void) : task_wrapper_t("core")
     { }
 
-    // Обработчик прерывания от HSPI
+    // РћР±СЂР°Р±РѕС‚С‡РёРє РїСЂРµСЂС‹РІР°РЅРёСЏ РѕС‚ HSPI
     static void spi_isr(void *dummy);
 } core;
 
 ROM bool core_t::receive_prepare(const ipc_packet_t &packet, receive_args_t &args)
 {
-    // Индикация
+    // РРЅРґРёРєР°С†РёСЏ
     IO_LED_YELLOW.flash();
-    // Если не запрос - значит не нам
+    // Р•СЃР»Рё РЅРµ Р·Р°РїСЂРѕСЃ - Р·РЅР°С‡РёС‚ РЅРµ РЅР°Рј
     if (packet.dll.dir != IPC_DIR_REQUEST)
     {
         args.buffer = data;
-        // TODO: отправка вебсокету
+        // TODO: РѕС‚РїСЂР°РІРєР° РІРµР±СЃРѕРєРµС‚Сѓ
         return true;
     }
-    // Базовый обработчик
+    // Р‘Р°Р·РѕРІС‹Р№ РѕР±СЂР°Р±РѕС‚С‡РёРє
     return ipc_controller_t::receive_prepare(packet, args);
 }
 
 ROM bool core_t::receive_finalize(const ipc_packet_t &packet, const receive_args_t &args)
 {
-    // Если не запрос - значит не нам
+    // Р•СЃР»Рё РЅРµ Р·Р°РїСЂРѕСЃ - Р·РЅР°С‡РёС‚ РЅРµ РЅР°Рј
     if (packet.dll.dir != IPC_DIR_REQUEST)
     {
         log_module(MODULE_NAME, "Web response 0x%02x, %d bytes", packet.dll.command, args.size);
-        // TODO: отправка вебсокету
+        // TODO: РѕС‚РїСЂР°РІРєР° РІРµР±СЃРѕРєРµС‚Сѓ
         return true;
     }
     log_module(MODULE_NAME, "Esp request 0x%02x, %d bytes", packet.dll.command, args.size);
-    // Базовый обработчик
+    // Р‘Р°Р·РѕРІС‹Р№ РѕР±СЂР°Р±РѕС‚С‡РёРє
     return ipc_controller_t::receive_finalize(packet, args);
 }
 
 ROM void core_t::reset_layer(ipc_command_flow_t::reason_t reason, bool internal)
 {
-    // Базовый метод
+    // Р‘Р°Р·РѕРІС‹Р№ РјРµС‚РѕРґ
     ipc_controller_t::reset_layer(reason, internal);
-    // Вывод в лог
+    // Р’С‹РІРѕРґ РІ Р»РѕРі
     log_module(MODULE_NAME, "Layer reset, reason %d, internal %d", reason, internal);
 }
 
@@ -133,19 +133,19 @@ ROM void core_t::execute(void)
 
 ROM void core_t::transaction(void)
 {
-    // Вывод пакета
+    // Р’С‹РІРѕРґ РїР°РєРµС‚Р°
     MUTEX_ENTER(mutex);
         packet_output(buffer.tx);
     MUTEX_LEAVE(mutex);
-    // В регистры
+    // Р’ СЂРµРіРёСЃС‚СЂС‹
     for (auto i = 8; i < 16; i++)
         WRITE_PERI_REG(SPI_W0(HSPI) + i * REG_SIZE, buffer.raw[i]);
-    // Ожидание транзакции
+    // РћР¶РёРґР°РЅРёРµ С‚СЂР°РЅР·Р°РєС†РёРё
     event_data_ready.wait();
-    // Чтение из регистров
+    // Р§С‚РµРЅРёРµ РёР· СЂРµРіРёСЃС‚СЂРѕРІ
     for (auto i = 0; i < 8; i++)
         buffer.raw[i] = READ_PERI_REG(SPI_W0(HSPI) + i * REG_SIZE);
-    // Ввод пакета
+    // Р’РІРѕРґ РїР°РєРµС‚Р°
     MUTEX_ENTER(mutex);
         packet_input(buffer.rx);
     MUTEX_LEAVE(mutex);
@@ -156,20 +156,20 @@ RAM void core_t::spi_isr(void *dummy)
     auto sr = READ_PERI_REG(IRQ_SRC_REG);
     // SPI
     if (sr & IRQ_SRC_SPI)
-        // Сброс флагов, источников прерывания
+        // РЎР±СЂРѕСЃ С„Р»Р°РіРѕРІ, РёСЃС‚РѕС‡РЅРёРєРѕРІ РїСЂРµСЂС‹РІР°РЅРёСЏ
         CLEAR_PERI_REG_MASK(SPI_SLAVE(SPI), 0x3ff);
     // HSPI
     if (!(sr & IRQ_SRC_HSPI))
         return;
-    // Сброс флага прерывания (не знаю почему и китайцев так через жопу)
+    // РЎР±СЂРѕСЃ С„Р»Р°РіР° РїСЂРµСЂС‹РІР°РЅРёСЏ (РЅРµ Р·РЅР°СЋ РїРѕС‡РµРјСѓ Рё РєРёС‚Р°Р№С†РµРІ С‚Р°Рє С‡РµСЂРµР· Р¶РѕРїСѓ)
     CLEAR_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_TRANS_DONE_EN);
         SET_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_SYNC_RESET);
         CLEAR_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_TRANS_DONE);
     SET_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_TRANS_DONE_EN);
-    // Сброс регистров TODO: возможно убрать
+    // РЎР±СЂРѕСЃ СЂРµРіРёСЃС‚СЂРѕРІ TODO: РІРѕР·РјРѕР¶РЅРѕ СѓР±СЂР°С‚СЊ
     for (auto i = 8; i < 16; i++)
         WRITE_PERI_REG(SPI_W0(HSPI) + i * REG_SIZE, 0xFFFFFFFF);
-    // Вызов события
+    // Р’С‹Р·РѕРІ СЃРѕР±С‹С‚РёСЏ
     core.event_data_ready.set_isr();
 }
 
@@ -218,15 +218,15 @@ ROM void core_init(void)
     WRITE_PERI_REG(SPI_SLAVE1(HSPI), ((32 * 8 - 1) << SPI_SLV_BUF_BITLEN_S));
     // PIN (CPOL low, CS)
     WRITE_PERI_REG(SPI_PIN(HSPI), BIT19);
-    // Настройка прерывание HSPI
+    // РќР°СЃС‚СЂРѕР№РєР° РїСЂРµСЂС‹РІР°РЅРёРµ HSPI
     _xt_isr_attach(ETS_SPI_INUM, core_t::spi_isr, NULL);
     _xt_isr_unmask(1 << ETS_SPI_INUM);
-    // Для отладки
+    // Р”Р»СЏ РѕС‚Р»Р°РґРєРё
     //CORE_SPI_DEBUG();
 
-    // Проверка размера пакета
+    // РџСЂРѕРІРµСЂРєР° СЂР°Р·РјРµСЂР° РїР°РєРµС‚Р°
     IPC_PKT_SIZE_CHECK();
-    // Запуск задачи обработки пакетов
+    // Р—Р°РїСѓСЃРє Р·Р°РґР°С‡Рё РѕР±СЂР°Р±РѕС‚РєРё РїР°РєРµС‚РѕРІ
     core.start();
     assert(core.running());
 }

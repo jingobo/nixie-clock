@@ -1,4 +1,4 @@
-#include "rtc.h"
+п»ї#include "rtc.h"
 #include "clk.h"
 #include "mcu.h"
 #include "esp.h"
@@ -7,131 +7,131 @@
 #include "system.h"
 #include <proto/datetime.inc>
 
-// Класс обслуживания часов реального времени
+// РљР»Р°СЃСЃ РѕР±СЃР»СѓР¶РёРІР°РЅРёСЏ С‡Р°СЃРѕРІ СЂРµР°Р»СЊРЅРѕРіРѕ РІСЂРµРјРµРЅРё
 static class rtc_t : public event_base_t
 {
-    // Время текущее и время синхронизации
+    // Р’СЂРµРјСЏ С‚РµРєСѓС‰РµРµ Рё РІСЂРµРјСЏ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё
     datetime_t time_current, time_sync;
-    // Состояние синхронизации
+    // РЎРѕСЃС‚РѕСЏРЅРёРµ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё
     enum
     {
-        // Синхронизированно успешно
+        // РЎРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°РЅРЅРѕ СѓСЃРїРµС€РЅРѕ
         SYNC_STATE_SUCCESS = 0,
-        // Необходима синхронизация
+        // РќРµРѕР±С…РѕРґРёРјР° СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ
         SYNC_STATE_REQUEST,
-        // Задержка синхронизации 1
+        // Р—Р°РґРµСЂР¶РєР° СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё 1
         SYNC_STATE_NEEDED_DELAY_1,
-        // Задержка синхронизации 2
+        // Р—Р°РґРµСЂР¶РєР° СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё 2
         SYNC_STATE_NEEDED_DELAY_2
     } sync_state;
-    // Флаг состяония отправки ответа
+    // Р¤Р»Р°Рі СЃРѕСЃС‚СЏРѕРЅРёСЏ РѕС‚РїСЂР°РІРєРё РѕС‚РІРµС‚Р°
     bool response_needed;
     
-    // Обработчик команды
+    // РћР±СЂР°Р±РѕС‚С‡РёРє РєРѕРјР°РЅРґС‹
     class handler_command_t : public ipc_handler_command_template_t<command_datetime_t>
     {
-        // Ссылка на основной класс
+        // РЎСЃС‹Р»РєР° РЅР° РѕСЃРЅРѕРІРЅРѕР№ РєР»Р°СЃСЃ
         rtc_t &rtc;
     protected:
-        // Оповещение о поступлении данных
+        // РћРїРѕРІРµС‰РµРЅРёРµ Рѕ РїРѕСЃС‚СѓРїР»РµРЅРёРё РґР°РЅРЅС‹С…
         virtual void notify(ipc_dir_t dir)
         {
-            // Если у нас спрашивают время
+            // Р•СЃР»Рё Сѓ РЅР°СЃ СЃРїСЂР°С€РёРІР°СЋС‚ РІСЂРµРјСЏ
             if (dir == IPC_DIR_REQUEST)
             {
                 rtc.response_send();
                 return;
             }
-            // Если нам ответили
+            // Р•СЃР»Рё РЅР°Рј РѕС‚РІРµС‚РёР»Рё
             switch (data.response.quality)
             {
                 case command_datetime_response_t::QUALITY_SUCCESS:
-                    // Получили дату TODO: применение GMT
+                    // РџРѕР»СѓС‡РёР»Рё РґР°С‚Сѓ TODO: РїСЂРёРјРµРЅРµРЅРёРµ GMT
                     rtc.sync_state = SYNC_STATE_SUCCESS;
                     rtc.time_sync = rtc.time_current = data.response.datetime;
                     break;
                 case command_datetime_response_t::QUALITY_NETWORK:
-                    // Ошибка сети
+                    // РћС€РёР±РєР° СЃРµС‚Рё
                     rtc.sync_state = SYNC_STATE_NEEDED_DELAY_2;
                     break;
                 case command_datetime_response_t::QUALITY_NOLIST:
-                    // TODO: отправка списка
+                    // TODO: РѕС‚РїСЂР°РІРєР° СЃРїРёСЃРєР°
                     break;
             }
         }
     public:
-        // Конструктор по умолчанию
+        // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
         handler_command_t(rtc_t &parent) : rtc(parent)
         { }
     } handler_command;
     
-    // Обработчик простоя
+    // РћР±СЂР°Р±РѕС‚С‡РёРє РїСЂРѕСЃС‚РѕСЏ
     class handler_idle_t : public ipc_handler_idle_t
     {
-        // Ссылка на основной класс
+        // РЎСЃС‹Р»РєР° РЅР° РѕСЃРЅРѕРІРЅРѕР№ РєР»Р°СЃСЃ
         rtc_t &rtc;
     protected:
-        // Событие оповещения
+        // РЎРѕР±С‹С‚РёРµ РѕРїРѕРІРµС‰РµРЅРёСЏ
         virtual void notify_event(void)
         {
-            // Если нужно отправить ответ
+            // Р•СЃР»Рё РЅСѓР¶РЅРѕ РѕС‚РїСЂР°РІРёС‚СЊ РѕС‚РІРµС‚
             if (rtc.response_needed)
             {
                 rtc.response_send();
                 return;
             }
-            // Если нужно запросить дату/время
+            // Р•СЃР»Рё РЅСѓР¶РЅРѕ Р·Р°РїСЂРѕСЃРёС‚СЊ РґР°С‚Сѓ/РІСЂРµРјСЏ
             if (rtc.sync_state == SYNC_STATE_REQUEST && esp_transmit(IPC_DIR_REQUEST, rtc.handler_command.data))
                 rtc.sync_state = SYNC_STATE_NEEDED_DELAY_1;
         }
     public:
-        // Конструктор по умолчанию
+        // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
         handler_idle_t(rtc_t &parent) : rtc(parent)
         { }
         
     } handler_idle;
     
-    // Отправка ответа
+    // РћС‚РїСЂР°РІРєР° РѕС‚РІРµС‚Р°
     void response_send(void)
     {
         auto &response = handler_command.data.response;
-        // Заполняем ответ (quality не меняем)
+        // Р—Р°РїРѕР»РЅСЏРµРј РѕС‚РІРµС‚ (quality РЅРµ РјРµРЅСЏРµРј)
         datetime_get(response.datetime);
-        // Отправляем ответ
+        // РћС‚РїСЂР°РІР»СЏРµРј РѕС‚РІРµС‚
         response_needed = !esp_transmit(IPC_DIR_RESPONSE, handler_command.data);
     }
 protected:
-    // Событие инкремента секунды
+    // РЎРѕР±С‹С‚РёРµ РёРЅРєСЂРµРјРµРЅС‚Р° СЃРµРєСѓРЅРґС‹
     virtual void notify_event(void)
     {
-        // Задержка запроса даты/времени
+        // Р—Р°РґРµСЂР¶РєР° Р·Р°РїСЂРѕСЃР° РґР°С‚С‹/РІСЂРµРјРµРЅРё
         if (sync_state > SYNC_STATE_REQUEST)
             sync_state = ENUM_DEC(sync_state);
-        // Инкремент секунды
+        // РРЅРєСЂРµРјРµРЅС‚ СЃРµРєСѓРЅРґС‹
         if (++time_current.second <= DATETIME_SECOND_MAX)
             return;
         time_current.second = DATETIME_SECOND_MIN;
-        // Инкремент минут
+        // РРЅРєСЂРµРјРµРЅС‚ РјРёРЅСѓС‚
         if (++time_current.minute <= DATETIME_MINUTE_MAX)
             return;
         time_current.minute = DATETIME_MINUTE_MIN;
-        // Инкремент часов
+        // РРЅРєСЂРµРјРµРЅС‚ С‡Р°СЃРѕРІ
         if (++time_current.hour <= DATETIME_HOUR_MAX)
             return;
         time_current.hour = DATETIME_HOUR_MIN;
-        // Инкремент дней
+        // РРЅРєСЂРµРјРµРЅС‚ РґРЅРµР№
         if (++time_current.day <= time_current.month_day_count())
             return;
         time_current.day = DATETIME_DAY_MIN;
-        // Инкремент месяцев
+        // РРЅРєСЂРµРјРµРЅС‚ РјРµСЃСЏС†РµРІ
         if (++time_current.month <= DATETIME_MONTH_MAX)
             return;
         time_current.month = DATETIME_MONTH_MIN;
-        // Инкремент лет
+        // РРЅРєСЂРµРјРµРЅС‚ Р»РµС‚
         time_current.year++;
     }
 public:
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     rtc_t(void) : 
         sync_state(SYNC_STATE_SUCCESS), 
         response_needed(false), 
@@ -139,18 +139,18 @@ public:
         handler_idle(*this)
     { }
     
-    // Инициализация
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ
     INLINE_FORCED
     void init(void)
     {
-        // Запрос даты/времени
+        // Р—Р°РїСЂРѕСЃ РґР°С‚С‹/РІСЂРµРјРµРЅРё
         sync_state = SYNC_STATE_REQUEST;
-        // Обработчики
+        // РћР±СЂР°Р±РѕС‚С‡РёРєРё
         esp_handler_add_idle(handler_idle);
         esp_handler_add_command(handler_command);
     }
     
-    // Получает текущую дату/время
+    // РџРѕР»СѓС‡Р°РµС‚ С‚РµРєСѓС‰СѓСЋ РґР°С‚Сѓ/РІСЂРµРјСЏ
     INLINE_FORCED
     void datetime_get(datetime_t &dest) const
     {
@@ -158,26 +158,26 @@ public:
     }
 } rtc;
 
-// Проверка работы LSE
+// РџСЂРѕРІРµСЂРєР° СЂР°Р±РѕС‚С‹ LSE
 static bool rtc_check_lse(void)
 {
     return (RCC->BDCR & RCC_BDCR_LSERDY) == RCC_BDCR_LSERDY;                    // Check LSE ready flag
 }
 
-// Проверка флага завершения операций записи RTC
+// РџСЂРѕРІРµСЂРєР° С„Р»Р°РіР° Р·Р°РІРµСЂС€РµРЅРёСЏ РѕРїРµСЂР°С†РёР№ Р·Р°РїРёСЃРё RTC
 static bool rtc_check_rtoff(void)
 {
     return (RTC->CRL & RTC_CRL_RTOFF) == RTC_CRL_RTOFF;                         // Check that RTC operation OFF
 }
 
-// Остановка приложения по причине сбоя RTC
+// РћСЃС‚Р°РЅРѕРІРєР° РїСЂРёР»РѕР¶РµРЅРёСЏ РїРѕ РїСЂРёС‡РёРЅРµ СЃР±РѕСЏ RTC
 INLINE_FORCED
 static __noreturn void rtc_halt(void)
 {
     mcu_halt(MCU_HALT_REASON_RTC);
 }
 
-// Ожидание завершения всех операций записи RTC
+// РћР¶РёРґР°РЅРёРµ Р·Р°РІРµСЂС€РµРЅРёСЏ РІСЃРµС… РѕРїРµСЂР°С†РёР№ Р·Р°РїРёСЃРё RTC
 static void rtc_wait_operation_off(void)
 {
     if (!clk_pool(rtc_check_rtoff))
@@ -188,18 +188,18 @@ void rtc_init(void)
 {
     RCC->APB1ENR |= RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN;                      // Power, backup interface clock enable
     BKP_ACCESS_ALLOW();
-        // Конфигурирование LSE, RTC
+        // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ LSE, RTC
         mcu_reg_update_32(&RCC->BDCR,                                           // LSE bypass off, LSE select for RTC, 
             RCC_BDCR_RTCSEL_LSE, 
             RCC_BDCR_LSEBYP | RCC_BDCR_RTCSEL);
-        // Запуск LSE
+        // Р—Р°РїСѓСЃРє LSE
         RCC->BDCR |= RCC_BDCR_LSEON;                                           // LSE enable
-        // Ожидание запуска LSE, 6 сек
+        // РћР¶РёРґР°РЅРёРµ Р·Р°РїСѓСЃРєР° LSE, 6 СЃРµРє
         if (!clk_pool(rtc_check_lse, 6000))
             rtc_halt();
-        // Запуск RTC
+        // Р—Р°РїСѓСЃРє RTC
         RCC->BDCR |= RCC_BDCR_RTCEN;                                            // RTC enable
-        // Конфигурирование RTC
+        // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ RTC
         rtc_wait_operation_off();
             RTC->CRL |= RTC_CRL_CNF;                                            // Enter cfg mode
                 RTC->PRLL = 0x7FFF;                                             // /32768
@@ -210,16 +210,16 @@ void rtc_init(void)
             RTC->CRL &= ~RTC_CRL_CNF;                                           // Leave cfg mode
         rtc_wait_operation_off();
     BKP_ACCESS_DENY();
-    // Прерывание
+    // РџСЂРµСЂС‹РІР°РЅРёРµ
     nvic_irq_enable_set(RTC_IRQn, true);                                        // RTC IRQ enable
     nvic_irq_priority_set(RTC_IRQn, NVIC_IRQ_PRIORITY_LOWEST);                  // Lowest RTC IRQ priority
-    // Локальные переменные
+    // Р›РѕРєР°Р»СЊРЅС‹Рµ РїРµСЂРµРјРµРЅРЅС‹Рµ
     rtc.init();
 }
 
 void rtc_clock_output(bool enabled)
 {
-    // Переконфигурирование PC13 на выход с альтернативной функцией производится аппаратно
+    // РџРµСЂРµРєРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ PC13 РЅР° РІС‹С…РѕРґ СЃ Р°Р»СЊС‚РµСЂРЅР°С‚РёРІРЅРѕР№ С„СѓРЅРєС†РёРµР№ РїСЂРѕРёР·РІРѕРґРёС‚СЃСЏ Р°РїРїР°СЂР°С‚РЅРѕ
     BKP_ACCESS_ALLOW();
         if (enabled)
             BKP->RTCCR |= BKP_RTCCR_CCO;                                        // Calibration clock output enable

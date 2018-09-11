@@ -1,6 +1,6 @@
-#include "list.h"
+п»ї#include "list.h"
 
-// Возвращает обратную сторону
+// Р’РѕР·РІСЂР°С‰Р°РµС‚ РѕР±СЂР°С‚РЅСѓСЋ СЃС‚РѕСЂРѕРЅСѓ
 #define OPPSIDE(p)      (LIST_SIDE_NEXT - (p))
 
 RAM size_t list_t::count(void) const
@@ -25,15 +25,15 @@ RAM bool list_t::contains(const list_item_t &item) const
 
 ROM void list_item_t::link(list_t &list, list_side_t side)
 {
-    // Проверка состояния
+    // РџСЂРѕРІРµСЂРєР° СЃРѕСЃС‚РѕСЏРЅРёСЏ
     assert(unlinked());
-    // Если есть элементы
+    // Р•СЃР»Рё РµСЃС‚СЊ СЌР»РµРјРµРЅС‚С‹
     if (!list.empty())
     {
         link(list.sides[side], side);
         return;
     }
-    // Если нет элементов
+    // Р•СЃР»Рё РЅРµС‚ СЌР»РµРјРµРЅС‚РѕРІ
     for (auto i = 0; i < LIST_SIDE_COUNT; i++)
         list.sides[i] = this;
     parent = &list;
@@ -41,15 +41,15 @@ ROM void list_item_t::link(list_t &list, list_side_t side)
 
 ROM void list_item_t::link(list_item_t &item, list_side_t side)
 {
-    // Проверка состояния
+    // РџСЂРѕРІРµСЂРєР° СЃРѕСЃС‚РѕСЏРЅРёСЏ
     assert(unlinked());
-    // Вставка
+    // Р’СЃС‚Р°РІРєР°
     if (item.sides[side] != NULL)
         item.sides[side]->sides[OPPSIDE(side)] = this;
     sides[side] = item.sides[side];
     sides[OPPSIDE(side)] = &item;
     item.sides[side] = this;
-    // Родительский список
+    // Р РѕРґРёС‚РµР»СЊСЃРєРёР№ СЃРїРёСЃРѕРє
     parent = item.parent;
     if (parent != NULL && sides[side] == NULL)
         parent->sides[side] = this;
@@ -57,26 +57,26 @@ ROM void list_item_t::link(list_item_t &item, list_side_t side)
 
 ROM list_item_t * list_item_t::unlink(list_side_t side)
 {
-    // Проверка аргументов
+    // РџСЂРѕРІРµСЂРєР° Р°СЂРіСѓРјРµРЅС‚РѕРІ
     assert(!unlinked());
-    // Готовим результат
+    // Р“РѕС‚РѕРІРёРј СЂРµР·СѓР»СЊС‚Р°С‚
     auto result = sides[side];
-    // Обход сторон
+    // РћР±С…РѕРґ СЃС‚РѕСЂРѕРЅ
     for (auto i = 0; i < LIST_SIDE_COUNT; i++)
         if (sides[i] != NULL)
         {
-            // Удаление из цепочки
+            // РЈРґР°Р»РµРЅРёРµ РёР· С†РµРїРѕС‡РєРё
             sides[i]->sides[OPPSIDE(i)] = sides[OPPSIDE(i)];
         }
         else if (parent != NULL)
         {
-            // Удаление из родительского списка
+            // РЈРґР°Р»РµРЅРёРµ РёР· СЂРѕРґРёС‚РµР»СЊСЃРєРѕРіРѕ СЃРїРёСЃРєР°
             assert(parent->sides[i] == this);
             parent->sides[i] = sides[OPPSIDE(i)];
         }
     parent = NULL;
     clear();
-    // Готово
+    // Р“РѕС‚РѕРІРѕ
     return result;
 }
 

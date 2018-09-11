@@ -1,15 +1,15 @@
-#include "log.h"
+п»ї#include "log.h"
 
-// --- Зависимые от компилятора определения --- //
+// --- Р—Р°РІРёСЃРёРјС‹Рµ РѕС‚ РєРѕРјРїРёР»СЏС‚РѕСЂР° РѕРїСЂРµРґРµР»РµРЅРёСЏ --- //
 
-// Атрибут через макрос
+// РђС‚СЂРёР±СѓС‚ С‡РµСЂРµР· РјР°РєСЂРѕСЃ
 #define ATTRIBUTE(x)            __attribute__((x))
 #define ATTRIBUTE_FN(fn, v)     ATTRIBUTE(fn(v))
 
-// Атрибут, указывающий что у функции нет возврата
+// РђС‚СЂРёР±СѓС‚, СѓРєР°Р·С‹РІР°СЋС‰РёР№ С‡С‚Рѕ Сѓ С„СѓРЅРєС†РёРё РЅРµС‚ РІРѕР·РІСЂР°С‚Р°
 #define NO_RETURN               ATTRIBUTE(__noreturn__)
 
-// Расположение кода/констант
+// Р Р°СЃРїРѕР»РѕР¶РµРЅРёРµ РєРѕРґР°/РєРѕРЅСЃС‚Р°РЅС‚
 #define RAM                     ATTRIBUTE_FN(section, ".text")
 #define ROM                     ATTRIBUTE_FN(section, ".irom0.text")
 #define NOINIT                  ATTRIBUTE_FN(section, ".noinit")

@@ -1,28 +1,28 @@
-#include "io.h"
+п»ї#include "io.h"
 #include "tube.h"
 #include "nvic.h"
 #include "event.h"
 #include "system.h"
 
-// Смещение насыщенности для сброс PWM после UEV
+// РЎРјРµС‰РµРЅРёРµ РЅР°СЃС‹С‰РµРЅРЅРѕСЃС‚Рё РґР»СЏ СЃР±СЂРѕСЃ PWM РїРѕСЃР»Рµ UEV
 #define TUBE_SAT_DX                     1
-// Частота мультиплексирования ламп [Гц]
+// Р§Р°СЃС‚РѕС‚Р° РјСѓР»СЊС‚РёРїР»РµРєСЃРёСЂРѕРІР°РЅРёСЏ Р»Р°РјРї [Р“С†]
 #define TUBE_MUX_HZ                     (HMI_FRAME_RATE * TUBE_NIXIE_COUNT)
 
-// Сброс адресной линии анодов
+// РЎР±СЂРѕСЃ Р°РґСЂРµСЃРЅРѕР№ Р»РёРЅРёРё Р°РЅРѕРґРѕРІ
 #define TUBE_NIXIE_SELA_RESET()         \
     IO_PORT_RESET_MASK(IO_TSELA0_PORT,  \
         IO_MASK(IO_TSELA0) |            \
         IO_MASK(IO_TSELA1) |            \
         IO_MASK(IO_TSELA2))
 
-// Установка адресной линии анодов
+// РЈСЃС‚Р°РЅРѕРІРєР° Р°РґСЂРµСЃРЅРѕР№ Р»РёРЅРёРё Р°РЅРѕРґРѕРІ
 #define TUBE_NIXIE_SELA_SET(v)          \
     TUBE_NIXIE_SELA_RESET();            \
     IO_PORT_SET_MASK(IO_TSELA0_PORT, MASK_32(v, IO_TSELA0))
 
-// Сброс адресной линии катодов
-#define TUBE_NIXIE_SELС_RESET()         \
+// РЎР±СЂРѕСЃ Р°РґСЂРµСЃРЅРѕР№ Р»РёРЅРёРё РєР°С‚РѕРґРѕРІ
+#define TUBE_NIXIE_SELC_RESET()         \
     IO_PORT_RESET_MASK(IO_TSELP_PORT,   \
         IO_MASK(IO_TSELP) |             \
         IO_MASK(IO_TSELC0) |            \
@@ -30,72 +30,72 @@
         IO_MASK(IO_TSELC2) |            \
         IO_MASK(IO_TSELC3))
 
-// Установка адресной линии катодов
+// РЈСЃС‚Р°РЅРѕРІРєР° Р°РґСЂРµСЃРЅРѕР№ Р»РёРЅРёРё РєР°С‚РѕРґРѕРІ
 #define TUBE_NIXIE_SELC_SET(v)          \
-    TUBE_NIXIE_SELС_RESET();            \
+    TUBE_NIXIE_SELC_RESET();            \
     IO_PORT_SET_MASK(IO_TSELC0_PORT, MASK_32(v, IO_TSELP))
 
-// Подсчет значения адресной линии катодов
+// РџРѕРґСЃС‡РµС‚ Р·РЅР°С‡РµРЅРёСЏ Р°РґСЂРµСЃРЅРѕР№ Р»РёРЅРёРё РєР°С‚РѕРґРѕРІ
 #define TUBE_NIXIE_SELC_CALC(v, dot)    \
     (MASK(uint8_t, v, 1) | (dot ? 1 : 0))
         
-// Сброс адресной линии анодов
+// РЎР±СЂРѕСЃ Р°РґСЂРµСЃРЅРѕР№ Р»РёРЅРёРё Р°РЅРѕРґРѕРІ
 #define TUBE_NEON_SEL_RESET()           \
     IO_PORT_RESET_MASK(IO_SSEL0_PORT,   \
         IO_MASK(IO_SSEL0) |             \
         IO_MASK(IO_SSEL1))
 
-// Установка адресной линии анодов
+// РЈСЃС‚Р°РЅРѕРІРєР° Р°РґСЂРµСЃРЅРѕР№ Р»РёРЅРёРё Р°РЅРѕРґРѕРІ
 #define TUBE_NEON_SEL_SET(v)            \
     TUBE_NEON_SEL_RESET();              \
     IO_PORT_SET_MASK(IO_SSEL0_PORT, MASK_32(v, IO_SSEL0))
         
-// Базовая структура данных дамп
+// Р‘Р°Р·РѕРІР°СЏ СЃС‚СЂСѓРєС‚СѓСЂР° РґР°РЅРЅС‹С… РґР°РјРї
 typedef struct
 {
-    // Насыщенность
+    // РќР°СЃС‹С‰РµРЅРЅРѕСЃС‚СЊ
     hmi_sat_t sat;
 } tube_data_t;
 
-// Данные цифровой лампы (прерывание)
+// Р”Р°РЅРЅС‹Рµ С†РёС„СЂРѕРІРѕР№ Р»Р°РјРїС‹ (РїСЂРµСЂС‹РІР°РЅРёРµ)
 typedef struct : tube_data_t
 {
-    // Отображаемая цифра
+    // РћС‚РѕР±СЂР°Р¶Р°РµРјР°СЏ С†РёС„СЂР°
     uint8_t digit;
 } tube_nixie_irq_t;
 
-// Данные цифровой лампы
+// Р”Р°РЅРЅС‹Рµ С†РёС„СЂРѕРІРѕР№ Р»Р°РјРїС‹
 typedef struct : tube_nixie_irq_t
 {
-    // Состояние точки
+    // РЎРѕСЃС‚РѕСЏРЅРёРµ С‚РѕС‡РєРё
     bool dot : 1;
-    // Для определения обновления
+    // Р”Р»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
     bool unchanged : 1;
 } tube_nixie_t;
 
-// Данные неоновой лампы (прерывание)
+// Р”Р°РЅРЅС‹Рµ РЅРµРѕРЅРѕРІРѕР№ Р»Р°РјРїС‹ (РїСЂРµСЂС‹РІР°РЅРёРµ)
 typedef tube_data_t tube_neon_irq_t;
 
-// Данные неоновой лампы 
+// Р”Р°РЅРЅС‹Рµ РЅРµРѕРЅРѕРІРѕР№ Р»Р°РјРїС‹ 
 typedef struct : tube_neon_irq_t
 {
-    // Для определения обновления
+    // Р”Р»СЏ РѕРїСЂРµРґРµР»РµРЅРёСЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
     bool unchanged : 1;
 } tube_neon_t;
 
-// Обобщенный тип ОЗУ данных
+// РћР±РѕР±С‰РµРЅРЅС‹Р№ С‚РёРї РћР—РЈ РґР°РЅРЅС‹С…
 template <hmi_rank_t count, typename N, typename R>
 class tube_ram_s
 {
 public:
-    // Данные для отображения
+    // Р”Р°РЅРЅС‹Рµ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ
     N data[count];
-    // Данные для отображения (прерывание)
+    // Р”Р°РЅРЅС‹Рµ РґР»СЏ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ (РїСЂРµСЂС‹РІР°РЅРёРµ)
     R raw[count];
-    // Индекс для мультиплексирования
+    // РРЅРґРµРєСЃ РґР»СЏ РјСѓР»СЊС‚РёРїР»РµРєСЃРёСЂРѕРІР°РЅРёСЏ
     hmi_rank_t mux;
     
-    // Инкремент мультиплексирования
+    // РРЅРєСЂРµРјРµРЅС‚ РјСѓР»СЊС‚РёРїР»РµРєСЃРёСЂРѕРІР°РЅРёСЏ
     INLINE_FORCED
     void mux_next(void)
     {
@@ -104,107 +104,107 @@ public:
     }
 };
 
-// ОЗУ данные модуля
+// РћР—РЈ РґР°РЅРЅС‹Рµ РјРѕРґСѓР»СЏ
 static __no_init struct
 {
-    // Цифровые лампы
+    // Р¦РёС„СЂРѕРІС‹Рµ Р»Р°РјРїС‹
     tube_ram_s<TUBE_NIXIE_COUNT, tube_nixie_t, tube_nixie_irq_t> nixie;
-    // Неоновые лампы
+    // РќРµРѕРЅРѕРІС‹Рµ Р»Р°РјРїС‹
     tube_ram_s<TUBE_NEON_COUNT, tube_neon_t, tube_neon_irq_t> neon;
 } tube_ram;
 
-// Таблица гамма корекции
+// РўР°Р±Р»РёС†Р° РіР°РјРјР° РєРѕСЂРµРєС†РёРё
 static __no_init hmi_sat_table_t tube_gamma;
 
-// Таблица перевода реальной цифры в цифру полученную после трассировки
+// РўР°Р±Р»РёС†Р° РїРµСЂРµРІРѕРґР° СЂРµР°Р»СЊРЅРѕР№ С†РёС„СЂС‹ РІ С†РёС„СЂСѓ РїРѕР»СѓС‡РµРЅРЅСѓСЋ РїРѕСЃР»Рµ С‚СЂР°СЃСЃРёСЂРѕРІРєРё
 static const uint8_t TUBE_NIXIE_PIN_FIX[11] =
 { 8, 3, 1, 6, 9, 0, 4, 2, 7, 5, 10 };
 
-// Переинициализация таймера ШИМ
+// РџРµСЂРµРёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ С‚Р°Р№РјРµСЂР° РЁРРњ
 #define TUBE_PWM_SET(TIM, V, CH)                                                    \
     sat = (V);                                                                      \
     (TIM)->CNT = (sat >> 1) + TUBE_SAT_DX;  /* Update counter (center aligned) */   \
     (TIM)->CCR##CH = sat + TUBE_SAT_DX;     /* Update CCx value */                  \
     (TIM)->CR1 |= TIM_CR1_CEN               /* TIM enable */
 
-// Мультиплексирование
+// РњСѓР»СЊС‚РёРїР»РµРєСЃРёСЂРѕРІР°РЅРёРµ
 OPTIMIZE_SPEED
 static void tube_mux(void)
 {
     hmi_sat_t sat;
-    // Переключение катодного напряжения (лампы)
+    // РџРµСЂРµРєР»СЋС‡РµРЅРёРµ РєР°С‚РѕРґРЅРѕРіРѕ РЅР°РїСЂСЏР¶РµРЅРёСЏ (Р»Р°РјРїС‹)
     TUBE_NIXIE_SELC_SET(tube_ram.nixie.raw[tube_ram.nixie.mux].digit);
-    // Установка анодного напряжения (лампы)
+    // РЈСЃС‚Р°РЅРѕРІРєР° Р°РЅРѕРґРЅРѕРіРѕ РЅР°РїСЂСЏР¶РµРЅРёСЏ (Р»Р°РјРїС‹)
     TUBE_NIXIE_SELA_SET(tube_ram.nixie.mux);
-    // Установка анодного напряжения (неонки)
+    // РЈСЃС‚Р°РЅРѕРІРєР° Р°РЅРѕРґРЅРѕРіРѕ РЅР°РїСЂСЏР¶РµРЅРёСЏ (РЅРµРѕРЅРєРё)
     TUBE_NEON_SEL_SET(tube_ram.neon.mux);
 
-    // PWM (лампы)
+    // PWM (Р»Р°РјРїС‹)
     TUBE_PWM_SET(TIM4, tube_ram.nixie.raw[tube_ram.nixie.mux].sat, 2);
-    // PWM (неонки)
+    // PWM (РЅРµРѕРЅРєРё)
     TUBE_PWM_SET(TIM2, tube_ram.neon.raw[tube_ram.neon.mux].sat, 3);
 
-    // Переход к следующей лампе
+    // РџРµСЂРµС…РѕРґ Рє СЃР»РµРґСѓСЋС‰РµР№ Р»Р°РјРїРµ
     tube_ram.nixie.mux_next();
     tube_ram.neon.mux_next();
 }
 
-// Базовая инициализация аппаратного таймера под ШИМ
+// Р‘Р°Р·РѕРІР°СЏ РёРЅРёС†РёР°Р»РёР·Р°С†РёСЏ Р°РїРїР°СЂР°С‚РЅРѕРіРѕ С‚Р°Р№РјРµСЂР° РїРѕРґ РЁРРњ
 static void tube_init_timer(TIM_TypeDef *TIM, uint32_t reset_flag, uint32_t clock_flag)
 {
-    // Тактирование и сброс таймера
+    // РўР°РєС‚РёСЂРѕРІР°РЅРёРµ Рё СЃР±СЂРѕСЃ С‚Р°Р№РјРµСЂР°
     RCC->APB1ENR |= clock_flag;                                                 // TIM clock enable
     RCC->APB1RSTR |= clock_flag;                                                // TIM reset
     RCC->APB1RSTR &= ~clock_flag;                                               // TIM unreset
-    // Базовое конфигурирование таймера без PWM
+    // Р‘Р°Р·РѕРІРѕРµ РєРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ С‚Р°Р№РјРµСЂР° Р±РµР· PWM
     TIM->CR1 = TIM_CR1_OPM;                                                     // TIM disable, UEV on, OPM on, Up, CMS edge, Clock /1, ARR preload off
     TIM->PSC = FMCU_NORMAL_HZ / (TUBE_MUX_HZ * (HMI_SAT_COUNT + 1)) - 1;        // Prescaler (frequency)
     TIM->ARR = HMI_SAT_MAX + TUBE_SAT_DX - 1;                                   // PWM Period
     TIM->BDTR = TIM_BDTR_MOE;                                                   // Main Output enable
 }
 
-// Инициализация цифровых ламп
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ С†РёС„СЂРѕРІС‹С… Р»Р°РјРї
 INLINE_FORCED
 static void tube_init_nixie(void)
 {
-    // Сброс адресных линий
+    // РЎР±СЂРѕСЃ Р°РґСЂРµСЃРЅС‹С… Р»РёРЅРёР№
     TUBE_NIXIE_SELA_RESET();
-    TUBE_NIXIE_SELС_RESET();
-    // Таймер ШИМ
+    TUBE_NIXIE_SELC_RESET();
+    // РўР°Р№РјРµСЂ РЁРРњ
     tube_init_timer(TIM4, RCC_APB1RSTR_TIM4RST, RCC_APB1ENR_TIM4EN);
-    // Настройка канала 2
+    // РќР°СЃС‚СЂРѕР№РєР° РєР°РЅР°Р»Р° 2
     TIM4->CCMR1 = TIM_CCMR1_OC2M_0 | TIM_CCMR1_OC2M_1 | TIM_CCMR1_OC2M_2;       // CC2 output, CC2 Fast off, CC2 preload off, CC2 mode PWM 2 (111)
     TIM4->CCER = TIM_CCER_CC2E;                                                 // CC2 output enable, CC2 Polarity high
-    // TODO: выпилить
+    // TODO: РІС‹РїРёР»РёС‚СЊ
     //TIM4->DIER = TIM_DIER_UIE;                                                  // UEV interrupt enable
     //nvic_irq_enable_set(TIM4_IRQn, true);
 }
 
-// Инициализация неоновых ламп
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РЅРµРѕРЅРѕРІС‹С… Р»Р°РјРї
 INLINE_FORCED
 static void tube_init_neon(void)
 {
-    // Сброс адресных линий
+    // РЎР±СЂРѕСЃ Р°РґСЂРµСЃРЅС‹С… Р»РёРЅРёР№
     TUBE_NEON_SEL_RESET();
-    // Таймер ШИМ
+    // РўР°Р№РјРµСЂ РЁРРњ
     tube_init_timer(TIM2, RCC_APB1RSTR_TIM2RST, RCC_APB1ENR_TIM2EN);
-    // Настройка канала 3
+    // РќР°СЃС‚СЂРѕР№РєР° РєР°РЅР°Р»Р° 3
     TIM2->CCMR2 = TIM_CCMR2_OC3M_0 | TIM_CCMR2_OC3M_1 | TIM_CCMR2_OC3M_2;       // CC3 output, CC3 Fast off, CC3 preload off, CC3 mode PWM 2 (111)
     TIM2->CCER = TIM_CCER_CC3E;                                                 // CC3 output enable, CC3 Polarity high
 }
 
 void tube_init(void)
 {
-    // Инициализация буфера отображения
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ Р±СѓС„РµСЂР° РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ
     MEMORY_CLEAR(tube_ram);
-    // Подготовка таблицы гамма коррекции. TODO: подобрано субъективно, возможно есть смысл перенести гамму в настройку
+    // РџРѕРґРіРѕС‚РѕРІРєР° С‚Р°Р±Р»РёС†С‹ РіР°РјРјР° РєРѕСЂСЂРµРєС†РёРё. TODO: РїРѕРґРѕР±СЂР°РЅРѕ СЃСѓР±СЉРµРєС‚РёРІРЅРѕ, РІРѕР·РјРѕР¶РЅРѕ РµСЃС‚СЊ СЃРјС‹СЃР» РїРµСЂРµРЅРµСЃС‚Рё РіР°РјРјСѓ РІ РЅР°СЃС‚СЂРѕР№РєСѓ
     hmi_gamma_prepare(tube_gamma);
-    // Инициализация ламп
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ Р»Р°РјРї
     tube_init_nixie();
     tube_init_neon();
-    // Обновление состояния ламп
+    // РћР±РЅРѕРІР»РµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ Р»Р°РјРї
     tube_refresh();
-    // Выставление задачи мультиплексирования
+    // Р’С‹СЃС‚Р°РІР»РµРЅРёРµ Р·Р°РґР°С‡Рё РјСѓР»СЊС‚РёРїР»РµРєСЃРёСЂРѕРІР°РЅРёСЏ
     //event_timer_start_hz(DELEGATE_PROC(tube_mux), TUBE_MUX_HZ, EVENT_TIMER_PRI_CRITICAL | EVENT_TIMER_FLAG_LOOP); TODO:
 }
 
@@ -213,29 +213,29 @@ void tube_refresh(void)
 {
     hmi_rank_t i;
     hmi_sat_t sat;
-    // Обновление цифр
+    // РћР±РЅРѕРІР»РµРЅРёРµ С†РёС„СЂ
     for (i = 0; i < TUBE_NIXIE_COUNT; i++)
     {
         if (tube_ram.nixie.data[i].unchanged)
             continue;
         tube_ram.nixie.data[i].unchanged = true;
-        // Формирование цифры
+        // Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ С†РёС„СЂС‹
         tube_ram.nixie.raw[i].digit = TUBE_NIXIE_SELC_CALC(TUBE_NIXIE_PIN_FIX[tube_ram.nixie.data[i].digit], 
                                                            tube_ram.nixie.data[i].dot);
-        // Формирование насыщенности
+        // Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ РЅР°СЃС‹С‰РµРЅРЅРѕСЃС‚Рё
         if (tube_ram.nixie.data[i].digit != TUBE_NIXIE_DIGIT_SPACE)
             sat = hmi_gamma_apply(tube_gamma, tube_ram.nixie.data[i].sat);
         else
             sat = 0;
         tube_ram.nixie.raw[i].sat = HMI_SAT_MAX - sat;
     }
-    // Обновление неонок
+    // РћР±РЅРѕРІР»РµРЅРёРµ РЅРµРѕРЅРѕРє
     for (i = 0; i < TUBE_NEON_COUNT; i++)
     {
         if (tube_ram.neon.data[i].unchanged)
             continue;
         tube_ram.neon.data[i].unchanged = true;
-        // Формирование насыщенности
+        // Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ РЅР°СЃС‹С‰РµРЅРЅРѕСЃС‚Рё
         sat = hmi_gamma_apply(tube_gamma, tube_ram.neon.data[i].sat);
         tube_ram.neon.raw[i].sat = HMI_SAT_MAX - sat;
     }
@@ -243,10 +243,10 @@ void tube_refresh(void)
 
 void tube_nixie_digit_set(hmi_rank_t index, uint8_t digit, bool dot)
 {
-    // Проверка аргументов
+    // РџСЂРѕРІРµСЂРєР° Р°СЂРіСѓРјРµРЅС‚РѕРІ
     assert(digit <= TUBE_NIXIE_DIGIT_SPACE);
     assert(index < TUBE_NIXIE_COUNT);
-    // Копирование значения
+    // РљРѕРїРёСЂРѕРІР°РЅРёРµ Р·РЅР°С‡РµРЅРёСЏ
     tube_ram.nixie.data[index].dot = dot;
     tube_ram.nixie.data[index].digit = digit;
     tube_ram.nixie.data[index].unchanged = false;
@@ -254,9 +254,9 @@ void tube_nixie_digit_set(hmi_rank_t index, uint8_t digit, bool dot)
 
 void tube_nixie_sat_set(hmi_rank_t index, hmi_sat_t value)
 {
-    // Проверка аргументов
+    // РџСЂРѕРІРµСЂРєР° Р°СЂРіСѓРјРµРЅС‚РѕРІ
     assert(index < TUBE_NIXIE_COUNT);
-    // Копирование значения
+    // РљРѕРїРёСЂРѕРІР°РЅРёРµ Р·РЅР°С‡РµРЅРёСЏ
     tube_ram.nixie.data[index].sat = value;
     tube_ram.nixie.data[index].unchanged = false;
 }
@@ -271,9 +271,9 @@ OPTIMIZE_SIZE
 void tube_nixie_text_set(const char text[])
 {
     uint8_t filled, length;
-    // Проверка аргументов
+    // РџСЂРѕРІРµСЂРєР° Р°СЂРіСѓРјРµРЅС‚РѕРІ
     assert(strlen(text) <= UINT8_MAX);
-    // Подсчет количества символов и точек
+    // РџРѕРґСЃС‡РµС‚ РєРѕР»РёС‡РµСЃС‚РІР° СЃРёРјРІРѕР»РѕРІ Рё С‚РѕС‡РµРє
     filled = 0;
     length = (uint8_t)strlen(text);
     for (uint8_t i = 0; i < length; i++)
@@ -294,22 +294,22 @@ void tube_nixie_text_set(const char text[])
         uint8_t digit = TUBE_NIXIE_DIGIT_SPACE;
         do
         {
-            // Свободные места вначале
+            // РЎРІРѕР±РѕРґРЅС‹Рµ РјРµСЃС‚Р° РІРЅР°С‡Р°Р»Рµ
             if (filled < TUBE_NIXIE_COUNT)
             {
                 filled++;
                 continue;
             }
-            // Пропуск точек
+            // РџСЂРѕРїСѓСЃРє С‚РѕС‡РµРє
             for (; *t == HMI_CHAR_DOT; t++)
                 dot = true;
-            // Пробел
+            // РџСЂРѕР±РµР»
             if (*t == HMI_CHAR_SPACE)
             {
                 t++;
                 continue;
             }
-            // Цифра
+            // Р¦РёС„СЂР°
             digit = *t - HMI_CHAR_ZERO;
             t++;
         } while (false);
@@ -319,9 +319,9 @@ void tube_nixie_text_set(const char text[])
 
 void tube_neon_sat_set(hmi_rank_t index, hmi_sat_t value)
 {
-    // Проверка аргументов
+    // РџСЂРѕРІРµСЂРєР° Р°СЂРіСѓРјРµРЅС‚РѕРІ
     assert(index < TUBE_NEON_COUNT);
-    // Копирование значения
+    // РљРѕРїРёСЂРѕРІР°РЅРёРµ Р·РЅР°С‡РµРЅРёСЏ
     tube_ram.neon.data[index].sat = value;
     tube_ram.neon.data[index].unchanged = false;
 }
@@ -332,11 +332,11 @@ void tube_neon_sat_set(hmi_sat_t value)
         tube_neon_sat_set(i, value);
 }
 
-// TODO: возможно выпилить
+// TODO: РІРѕР·РјРѕР¶РЅРѕ РІС‹РїРёР»РёС‚СЊ
 IRQ_ROUTINE
 void tube_interrupt_nixie_selcrst(void)
 {
-    // Форсирование сброса катодного напряжения
+    // Р¤РѕСЂСЃРёСЂРѕРІР°РЅРёРµ СЃР±СЂРѕСЃР° РєР°С‚РѕРґРЅРѕРіРѕ РЅР°РїСЂСЏР¶РµРЅРёСЏ
     TUBE_NIXIE_SELC_SET(TUBE_NIXIE_SELC_CALC(TUBE_NIXIE_DIGIT_SPACE, false));
     TIM4->SR &= ~TIM_SR_UIF;                                                    // Clear UEV pending flag
 }

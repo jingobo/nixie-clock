@@ -1,4 +1,4 @@
-#include "io.h"
+п»ї#include "io.h"
 #include "core.h"
 #include "ntime.h"
 
@@ -20,7 +20,7 @@ static bool ROM wifi_station_config_compare(const station_config *cfg1, const st
 void ROM wifi_station_init(void)
 {
     bool result;
-    // Установка режима работы
+    // РЈСЃС‚Р°РЅРѕРІРєР° СЂРµР¶РёРјР° СЂР°Р±РѕС‚С‹
     log_line("Check operation mode...");
     uint8_t mode = wifi_get_opmode();
     if (mode != STATION_MODE)
@@ -33,12 +33,12 @@ void ROM wifi_station_init(void)
     }
     wifi_station_disconnect();
     wifi_station_dhcpc_stop();
-    // Установка параметров подключаемой сети
+    // РЈСЃС‚Р°РЅРѕРІРєР° РїР°СЂР°РјРµС‚СЂРѕРІ РїРѕРґРєР»СЋС‡Р°РµРјРѕР№ СЃРµС‚Рё
     station_config current_config;
     do
     {
         station_config flash_config;
-        // Получаем текущие параметры подключения к WiFi
+        // РџРѕР»СѓС‡Р°РµРј С‚РµРєСѓС‰РёРµ РїР°СЂР°РјРµС‚СЂС‹ РїРѕРґРєР»СЋС‡РµРЅРёСЏ Рє WiFi
         if (wifi_station_get_config(&flash_config))
         {
             memcpy(&current_config, &flash_config, sizeof(station_config));
@@ -55,7 +55,7 @@ void ROM wifi_station_init(void)
             wifi_station_config_init(&current_config);
             memset(&current_config.bssid, 0, sizeof(current_config.bssid));
         }
-        // Не удалось получить текущие настройки или они различаются...
+        // РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ С‚РµРєСѓС‰РёРµ РЅР°СЃС‚СЂРѕР№РєРё РёР»Рё РѕРЅРё СЂР°Р·Р»РёС‡Р°СЋС‚СЃСЏ...
         log_raw("Configuration of WiFi station override...");
         //ETS_UART_INTR_DISABLE();
             result = wifi_station_set_config(&current_config);
@@ -68,7 +68,7 @@ void ROM wifi_station_init(void)
         log_line("FAIL!");
         return;
     } while (false);
-    // Подключение к выбранной сети
+    // РџРѕРґРєР»СЋС‡РµРЅРёРµ Рє РІС‹Р±СЂР°РЅРЅРѕР№ СЃРµС‚Рё
     //ETS_UART_INTR_DISABLE();
         result = wifi_station_connect();
     //ETS_UART_INTR_ENABLE();
@@ -84,10 +84,10 @@ void ROM wifi_station_init(void)
 
 ROM void main_init(void)
 {
-    // Инициализация модулей
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»РµР№
     io_init();
     core_init();
     ntime_init();
-    // Инициализация WiFi (тест)
+    // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ WiFi (С‚РµСЃС‚)
     wifi_station_init();
 }

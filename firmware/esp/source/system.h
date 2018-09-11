@@ -1,4 +1,4 @@
-#ifndef __SYSTEM_H
+п»ї#ifndef __SYSTEM_H
 #define __SYSTEM_H
 
 // Shared
@@ -6,12 +6,12 @@
 // ESP8266
 #include <esp_common.h>
 
-// Размер регистра в батйах
+// Р Р°Р·РјРµСЂ СЂРµРіРёСЃС‚СЂР° РІ Р±Р°С‚Р№Р°С…
 #define REG_SIZE            4
 
-// Установка состояния вывода GPIO
+// РЈСЃС‚Р°РЅРѕРІРєР° СЃРѕСЃС‚РѕСЏРЅРёСЏ РІС‹РІРѕРґР° GPIO
 #define GPIO_OUT_SET(pin, state)    GPIO_REG_WRITE(((state) ? GPIO_OUT_W1TS_ADDRESS : GPIO_OUT_W1TC_ADDRESS), (1L << (pin)))
-// Включение/Отключение вывода GPIO
+// Р’РєР»СЋС‡РµРЅРёРµ/РћС‚РєР»СЋС‡РµРЅРёРµ РІС‹РІРѕРґР° GPIO
 #define GPIO_ENA_SET(pin, state)    GPIO_REG_WRITE(((state) ? GPIO_ENABLE_W1TS_ADDRESS : GPIO_ENABLE_W1TC_ADDRESS), (1L << (pin)))
 
 // --- FreeRTOS --- //
@@ -21,12 +21,12 @@
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 
-// Создание задачи с аргументами по умолчанию (стек максимум по докам)
+// РЎРѕР·РґР°РЅРёРµ Р·Р°РґР°С‡Рё СЃ Р°СЂРіСѓРјРµРЅС‚Р°РјРё РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ (СЃС‚РµРє РјР°РєСЃРёРјСѓРј РїРѕ РґРѕРєР°Рј)
 #define CREATE_TASK(routine, name, arg) xTaskCreate(routine, (const signed char *)(name), 512, arg, 1, NULL)
-// Вход/Выход из мьютекса
+// Р’С…РѕРґ/Р’С‹С…РѕРґ РёР· РјСЊСЋС‚РµРєСЃР°
 #define MUTEX_ENTER(m)      xSemaphoreTake(m, portMAX_DELAY)
 #define MUTEX_LEAVE(m)      xSemaphoreGive(m)
-// Осутствующий макрос для пересчета милисекунд в тики
+// РћСЃСѓС‚СЃС‚РІСѓСЋС‰РёР№ РјР°РєСЂРѕСЃ РґР»СЏ РїРµСЂРµСЃС‡РµС‚Р° РјРёР»РёСЃРµРєСѓРЅРґ РІ С‚РёРєРё
 #define portTICK_PERIOD_MS  ((portTickType )1000 / configTICK_RATE_HZ)
 
 #endif // __SYSTEM_H

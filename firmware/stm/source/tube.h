@@ -1,38 +1,38 @@
-#ifndef __TUBE_H
+п»ї#ifndef __TUBE_H
 #define __TUBE_H
 
 #include "hmi.h"
 
-// Количество цифровых разрядов
+// РљРѕР»РёС‡РµСЃС‚РІРѕ С†РёС„СЂРѕРІС‹С… СЂР°Р·СЂСЏРґРѕРІ
 #define TUBE_NIXIE_COUNT        HMI_RANK_COUNT
-// Количество точечных разделителей
+// РљРѕР»РёС‡РµСЃС‚РІРѕ С‚РѕС‡РµС‡РЅС‹С… СЂР°Р·РґРµР»РёС‚РµР»РµР№
 #define TUBE_NEON_COUNT         4
 
-// Цифра для пробела
+// Р¦РёС„СЂР° РґР»СЏ РїСЂРѕР±РµР»Р°
 #define TUBE_NIXIE_DIGIT_SPACE  10
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void tube_init(void);
-// Обновление состояния ламп
+// РћР±РЅРѕРІР»РµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ Р»Р°РјРї
 void tube_refresh(void);
 
-// --- Лампы --- //
+// --- Р›Р°РјРїС‹ --- //
 
-// Установка цифры (с точкой)
+// РЈСЃС‚Р°РЅРѕРІРєР° С†РёС„СЂС‹ (СЃ С‚РѕС‡РєРѕР№)
 void tube_nixie_digit_set(hmi_rank_t index, uint8_t digit, bool dot);
-// Установка текста
-void tube_nixie_text_set(const char text[]); // TODO: а надо ли тут?
-// Установка насыщенности
-void tube_nixie_sat_set(hmi_sat_t value); // TODO: а надо ли тут?
+// РЈСЃС‚Р°РЅРѕРІРєР° С‚РµРєСЃС‚Р°
+void tube_nixie_text_set(const char text[]); // TODO: Р° РЅР°РґРѕ Р»Рё С‚СѓС‚?
+// РЈСЃС‚Р°РЅРѕРІРєР° РЅР°СЃС‹С‰РµРЅРЅРѕСЃС‚Рё
+void tube_nixie_sat_set(hmi_sat_t value); // TODO: Р° РЅР°РґРѕ Р»Рё С‚СѓС‚?
 void tube_nixie_sat_set(hmi_rank_t index, hmi_sat_t value);
 
-// --- Неонки --- //
+// --- РќРµРѕРЅРєРё --- //
 
-// Установка насыщенности
-void tube_neon_sat_set(hmi_sat_t value); // TODO: а надо ли тут?
+// РЈСЃС‚Р°РЅРѕРІРєР° РЅР°СЃС‹С‰РµРЅРЅРѕСЃС‚Рё
+void tube_neon_sat_set(hmi_sat_t value); // TODO: Р° РЅР°РґРѕ Р»Рё С‚СѓС‚?
 void tube_neon_sat_set(hmi_rank_t index, hmi_sat_t value);
 
-// Обработчик сброса напряжения ламп
+// РћР±СЂР°Р±РѕС‚С‡РёРє СЃР±СЂРѕСЃР° РЅР°РїСЂСЏР¶РµРЅРёСЏ Р»Р°РјРї
 void tube_interrupt_nixie_selcrst(void);
 
 #endif // __TUBE_H

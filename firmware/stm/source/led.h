@@ -1,32 +1,32 @@
-#ifndef __LED_H
+п»ї#ifndef __LED_H
 #define __LED_H
 
 #include "hmi.h"
 
-// Количество светодиодов
+// РљРѕР»РёС‡РµСЃС‚РІРѕ СЃРІРµС‚РѕРґРёРѕРґРѕРІ
 #define LED_COUNT               HMI_RANK_COUNT
 
-// Класс цепочки фильтров светодиодов
+// РљР»Р°СЃСЃ С†РµРїРѕС‡РєРё С„РёР»СЊС‚СЂРѕРІ СЃРІРµС‚РѕРґРёРѕРґРѕРІ
 struct led_filter_chain_t : hmi_filter_chain_t<hmi_rgb_t, LED_COUNT>
 { };
 
-// Класс фильтра коррекции гаммы для светодиодов
+// РљР»Р°СЃСЃ С„РёР»СЊС‚СЂР° РєРѕСЂСЂРµРєС†РёРё РіР°РјРјС‹ РґР»СЏ СЃРІРµС‚РѕРґРёРѕРґРѕРІ
 struct led_filter_gamma_t : hmi_filter_gamma_t<hmi_rgb_t, LED_COUNT>
 {
 protected:
-    // События смены данных
+    // РЎРѕР±С‹С‚РёСЏ СЃРјРµРЅС‹ РґР°РЅРЅС‹С…
     virtual void do_data_set(hmi_rank_t index, hmi_rgb_t &data);
 };
 
-// Цепочка фильтров для светодиодов
+// Р¦РµРїРѕС‡РєР° С„РёР»СЊС‚СЂРѕРІ РґР»СЏ СЃРІРµС‚РѕРґРёРѕРґРѕРІ
 extern led_filter_chain_t led;
-// Фильтр коррекции гаммы для светодиодов
+// Р¤РёР»СЊС‚СЂ РєРѕСЂСЂРµРєС†РёРё РіР°РјРјС‹ РґР»СЏ СЃРІРµС‚РѕРґРёРѕРґРѕРІ
 extern led_filter_gamma_t led_filter_gamma;
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void led_init(void);
 
-// Обработчик DMA
+// РћР±СЂР°Р±РѕС‚С‡РёРє DMA
 void led_interrupt_dma(void);
 
 #endif // __LED_H

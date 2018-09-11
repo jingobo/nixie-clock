@@ -1,68 +1,68 @@
-#include "event.h"
+п»ї#include "event.h"
 #include "nvic.h"
 #include "system.h"
 
-// Общее количество програмных таймеров
+// РћР±С‰РµРµ РєРѕР»РёС‡РµСЃС‚РІРѕ РїСЂРѕРіСЂР°РјРЅС‹С… С‚Р°Р№РјРµСЂРѕРІ
 #define EVENT_TIMER_COUNT               10
-// Количество микросекунд на тик
+// РљРѕР»РёС‡РµСЃС‚РІРѕ РјРёРєСЂРѕСЃРµРєСѓРЅРґ РЅР° С‚РёРє
 #define EVENT_TIMER_US_PER_TICK         4
-// Аппаратная частота таймера событий
+// РђРїРїР°СЂР°С‚РЅР°СЏ С‡Р°СЃС‚РѕС‚Р° С‚Р°Р№РјРµСЂР° СЃРѕР±С‹С‚РёР№
 #define EVENT_TIMER_FREQUENCY_HZ        (XM(1) / EVENT_TIMER_US_PER_TICK)
 
-// Значение для индекса не найденного таймера
+// Р—РЅР°С‡РµРЅРёРµ РґР»СЏ РёРЅРґРµРєСЃР° РЅРµ РЅР°Р№РґРµРЅРЅРѕРіРѕ С‚Р°Р№РјРµСЂР°
 #define EVENT_TIMER_NOT_FOUND           UINT8_MAX
 
-// Проверка количества (контракт)
+// РџСЂРѕРІРµСЂРєР° РєРѕР»РёС‡РµСЃС‚РІР° (РєРѕРЅС‚СЂР°РєС‚)
 #if EVENT_TIMER_COUNT >= EVENT_TIMER_NOT_FOUND
     #error software timer count too large
 #endif
 
-// Тип данных для хранения пероида в тиках
+// РўРёРї РґР°РЅРЅС‹С… РґР»СЏ С…СЂР°РЅРµРЅРёСЏ РїРµСЂРѕРёРґР° РІ С‚РёРєР°С…
 typedef uint16_t event_timer_period_t;
 
-// Сырое значение периода для аппаратного таймера
+// РЎС‹СЂРѕРµ Р·РЅР°С‡РµРЅРёРµ РїРµСЂРёРѕРґР° РґР»СЏ Р°РїРїР°СЂР°С‚РЅРѕРіРѕ С‚Р°Р№РјРµСЂР°
 #define EVENT_TIMER_PERIOD_RAW          ((event_timer_period_t)-1)
-// Минимальный пероид в тиках
+// РњРёРЅРёРјР°Р»СЊРЅС‹Р№ РїРµСЂРѕРёРґ РІ С‚РёРєР°С…
 #define EVENT_TIMER_PERIOD_MIN          ((event_timer_period_t)2)
-// Максимальный пероид в тиках
+// РњР°РєСЃРёРјР°Р»СЊРЅС‹Р№ РїРµСЂРѕРёРґ РІ С‚РёРєР°С…
 #define EVENT_TIMER_PERIOD_MAX          (EVENT_TIMER_PERIOD_RAW - EVENT_TIMER_PERIOD_MIN)
 
-// Объявление состояний таймера
+// РћР±СЉСЏРІР»РµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёР№ С‚Р°Р№РјРµСЂР°
 #define EVENT_TIMER_STATE_DECLARE(n)    MASK(event_t::timer_t::state_t, 1, n)
-#define EVENT_TIMER_STATE_NONE          ((event_t::timer_t::state_t)0)  // Состояния отсутствуют
-#define EVENT_TIMER_STATE_ACTIVE        EVENT_TIMER_STATE_DECLARE(0)    // Таймер запущен
-#define EVENT_TIMER_STATE_PENDING       EVENT_TIMER_STATE_DECLARE(1)    // Таймер сработал
-#define EVENT_TIMER_STATE_CIRQ          EVENT_TIMER_STATE_DECLARE(2)    // Обработка таймера из прерывания
-// Составные состояния таймера
+#define EVENT_TIMER_STATE_NONE          ((event_t::timer_t::state_t)0)  // РЎРѕСЃС‚РѕСЏРЅРёСЏ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚
+#define EVENT_TIMER_STATE_ACTIVE        EVENT_TIMER_STATE_DECLARE(0)    // РўР°Р№РјРµСЂ Р·Р°РїСѓС‰РµРЅ
+#define EVENT_TIMER_STATE_PENDING       EVENT_TIMER_STATE_DECLARE(1)    // РўР°Р№РјРµСЂ СЃСЂР°Р±РѕС‚Р°Р»
+#define EVENT_TIMER_STATE_CIRQ          EVENT_TIMER_STATE_DECLARE(2)    // РћР±СЂР°Р±РѕС‚РєР° С‚Р°Р№РјРµСЂР° РёР· РїСЂРµСЂС‹РІР°РЅРёСЏ
+// РЎРѕСЃС‚Р°РІРЅС‹Рµ СЃРѕСЃС‚РѕСЏРЅРёСЏ С‚Р°Р№РјРµСЂР°
 #define EVENT_TIMER_STATE_USED          (EVENT_TIMER_STATE_ACTIVE | EVENT_TIMER_STATE_PENDING)
 
-// Класс реализации событий
+// РљР»Р°СЃСЃ СЂРµР°Р»РёР·Р°С†РёРё СЃРѕР±С‹С‚РёР№
 static struct event_t
 {
-    // Данные для програмных таймеров
+    // Р”Р°РЅРЅС‹Рµ РґР»СЏ РїСЂРѕРіСЂР°РјРЅС‹С… С‚Р°Р№РјРµСЂРѕРІ
     class timer_t : event_base_t
     {
-        // Хранение состояния таймера
+        // РҐСЂР°РЅРµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ С‚Р°Р№РјРµСЂР°
         typedef uint8_t state_t;
         
-        // Софтовые таймеры
+        // РЎРѕС„С‚РѕРІС‹Рµ С‚Р°Р№РјРµСЂС‹
         struct slot_t
         {
-            // Счетчики интервалов
+            // РЎС‡РµС‚С‡РёРєРё РёРЅС‚РµСЂРІР°Р»РѕРІ
             event_interval_t current, reload;
-            // Обработчик события
+            // РћР±СЂР°Р±РѕС‚С‡РёРє СЃРѕР±С‹С‚РёСЏ
             notify_t *handler;
-            // Состояние
+            // РЎРѕСЃС‚РѕСЏРЅРёРµ
             state_t state;
             
-            // Конструктор по умолчанию
+            // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
             slot_t(void) : state(EVENT_TIMER_STATE_NONE)
             { }
         } slot[EVENT_TIMER_COUNT];
-        // Последнее значение аппаратного счетчика
+        // РџРѕСЃР»РµРґРЅРµРµ Р·РЅР°С‡РµРЅРёРµ Р°РїРїР°СЂР°С‚РЅРѕРіРѕ СЃС‡РµС‚С‡РёРєР°
         event_timer_period_t counter;
         
-        // Поиск свободного таймера с начала списка (критичные по времени срабатывания)
+        // РџРѕРёСЃРє СЃРІРѕР±РѕРґРЅРѕРіРѕ С‚Р°Р№РјРµСЂР° СЃ РЅР°С‡Р°Р»Р° СЃРїРёСЃРєР° (РєСЂРёС‚РёС‡РЅС‹Рµ РїРѕ РІСЂРµРјРµРЅРё СЃСЂР°Р±Р°С‚С‹РІР°РЅРёСЏ)
         uint8_t find_free(void) const
         {
             for (uint8_t i = 0; i < EVENT_TIMER_COUNT; i++)
@@ -71,7 +71,7 @@ static struct event_t
             return EVENT_TIMER_NOT_FOUND;
         }
 
-        // Поиск свободного таймера с конца списка
+        // РџРѕРёСЃРє СЃРІРѕР±РѕРґРЅРѕРіРѕ С‚Р°Р№РјРµСЂР° СЃ РєРѕРЅС†Р° СЃРїРёСЃРєР°
         uint8_t find_free_back(void) const
         {
             for (uint8_t i = EVENT_TIMER_COUNT; i > 0;)
@@ -80,7 +80,7 @@ static struct event_t
             return EVENT_TIMER_NOT_FOUND;
         }
 
-        // Поиск таймера по обработчику
+        // РџРѕРёСЃРє С‚Р°Р№РјРµСЂР° РїРѕ РѕР±СЂР°Р±РѕС‚С‡РёРєСѓ
         uint8_t find_handler(const notify_t &handler) const
         {
             for (uint8_t i = 0; i < EVENT_TIMER_COUNT; i++)
@@ -89,206 +89,206 @@ static struct event_t
             return EVENT_TIMER_NOT_FOUND;
         }
     protected:
-        // Обработчик тиков таймеров
+        // РћР±СЂР°Р±РѕС‚С‡РёРє С‚РёРєРѕРІ С‚Р°Р№РјРµСЂРѕРІ
         virtual void notify_event(void)
         {
-            // Сохранение состояния прерываний
+            // РЎРѕС…СЂР°РЅРµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ РїСЂРµСЂС‹РІР°РЅРёР№
             IRQ_CTX_SAVE();
-            // Обработка тиков таймеров
+            // РћР±СЂР°Р±РѕС‚РєР° С‚РёРєРѕРІ С‚Р°Р№РјРµСЂРѕРІ
             for (uint8_t i = 0; i < EVENT_TIMER_COUNT; i++)
                 if (slot[i].state & EVENT_TIMER_STATE_PENDING)
                 {
-                    // Обработчка тика
+                    // РћР±СЂР°Р±РѕС‚С‡РєР° С‚РёРєР°
                     slot[i].handler->notify_event();
-                    // Снятие состояния ожидания обработки
+                    // РЎРЅСЏС‚РёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ РѕР¶РёРґР°РЅРёСЏ РѕР±СЂР°Р±РѕС‚РєРё
                     IRQ_CTX_DISABLE();
                         slot[i].state &= ~EVENT_TIMER_STATE_PENDING;
                     IRQ_CTX_RESTORE();
                 }
         }
     public:
-        // Конструктор по умолчанию
+        // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
         timer_t(void) : counter(0)
         { }
 
-        // Обработчик прерывания аппаратного таймера
+        // РћР±СЂР°Р±РѕС‚С‡РёРє РїСЂРµСЂС‹РІР°РЅРёСЏ Р°РїРїР°СЂР°С‚РЅРѕРіРѕ С‚Р°Р№РјРµСЂР°
         INLINE_FORCED
         OPTIMIZE_SPEED
         void interrupt_handler(void)
         {
             bool event_gen = false;
             event_timer_period_t dx, dt, ccr = EVENT_TIMER_PERIOD_MAX;
-            // Опрделеение разницы времени в тиках
+            // РћРїСЂРґРµР»РµРµРЅРёРµ СЂР°Р·РЅРёС†С‹ РІСЂРµРјРµРЅРё РІ С‚РёРєР°С…
             dx = (event_timer_period_t)TIM3->CNT;
             dx -= counter;
             counter += dx;
-            // Обработка таймеров
+            // РћР±СЂР°Р±РѕС‚РєР° С‚Р°Р№РјРµСЂРѕРІ
             for (uint8_t i = 0; i < EVENT_TIMER_COUNT; i++)
             {
-                // Если таймер выключен - пропуск
+                // Р•СЃР»Рё С‚Р°Р№РјРµСЂ РІС‹РєР»СЋС‡РµРЅ - РїСЂРѕРїСѓСЃРє
                 if (!(slot[i].state & EVENT_TIMER_STATE_ACTIVE))
                     continue;
                 if (slot[i].current <= dx)
                 {
-                    // Генерирование события
+                    // Р“РµРЅРµСЂРёСЂРѕРІР°РЅРёРµ СЃРѕР±С‹С‚РёСЏ
                     if (slot[i].state & EVENT_TIMER_STATE_CIRQ)
-                        // ...прямо из прерывания
+                        // ...РїСЂСЏРјРѕ РёР· РїСЂРµСЂС‹РІР°РЅРёСЏ
                         slot[i].handler->notify_event();
                     else
                     {
-                        // ...в основной нити
+                        // ...РІ РѕСЃРЅРѕРІРЅРѕР№ РЅРёС‚Рё
                         event_gen = true;
                         slot[i].state |= EVENT_TIMER_STATE_PENDING;
                     }
                     if (slot[i].reload <= 0)
                     {
-                        // Отключение
+                        // РћС‚РєР»СЋС‡РµРЅРёРµ
                         slot[i].state &= ~EVENT_TIMER_STATE_ACTIVE;
                         continue;
                     }
-                    // Определяем сколько времени прошляпили
+                    // РћРїСЂРµРґРµР»СЏРµРј СЃРєРѕР»СЊРєРѕ РІСЂРµРјРµРЅРё РїСЂРѕС€Р»СЏРїРёР»Рё
                     dt = dx - slot[i].current;
-                    // Нормализация пропавшего времени до значения перезагрузки
+                    // РќРѕСЂРјР°Р»РёР·Р°С†РёСЏ РїСЂРѕРїР°РІС€РµРіРѕ РІСЂРµРјРµРЅРё РґРѕ Р·РЅР°С‡РµРЅРёСЏ РїРµСЂРµР·Р°РіСЂСѓР·РєРё
                     while (dt >= slot[i].reload)
                         dt -= slot[i].reload;
-                    // Обновление интервала значением перезагрузки
+                    // РћР±РЅРѕРІР»РµРЅРёРµ РёРЅС‚РµСЂРІР°Р»Р° Р·РЅР°С‡РµРЅРёРµРј РїРµСЂРµР·Р°РіСЂСѓР·РєРё
                     slot[i].current = slot[i].reload;
-                    // Вычитаем нормализированное потерянное время
+                    // Р’С‹С‡РёС‚Р°РµРј РЅРѕСЂРјР°Р»РёР·РёСЂРѕРІР°РЅРЅРѕРµ РїРѕС‚РµСЂСЏРЅРЅРѕРµ РІСЂРµРјСЏ
                     slot[i].current -= dt;
                 }
                 else
                     slot[i].current -= dx;
-                // Определение времени следующего срабатывания аппаратного таймера
+                // РћРїСЂРµРґРµР»РµРЅРёРµ РІСЂРµРјРµРЅРё СЃР»РµРґСѓСЋС‰РµРіРѕ СЃСЂР°Р±Р°С‚С‹РІР°РЅРёСЏ Р°РїРїР°СЂР°С‚РЅРѕРіРѕ С‚Р°Р№РјРµСЂР°
                 if (ccr > slot[i].current)
                     ccr = slot[i].current;
             }
-            // Рассчет времени следующего срабатывания
+            // Р Р°СЃСЃС‡РµС‚ РІСЂРµРјРµРЅРё СЃР»РµРґСѓСЋС‰РµРіРѕ СЃСЂР°Р±Р°С‚С‹РІР°РЅРёСЏ
             if (ccr < EVENT_TIMER_PERIOD_MIN)
                 ccr = EVENT_TIMER_PERIOD_MIN;
-            // Установка регистра CCR1
+            // РЈСЃС‚Р°РЅРѕРІРєР° СЂРµРіРёСЃС‚СЂР° CCR1
             ccr_set(ccr);
-            // Генерация события
+            // Р“РµРЅРµСЂР°С†РёСЏ СЃРѕР±С‹С‚РёСЏ
             if (event_gen)
                 event_add(this);
         }
         
-        // Установка нового значения для регистра захвата/сравнения
+        // РЈСЃС‚Р°РЅРѕРІРєР° РЅРѕРІРѕРіРѕ Р·РЅР°С‡РµРЅРёСЏ РґР»СЏ СЂРµРіРёСЃС‚СЂР° Р·Р°С…РІР°С‚Р°/СЃСЂР°РІРЅРµРЅРёСЏ
         OPTIMIZE_SPEED
         void ccr_set(event_timer_period_t delta) const
         {
             delta += (event_timer_period_t)TIM3->CNT;
-            // Установка регистра CCR1
+            // РЈСЃС‚Р°РЅРѕРІРєР° СЂРµРіРёСЃС‚СЂР° CCR1
             TIM3->CCR1 = delta;
-            // Сброс флага прерывания
+            // РЎР±СЂРѕСЃ С„Р»Р°РіР° РїСЂРµСЂС‹РІР°РЅРёСЏ
             TIM3->SR &= ~TIM_SR_CC1IF;                                          // Clear IRQ CC1 pending flag
         }
 
-        // Старт программного таймера на указанное количество тиков
+        // РЎС‚Р°СЂС‚ РїСЂРѕРіСЂР°РјРјРЅРѕРіРѕ С‚Р°Р№РјРµСЂР° РЅР° СѓРєР°Р·Р°РЅРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ С‚РёРєРѕРІ
         void start(notify_t &handler, event_interval_t interval, event_timer_flag_t flags)
         {
-            // Проверка аргументов
+            // РџСЂРѕРІРµСЂРєР° Р°СЂРіСѓРјРµРЅС‚РѕРІ
             if (interval <= 0)
                 return;
-            // Отключаем все прерывания
+            // РћС‚РєР»СЋС‡Р°РµРј РІСЃРµ РїСЂРµСЂС‹РІР°РЅРёСЏ
             IRQ_SAFE_ENTER();
-                // Поиск по обработчику
+                // РџРѕРёСЃРє РїРѕ РѕР±СЂР°Р±РѕС‚С‡РёРєСѓ
                 uint8_t i = find_handler(handler);
                 if (i == EVENT_TIMER_NOT_FOUND)
                 {
-                    // Поиск свободного слота
+                    // РџРѕРёСЃРє СЃРІРѕР±РѕРґРЅРѕРіРѕ СЃР»РѕС‚Р°
                     i = (flags & EVENT_TIMER_FLAG_HEAD) ? find_free() : find_free_back();
-                    // Когда слот не найден - это недопустимо
+                    // РљРѕРіРґР° СЃР»РѕС‚ РЅРµ РЅР°Р№РґРµРЅ - СЌС‚Рѕ РЅРµРґРѕРїСѓСЃС‚РёРјРѕ
                     assert(i != EVENT_TIMER_NOT_FOUND);
                 }
-                // Установка слота
-                    // Обработчик, интервал
+                // РЈСЃС‚Р°РЅРѕРІРєР° СЃР»РѕС‚Р°
+                    // РћР±СЂР°Р±РѕС‚С‡РёРє, РёРЅС‚РµСЂРІР°Р»
                 slot[i].current = interval;
                 slot[i].handler = &handler;
-                    // Состояние (без флага ожидания)
+                    // РЎРѕСЃС‚РѕСЏРЅРёРµ (Р±РµР· С„Р»Р°РіР° РѕР¶РёРґР°РЅРёСЏ)
                 slot[i].state |= EVENT_TIMER_STATE_ACTIVE;
                 if (flags & EVENT_TIMER_FLAG_CIRQ)
                     slot[i].state |= EVENT_TIMER_STATE_CIRQ;
                 else
                     slot[i].state &= ~EVENT_TIMER_STATE_CIRQ;
-                    // Период
+                    // РџРµСЂРёРѕРґ
                 slot[i].reload = (flags & EVENT_TIMER_FLAG_LOOP) ? interval : 0;
-            // Восстановление прерываний
+            // Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РїСЂРµСЂС‹РІР°РЅРёР№
             IRQ_SAFE_LEAVE();
-            // Форсирование срабатывания прерывания
+            // Р¤РѕСЂСЃРёСЂРѕРІР°РЅРёРµ СЃСЂР°Р±Р°С‚С‹РІР°РЅРёСЏ РїСЂРµСЂС‹РІР°РЅРёСЏ
             ccr_set(EVENT_TIMER_PERIOD_MIN);
         }
 
-        // Стоп программного таймера (возвращает - нашелся ли таймер)
+        // РЎС‚РѕРї РїСЂРѕРіСЂР°РјРјРЅРѕРіРѕ С‚Р°Р№РјРµСЂР° (РІРѕР·РІСЂР°С‰Р°РµС‚ - РЅР°С€РµР»СЃСЏ Р»Рё С‚Р°Р№РјРµСЂ)
         INLINE_FORCED
         bool stop(const notify_t &handler)
         {
             bool result = false;
-            // Отключаем все прерывания
+            // РћС‚РєР»СЋС‡Р°РµРј РІСЃРµ РїСЂРµСЂС‹РІР°РЅРёСЏ
             IRQ_SAFE_ENTER();
-                // Поиск слота
+                // РџРѕРёСЃРє СЃР»РѕС‚Р°
                 uint8_t i = find_handler(handler);
                 if (i != EVENT_TIMER_NOT_FOUND)
                 {
-                    // Отключение
+                    // РћС‚РєР»СЋС‡РµРЅРёРµ
                     slot[i].state &= ~EVENT_TIMER_STATE_ACTIVE;
                     result = true;
                 }
-            // Восстановление прерываний
+            // Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РїСЂРµСЂС‹РІР°РЅРёР№
             IRQ_SAFE_LEAVE();
             return result;
         }
     } timer;
     
-    // Списки общих событий
+    // РЎРїРёСЃРєРё РѕР±С‰РёС… СЃРѕР±С‹С‚РёР№
     class scope_t
     {
         list_template_t<event_base_t> list[2];
         list_template_t<event_base_t> *active;
     public:
-        // Конструктор
+        // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ
         scope_t(void) : active(list)
         { }
         
-        // Добавление события в очередь
+        // Р”РѕР±Р°РІР»РµРЅРёРµ СЃРѕР±С‹С‚РёСЏ РІ РѕС‡РµСЂРµРґСЊ
         INLINE_FORCED
         void add(event_base_t &event)
         {
-            // Добавление в начало списка событий
+            // Р”РѕР±Р°РІР»РµРЅРёРµ РІ РЅР°С‡Р°Р»Рѕ СЃРїРёСЃРєР° СЃРѕР±С‹С‚РёР№
             IRQ_SAFE_ENTER();
-                // Если событие уже в ожидании - выходим
+                // Р•СЃР»Рё СЃРѕР±С‹С‚РёРµ СѓР¶Рµ РІ РѕР¶РёРґР°РЅРёРё - РІС‹С…РѕРґРёРј
                 if (event.pending_set())
                     event.link(*active, LIST_SIDE_HEAD);
             IRQ_SAFE_LEAVE();
         }
         
-        // Обработчка очереди событий
+        // РћР±СЂР°Р±РѕС‚С‡РєР° РѕС‡РµСЂРµРґРё СЃРѕР±С‹С‚РёР№
         INLINE_FORCED
         void execute(void)
         {
-            // Проверяем, пустой ли список
+            // РџСЂРѕРІРµСЂСЏРµРј, РїСѓСЃС‚РѕР№ Р»Рё СЃРїРёСЃРѕРє
             if (active->empty())
                 return;
             uint8_t i;
             IRQ_SAFE_ENTER();
-                // Определяем какой список был активен
+                // РћРїСЂРµРґРµР»СЏРµРј РєР°РєРѕР№ СЃРїРёСЃРѕРє Р±С‹Р» Р°РєС‚РёРІРµРЅ
                 if (active == list + 0)
                     i = 0;
                 else if (active == list + 1)
                     i = 1;
-                // Выбираем активным списком другой
+                // Р’С‹Р±РёСЂР°РµРј Р°РєС‚РёРІРЅС‹Рј СЃРїРёСЃРєРѕРј РґСЂСѓРіРѕР№
                 active = list + (i ^ 1);
                 assert(active->empty());
             IRQ_SAFE_LEAVE();
-            // Обработка очереди
+            // РћР±СЂР°Р±РѕС‚РєР° РѕС‡РµСЂРµРґРё
             do
             {
-                // Получаем первый элемент списка
+                // РџРѕР»СѓС‡Р°РµРј РїРµСЂРІС‹Р№ СЌР»РµРјРµРЅС‚ СЃРїРёСЃРєР°
                 event_base_t &event = *list[i].head();
-                // Обработка события
+                // РћР±СЂР°Р±РѕС‚РєР° СЃРѕР±С‹С‚РёСЏ
                 event.notify();
-                // Удаляем из списка
+                // РЈРґР°Р»СЏРµРј РёР· СЃРїРёСЃРєР°
                 event.unlink();
-                // Cбрасываем флаг ожидания
+                // CР±СЂР°СЃС‹РІР°РµРј С„Р»Р°Рі РѕР¶РёРґР°РЅРёСЏ
                 IRQ_CTX_DISABLE();
                     event.pending_reset();
                 IRQ_CTX_RESTORE();
@@ -299,19 +299,19 @@ static struct event_t
 
 void event_init(void)
 {
-    // Тактирование и сброс таймера
+    // РўР°РєС‚РёСЂРѕРІР°РЅРёРµ Рё СЃР±СЂРѕСЃ С‚Р°Р№РјРµСЂР°
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;                                         // TIM3 clock enable
     RCC->APB1RSTR |= RCC_APB1RSTR_TIM3RST;                                      // TIM3 reset
     RCC->APB1RSTR &= ~RCC_APB1RSTR_TIM3RST;                                     // TIM3 unreset
-    // Конфигурирование таймера
+    // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ С‚Р°Р№РјРµСЂР°
     TIM3->CCMR1 = TIM_CCMR1_OC1M_0 | TIM_CCMR1_OC1M_1;                          // CC1 output, CC1 Fast off, CC1 preload off, CC1 mode Toggle (011)
     TIM3->PSC = FMCU_NORMAL_HZ / EVENT_TIMER_FREQUENCY_HZ - 1;                  // Prescaler (frequency)
     TIM3->ARR = EVENT_TIMER_PERIOD_RAW;                                         // Max period
     TIM3->DIER = TIM_DIER_CC1IE;                                                // CC1 IRQ enable
-    // Конфигурирование прерываний
+    // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ РїСЂРµСЂС‹РІР°РЅРёР№
     nvic_irq_enable_set(TIM3_IRQn, true);                                       // TIM3 IRQ enable
     nvic_irq_priority_set(TIM3_IRQn, NVIC_IRQ_PRIORITY_HIGHEST);                // Middle TIM3 IRQ priority
-    // Старт аппаратного таймера
+    // РЎС‚Р°СЂС‚ Р°РїРїР°СЂР°С‚РЅРѕРіРѕ С‚Р°Р№РјРµСЂР°
     event.timer.ccr_set(EVENT_TIMER_PERIOD_MAX);
     TIM3->CR1 |= TIM_CR1_CEN;                                                   // TIM enable
 }

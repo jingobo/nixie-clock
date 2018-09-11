@@ -1,23 +1,23 @@
-#include "log.h"
+п»ї#include "log.h"
 #include "tool.h"
 #include <stdarg.h>
 
-// Обертка классом для авто инициализации мютекса
+// РћР±РµСЂС‚РєР° РєР»Р°СЃСЃРѕРј РґР»СЏ Р°РІС‚Рѕ РёРЅРёС†РёР°Р»РёР·Р°С†РёРё РјСЋС‚РµРєСЃР°
 static struct log_t
 {
-    // Буфер для вывода
+    // Р‘СѓС„РµСЂ РґР»СЏ РІС‹РІРѕРґР°
     char buffer[256];
-    // Мьютекс для синхронизации
+    // РњСЊСЋС‚РµРєСЃ РґР»СЏ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё
     const xSemaphoreHandle mutex;
 
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     log_t(void) : mutex(xSemaphoreCreateMutex())
     {
         assert(mutex != NULL);
     }
 } logger;
 
-// Фикс отсутствия функции vsprintf
+// Р¤РёРєСЃ РѕС‚СЃСѓС‚СЃС‚РІРёСЏ С„СѓРЅРєС†РёРё vsprintf
 ROM static void log_printf(const char * format, va_list args)
 {
     vsnprintf(logger.buffer, sizeof(logger.buffer), format, args);

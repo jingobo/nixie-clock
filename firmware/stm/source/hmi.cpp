@@ -1,4 +1,4 @@
-#include "hmi.h"
+﻿#include "hmi.h"
 
 void hmi_rgb_t::gamma(const hmi_sat_table_t &table)
 {

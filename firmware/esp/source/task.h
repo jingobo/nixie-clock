@@ -1,37 +1,37 @@
-#ifndef __TASK_H
+п»ї#ifndef __TASK_H
 #define __TASK_H
 
 #include "system.h"
 
-// Оболочка для задач FreeRTOS
+// РћР±РѕР»РѕС‡РєР° РґР»СЏ Р·Р°РґР°С‡ FreeRTOS
 class task_wrapper_t
 {
-    // Флаг активности задачи
+    // Р¤Р»Р°Рі Р°РєС‚РёРІРЅРѕСЃС‚Рё Р·Р°РґР°С‡Рё
     bool active;
-    // Имя задачи
+    // РРјСЏ Р·Р°РґР°С‡Рё
     const char * const name;
 
-    // Оболочка для метода выполнения задачи
+    // РћР±РѕР»РѕС‡РєР° РґР»СЏ РјРµС‚РѕРґР° РІС‹РїРѕР»РЅРµРЅРёСЏ Р·Р°РґР°С‡Рё
     void execute_wrapper(void);
-    // Низкоуровневый обработчик задачи
+    // РќРёР·РєРѕСѓСЂРѕРІРЅРµРІС‹Р№ РѕР±СЂР°Р±РѕС‚С‡РёРє Р·Р°РґР°С‡Рё
     RAM static void task_routine(void *arg)
     {
         ((task_wrapper_t *)arg)->execute_wrapper();
         vTaskDelete(NULL);
     }
 protected:
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     task_wrapper_t(const char * _name);
 
-    // Обработчик задачи
+    // РћР±СЂР°Р±РѕС‚С‡РёРє Р·Р°РґР°С‡Рё
     virtual void execute(void) = 0;
 public:
-    // Мьютекс для синхронизации
+    // РњСЊСЋС‚РµРєСЃ РґР»СЏ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёРё
     const xSemaphoreHandle mutex;
 
-    // Запуск задачи
+    // Р—Р°РїСѓСЃРє Р·Р°РґР°С‡Рё
     bool start(void);
-    // Получает, выполняется ли задача
+    // РџРѕР»СѓС‡Р°РµС‚, РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ Р»Рё Р·Р°РґР°С‡Р°
     ROM bool running(void) const
     {
         return active;

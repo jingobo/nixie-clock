@@ -1,9 +1,9 @@
-#ifndef __NVIC_H
+п»ї#ifndef __NVIC_H
 #define __NVIC_H
 
 #include "system.h"
 
-// Приоритеты прерываний, от низкого к высокому
+// РџСЂРёРѕСЂРёС‚РµС‚С‹ РїСЂРµСЂС‹РІР°РЅРёР№, РѕС‚ РЅРёР·РєРѕРіРѕ Рє РІС‹СЃРѕРєРѕРјСѓ
 typedef enum
 {
     NVIC_IRQ_PRIORITY_0 = 15,
@@ -24,18 +24,18 @@ typedef enum
     NVIC_IRQ_PRIORITY_15 = 0
 } nvic_irq_priority_t;
 
-// Низкий и высокий приоритет прерывания
+// РќРёР·РєРёР№ Рё РІС‹СЃРѕРєРёР№ РїСЂРёРѕСЂРёС‚РµС‚ РїСЂРµСЂС‹РІР°РЅРёСЏ
 #define NVIC_IRQ_PRIORITY_LOWEST    NVIC_IRQ_PRIORITY_0
 #define NVIC_IRQ_PRIORITY_HIGHEST   NVIC_IRQ_PRIORITY_15
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void nvic_init(void);
-// Установка приоритета прерыванию
+// РЈСЃС‚Р°РЅРѕРІРєР° РїСЂРёРѕСЂРёС‚РµС‚Р° РїСЂРµСЂС‹РІР°РЅРёСЋ
 void nvic_irq_priority_set(IRQn_Type irq, nvic_irq_priority_t priority);
-// Получает приоритет прерывания
+// РџРѕР»СѓС‡Р°РµС‚ РїСЂРёРѕСЂРёС‚РµС‚ РїСЂРµСЂС‹РІР°РЅРёСЏ
 nvic_irq_priority_t nvic_irq_priority_get(IRQn_Type irq);
 
-// Включает/Отключает прерывание
+// Р’РєР»СЋС‡Р°РµС‚/РћС‚РєР»СЋС‡Р°РµС‚ РїСЂРµСЂС‹РІР°РЅРёРµ
 void nvic_irq_enable_set(IRQn_Type irq, bool state);
 
 #endif // __NVIC_H

@@ -1,17 +1,17 @@
-#ifndef __RTC_H
+п»ї#ifndef __RTC_H
 #define __RTC_H
 
 #include "typedefs.h"
 #include <datetime.h>
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void rtc_init(void);
-// Вывод частоты RTC /64
+// Р’С‹РІРѕРґ С‡Р°СЃС‚РѕС‚С‹ RTC /64
 void rtc_clock_output(bool enabled);
-// Получает текущую дату/время
+// РџРѕР»СѓС‡Р°РµС‚ С‚РµРєСѓС‰СѓСЋ РґР°С‚Сѓ/РІСЂРµРјСЏ
 void rtc_datetime_get(datetime_t &dest);
 
-// Обработчик секундного прерывания
+// РћР±СЂР°Р±РѕС‚С‡РёРє СЃРµРєСѓРЅРґРЅРѕРіРѕ РїСЂРµСЂС‹РІР°РЅРёСЏ
 void rtc_interrupt_second(void);
 
 #endif // __RTC_H

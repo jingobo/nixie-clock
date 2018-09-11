@@ -1,9 +1,9 @@
-#include "io.h"
+п»ї#include "io.h"
 
-// Период мигания в мС
+// РџРµСЂРёРѕРґ РјРёРіР°РЅРёСЏ РІ РјРЎ
 #define GPIO_BLINK_DELAY    50
 
-// Обработчик таймера мигалки
+// РћР±СЂР°Р±РѕС‚С‡РёРє С‚Р°Р№РјРµСЂР° РјРёРіР°Р»РєРё
 ROM void gpio_t::blink_timer_cb(void *arg)
 {
 	gpio_t *ref = (gpio_t *)arg;
@@ -18,13 +18,13 @@ ROM void gpio_t::init(uint8_t index, uint32_t mux, uint8_t func, bool inverse)
 	this->state = false;
 	this->index = index;
 	this->inverse = inverse;
-	// Инициализация пина
+	// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РїРёРЅР°
     GPIO_ENA_SET(index, true);
 	PIN_FUNC_SELECT(mux, func);
-	// Инициализация таймера
+	// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ С‚Р°Р№РјРµСЂР°
 	MEMORY_CLEAR(blink_timer);
 	os_timer_setfn(&blink_timer, blink_timer_cb, this);
-	// Установка состояния
+	// РЈСЃС‚Р°РЅРѕРІРєР° СЃРѕСЃС‚РѕСЏРЅРёСЏ
 	state_set(false);
 }
 

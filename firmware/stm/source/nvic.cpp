@@ -1,7 +1,7 @@
-#include "mcu.h"
+п»ї#include "mcu.h"
 #include "nvic.h"
 
-// Режимы групп приоритетов
+// Р РµР¶РёРјС‹ РіСЂСѓРїРї РїСЂРёРѕСЂРёС‚РµС‚РѕРІ
 enum
 {
     // 0 bits pre-emption priority, 4 bits subpriority
@@ -16,18 +16,18 @@ enum
     NVIC_PRIORITYGROUP_4 = 3
 };
 
-// Текущий используемый режим группировки прерываний
+// РўРµРєСѓС‰РёР№ РёСЃРїРѕР»СЊР·СѓРµРјС‹Р№ СЂРµР¶РёРј РіСЂСѓРїРїРёСЂРѕРІРєРё РїСЂРµСЂС‹РІР°РЅРёР№
 #define NVIC_PRIORITYGROUP      NVIC_PRIORITYGROUP_4
 
-// Прототип процедуры обработчика прерывания
+// РџСЂРѕС‚РѕС‚РёРї РїСЂРѕС†РµРґСѓСЂС‹ РѕР±СЂР°Р±РѕС‚С‡РёРєР° РїСЂРµСЂС‹РІР°РЅРёСЏ
 typedef void (* nvic_isr_ptr)(void);
 
-// Структура описания стека и обработчиков прерываний
+// РЎС‚СЂСѓРєС‚СѓСЂР° РѕРїРёСЃР°РЅРёСЏ СЃС‚РµРєР° Рё РѕР±СЂР°Р±РѕС‚С‡РёРєРѕРІ РїСЂРµСЂС‹РІР°РЅРёР№
 struct nvic_vtbl_t
 {
-    // Адрес базы стека
+    // РђРґСЂРµСЃ Р±Р°Р·С‹ СЃС‚РµРєР°
     void *stack_base;
-    // Адреса обработчиков прерываний
+    // РђРґСЂРµСЃР° РѕР±СЂР°Р±РѕС‚С‡РёРєРѕРІ РїСЂРµСЂС‹РІР°РЅРёР№
     nvic_isr_ptr irq_handler[58];
 };
 
@@ -60,46 +60,46 @@ void nvic_irq_enable_set(IRQn_Type irq, bool state)
         NVIC_DisableIRQ(irq);
 }
 
-// Заглушка для обработчиков прерываний
+// Р—Р°РіР»СѓС€РєР° РґР»СЏ РѕР±СЂР°Р±РѕС‚С‡РёРєРѕРІ РїСЂРµСЂС‹РІР°РЅРёР№
 IRQ_ROUTINE
 static void nvic_interrupt_dummy(void)
 {
     mcu_halt(MCU_HALT_REASON_IRQ);
 }
 
-// Обработчик Hard Fault
+// РћР±СЂР°Р±РѕС‚С‡РёРє Hard Fault
 IRQ_ROUTINE
 static void nvic_interrupt_hard(void)
 {
     mcu_halt(MCU_HALT_REASON_SYS);
 }
 
-// Обработчик Memory Fault
+// РћР±СЂР°Р±РѕС‚С‡РёРє Memory Fault
 IRQ_ROUTINE
 static void nvic_interrupt_memory(void)
 {
     mcu_halt(MCU_HALT_REASON_MEM);
 }
 
-// Обработчик Usage Fault
+// РћР±СЂР°Р±РѕС‚С‡РёРє Usage Fault
 IRQ_ROUTINE
 static void nvic_interrupt_usage(void)
 {
     mcu_halt(MCU_HALT_REASON_USG);
 }
 
-// Обработчик Bus Fault
+// РћР±СЂР°Р±РѕС‚С‡РёРє Bus Fault
 IRQ_ROUTINE
 static void nvic_interrupt_bus(void)
 {
     mcu_halt(MCU_HALT_REASON_BUS);
 }
 
-// Точка старта программы
+// РўРѕС‡РєР° СЃС‚Р°СЂС‚Р° РїСЂРѕРіСЂР°РјРјС‹
 C_SYMBOL
 void __iar_program_start(void);
 
-// Модули в которых есть прерывания
+// РњРѕРґСѓР»Рё РІ РєРѕС‚РѕСЂС‹С… РµСЃС‚СЊ РїСЂРµСЂС‹РІР°РЅРёСЏ
 #include "esp.h"
 #include "clk.h"
 #include "rtc.h"
@@ -107,9 +107,9 @@ void __iar_program_start(void);
 #include "tube.h"
 #include "event.h"
 
-// Обявление сегмента для sfe
+// РћР±СЏРІР»РµРЅРёРµ СЃРµРіРјРµРЅС‚Р° РґР»СЏ sfe
 #pragma segment = SEGMENT_STACK
-// Имя не менять, это магическое значение для С-Spy
+// РРјСЏ РЅРµ РјРµРЅСЏС‚СЊ, СЌС‚Рѕ РјР°РіРёС‡РµСЃРєРѕРµ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ РЎ-Spy
 C_SYMBOL
 __root const nvic_vtbl_t __vector_table @ SEGMENT_VTBL =
 {

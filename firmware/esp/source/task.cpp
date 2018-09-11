@@ -1,14 +1,14 @@
-#include "task.h"
+п»ї#include "task.h"
 
-// Имя модуля для логирования
+// РРјСЏ РјРѕРґСѓР»СЏ РґР»СЏ Р»РѕРіРёСЂРѕРІР°РЅРёСЏ
 #define MODULE_NAME     "TASK"
 
-// Оболочка для метода выполнения задачи
+// РћР±РѕР»РѕС‡РєР° РґР»СЏ РјРµС‚РѕРґР° РІС‹РїРѕР»РЅРµРЅРёСЏ Р·Р°РґР°С‡Рё
 ROM void task_wrapper_t::execute_wrapper(void)
 {
-    // Выполнение
+    // Р’С‹РїРѕР»РЅРµРЅРёРµ
     execute();
-    // Снятие флага выполнения
+    // РЎРЅСЏС‚РёРµ С„Р»Р°РіР° РІС‹РїРѕР»РЅРµРЅРёСЏ
     MUTEX_ENTER(mutex);
         active = false;
     MUTEX_LEAVE(mutex);
@@ -26,7 +26,7 @@ ROM bool task_wrapper_t::start(void)
 {
     auto result = false;
     MUTEX_ENTER(mutex);
-        // Проверка активности задачи
+        // РџСЂРѕРІРµСЂРєР° Р°РєС‚РёРІРЅРѕСЃС‚Рё Р·Р°РґР°С‡Рё
         if (!active)
             if (CREATE_TASK(task_routine, name, this) != pdPASS)
                 log_module(MODULE_NAME, "Create \"%s\" failed!", name);

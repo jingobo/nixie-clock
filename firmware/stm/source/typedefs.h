@@ -1,4 +1,4 @@
-#ifndef __TYPEDEFS_H
+п»ї#ifndef __TYPEDEFS_H
 #define __TYPEDEFS_H
 
 // Common
@@ -6,38 +6,38 @@
 // IAR
 #include <intrinsics.h>
 
-// Переход в спящий режим до прерывания
+// РџРµСЂРµС…РѕРґ РІ СЃРїСЏС‰РёР№ СЂРµР¶РёРј РґРѕ РїСЂРµСЂС‹РІР°РЅРёСЏ
 #define WFI()                   __WFI()
-// Установка опции компилятора через макрос
+// РЈСЃС‚Р°РЅРѕРІРєР° РѕРїС†РёРё РєРѕРјРїРёР»СЏС‚РѕСЂР° С‡РµСЂРµР· РјР°РєСЂРѕСЃ
 #define PRAGMA_OPTION(m, v)      PRAGMA(m = v)
 
-// Режимы оптимизаций функций
+// Р РµР¶РёРјС‹ РѕРїС‚РёРјРёР·Р°С†РёР№ С„СѓРЅРєС†РёР№
 #define OPTIMIZE_NONE           PRAGMA_OPTION(optimize, none)
 #define OPTIMIZE_SIZE           PRAGMA_OPTION(optimize, size)
 #define OPTIMIZE_SPEED          PRAGMA_OPTION(optimize, speed)
-// Подставление функций
+// РџРѕРґСЃС‚Р°РІР»РµРЅРёРµ С„СѓРЅРєС†РёР№
 #define INLINE_NEVER            PRAGMA_OPTION(inline, never)
 #define INLINE_FORCED           PRAGMA_OPTION(inline, forced)
 
-// Включение/Отключение предупреждений
+// Р’РєР»СЋС‡РµРЅРёРµ/РћС‚РєР»СЋС‡РµРЅРёРµ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёР№
 #define WARNING_SUPPRESS(err)   PRAGMA_OPTION(diag_suppress, err)
 #define WARNING_DEFAULT(err)    PRAGMA_OPTION(diag_default, err)
 
-// Верванивание данных
+// Р’РµСЂРІР°РЅРёРІР°РЅРёРµ РґР°РЅРЅС‹С…
 #define ALIGN_DATA_8            PRAGMA_OPTION(data_alignment, 1)
 #define ALIGN_DATA_16           PRAGMA_OPTION(data_alignment, 2)
 #define ALIGN_DATA_32           PRAGMA_OPTION(data_alignment, 4)
 
-// Модификатор для прерываний
+// РњРѕРґРёС„РёРєР°С‚РѕСЂ РґР»СЏ РїСЂРµСЂС‹РІР°РЅРёР№
 #define IRQ_ROUTINE             INLINE_NEVER OPTIMIZE_SPEED
-// Сохраняет текущее состояние прерываний
+// РЎРѕС…СЂР°РЅСЏРµС‚ С‚РµРєСѓС‰РµРµ СЃРѕСЃС‚РѕСЏРЅРёРµ РїСЂРµСЂС‹РІР°РЅРёР№
 #define IRQ_CTX_SAVE()          __istate_t __istate = __get_interrupt_state()
-// Возвращает сохраненное состояние прерываний
+// Р’РѕР·РІСЂР°С‰Р°РµС‚ СЃРѕС…СЂР°РЅРµРЅРЅРѕРµ СЃРѕСЃС‚РѕСЏРЅРёРµ РїСЂРµСЂС‹РІР°РЅРёР№
 #define IRQ_CTX_RESTORE()       __set_interrupt_state(__istate)
-// Отключает все маскируемеые прерывания
+// РћС‚РєР»СЋС‡Р°РµС‚ РІСЃРµ РјР°СЃРєРёСЂСѓРµРјРµС‹Рµ РїСЂРµСЂС‹РІР°РЅРёСЏ
 #define IRQ_CTX_DISABLE()       __disable_interrupt()
 
-// Вход/Выход в безопасный  от прерываний код
+// Р’С…РѕРґ/Р’С‹С…РѕРґ РІ Р±РµР·РѕРїР°СЃРЅС‹Р№  РѕС‚ РїСЂРµСЂС‹РІР°РЅРёР№ РєРѕРґ
 #define IRQ_SAFE_ENTER()        \
     IRQ_CTX_SAVE();             \
     IRQ_CTX_DISABLE()

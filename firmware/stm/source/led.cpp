@@ -1,69 +1,69 @@
-#include "mcu.h"
+п»ї#include "mcu.h"
 #include "led.h"
 #include "nvic.h"
 
 // Alias
 #define DMA1_C6                 DMA1_Channel6
 
-// Количество цветовых каналов
+// РљРѕР»РёС‡РµСЃС‚РІРѕ С†РІРµС‚РѕРІС‹С… РєР°РЅР°Р»РѕРІ
 #define LED_RGB_COM_COUNT       3
-// Глубина в битах на канал
+// Р“Р»СѓР±РёРЅР° РІ Р±РёС‚Р°С… РЅР° РєР°РЅР°Р»
 #define LED_RGB_BIT_DEPTH       8
 
-// Период в тиках таймера
+// РџРµСЂРёРѕРґ РІ С‚РёРєР°С… С‚Р°Р№РјРµСЂР°
 #define LED_TIMER_PERIOD        90
-// Один период в тиках высокого состояния линии 
+// РћРґРёРЅ РїРµСЂРёРѕРґ РІ С‚РёРєР°С… РІС‹СЃРѕРєРѕРіРѕ СЃРѕСЃС‚РѕСЏРЅРёСЏ Р»РёРЅРёРё 
 #define LED_HIBIT_PERIOD        (LED_TIMER_PERIOD * 41 / 125)
-// Периоды для состояния бита
+// РџРµСЂРёРѕРґС‹ РґР»СЏ СЃРѕСЃС‚РѕСЏРЅРёСЏ Р±РёС‚Р°
 #define LED_LINE_BIT_LOW        (LED_HIBIT_PERIOD)
 #define LED_LINE_BIT_HIGH       (LED_HIBIT_PERIOD * 2)
 
-// Драйвер светодиодной подсветки
+// Р”СЂР°Р№РІРµСЂ СЃРІРµС‚РѕРґРёРѕРґРЅРѕР№ РїРѕРґСЃРІРµС‚РєРё
 class led_driver_t : public hmi_filter_t<hmi_rgb_t, LED_COUNT>
 {
-    // Тип данных для компоненты
+    // РўРёРї РґР°РЅРЅС‹С… РґР»СЏ РєРѕРјРїРѕРЅРµРЅС‚С‹
     typedef uint8_t sat_t[LED_RGB_BIT_DEPTH];
-    // Тип данных для всех компонент одного светодиода
+    // РўРёРї РґР°РЅРЅС‹С… РґР»СЏ РІСЃРµС… РєРѕРјРїРѕРЅРµРЅС‚ РѕРґРЅРѕРіРѕ СЃРІРµС‚РѕРґРёРѕРґР°
     typedef sat_t rgb_t[LED_RGB_COM_COUNT];
     
-    // Было ли перемещение данных в буфер DMA
+    // Р‘С‹Р»Рѕ Р»Рё РїРµСЂРµРјРµС‰РµРЅРёРµ РґР°РЅРЅС‹С… РІ Р±СѓС„РµСЂ DMA
     bool uploaded;
-    // Внутренний буфер данных для DMA
+    // Р’РЅСѓС‚СЂРµРЅРЅРёР№ Р±СѓС„РµСЂ РґР°РЅРЅС‹С… РґР»СЏ DMA
     ALIGN_FIELD_8
     struct 
     {
-        // Для формирования паузы
+        // Р”Р»СЏ С„РѕСЂРјРёСЂРѕРІР°РЅРёСЏ РїР°СѓР·С‹
         uint16_t reset[22];
-        // Данные
+        // Р”Р°РЅРЅС‹Рµ
         rgb_t data[LED_COUNT];
-        // Для отчистки CCR и установки линии в 0
+        // Р”Р»СЏ РѕС‚С‡РёСЃС‚РєРё CCR Рё СѓСЃС‚Р°РЅРѕРІРєРё Р»РёРЅРёРё РІ 0
         uint8_t gap;
     } dma_buffer;
     ALIGN_FIELD_DEF
 protected:
-    // Установка цвета светодиоду
+    // РЈСЃС‚Р°РЅРѕРІРєР° С†РІРµС‚Р° СЃРІРµС‚РѕРґРёРѕРґСѓ
     virtual void do_data_set(hmi_rank_t index, hmi_rgb_t &data);
-    // Обновление состояния светодиодов (возможна задержка выполнения до 0.25 мС)
+    // РћР±РЅРѕРІР»РµРЅРёРµ СЃРѕСЃС‚РѕСЏРЅРёСЏ СЃРІРµС‚РѕРґРёРѕРґРѕРІ (РІРѕР·РјРѕР¶РЅР° Р·Р°РґРµСЂР¶РєР° РІС‹РїРѕР»РЅРµРЅРёСЏ РґРѕ 0.25 РјРЎ)
     virtual void do_refresh(void);
 public:
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     led_driver_t(void) : hmi_filter_t(HMI_FILTER_PURPOSE_DISPLAY), uploaded(false)
     { 
         MEMORY_CLEAR(dma_buffer);
     }
 
-    // Получает указатель на буфер для DMA
+    // РџРѕР»СѓС‡Р°РµС‚ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° Р±СѓС„РµСЂ РґР»СЏ DMA
     void * dma_pointer_get(void)
     {
         return &dma_buffer;
     }
 };
 
-// Цепочка фильтров для светодиодов
+// Р¦РµРїРѕС‡РєР° С„РёР»СЊС‚СЂРѕРІ РґР»СЏ СЃРІРµС‚РѕРґРёРѕРґРѕРІ
 led_filter_chain_t led;
-// Фильтр коррекции гаммы для светодиодов
+// Р¤РёР»СЊС‚СЂ РєРѕСЂСЂРµРєС†РёРё РіР°РјРјС‹ РґР»СЏ СЃРІРµС‚РѕРґРёРѕРґРѕРІ
 led_filter_gamma_t led_filter_gamma;
-// Экземпляр драйвера светодиодов
+// Р­РєР·РµРјРїР»СЏСЂ РґСЂР°Р№РІРµСЂР° СЃРІРµС‚РѕРґРёРѕРґРѕРІ
 static led_driver_t led_driver;
 
 void led_driver_t::do_refresh(void)
@@ -71,28 +71,28 @@ void led_driver_t::do_refresh(void)
     if (uploaded)
         return;
     uploaded = true;
-    // Ожидание остановки TIM
+    // РћР¶РёРґР°РЅРёРµ РѕСЃС‚Р°РЅРѕРІРєРё TIM
     WAIT_WHILE(TIM1->CR1 & TIM_CR1_CEN);
-    // Подготовка смещения буфера DMA
+    // РџРѕРґРіРѕС‚РѕРІРєР° СЃРјРµС‰РµРЅРёСЏ Р±СѓС„РµСЂР° DMA
     rgb_t *dest = dma_buffer.data;
     for (hmi_rank_t led = 0; led < LED_COUNT; led++)
     {
         rgb_t buf;
         hmi_rgb_t color = data_get(led);
-        // Формирование в буфер
+        // Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ РІ Р±СѓС„РµСЂ
         for (uint8_t i = 0; i < LED_RGB_BIT_DEPTH; i++)
             for (uint8_t j = 0; j < LED_RGB_COM_COUNT; j++)
             {
                 buf[j][i] = (color.grba[j] & 0x80) ? LED_LINE_BIT_HIGH : LED_LINE_BIT_LOW;
                 color.grba[j] <<= 1;
             }
-        // Копирование в буфер DMA
+        // РљРѕРїРёСЂРѕРІР°РЅРёРµ РІ Р±СѓС„РµСЂ DMA
         memcpy(dest++, buf, sizeof(rgb_t));
     }
-    // Старт таймера
+    // РЎС‚Р°СЂС‚ С‚Р°Р№РјРµСЂР°
     TIM1->CR1 &= ~TIM_CR1_OPM;                                                  // OPM disable
     TIM1->CR1 |= TIM_CR1_CEN;                                                   // TIM enable
-    // Старт DMA
+    // РЎС‚Р°СЂС‚ DMA
     DMA1_C6->CNDTR = sizeof(dma_buffer);                                        // Transfer data size
     DMA1_C6->CCR |= DMA_CCR_EN;                                                 // Channel enable
 }
@@ -110,11 +110,11 @@ void led_filter_gamma_t::do_data_set(hmi_rank_t index, hmi_rgb_t &data)
 
 void led_init(void)
 {
-    // Тактирование и сброс таймера
+    // РўР°РєС‚РёСЂРѕРІР°РЅРёРµ Рё СЃР±СЂРѕСЃ С‚Р°Р№РјРµСЂР°
     RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;                                         // TIM1 clock enable
     RCC->APB2RSTR |= RCC_APB2RSTR_TIM1RST;                                      // TIM1 reset
     RCC->APB2RSTR &= ~RCC_APB2RSTR_TIM1RST;                                     // TIM1 unreset
-    // Конфигурирование таймера
+    // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ С‚Р°Р№РјРµСЂР°
     TIM1->CR1 = TIM_CR1_ARPE;                                                   // TIM disable, UEV on, OPM off, Up, CMS edge, Clock /1, ARR preloaded
     TIM1->DIER = TIM_DIER_CC3DE;                                                // CC3 DMA request enable
     TIM1->CCMR2 = TIM_CCMR2_OC3PE | TIM_CCMR2_OC3M_1 | TIM_CCMR2_OC3M_2;        // CC3 output, CC3 Fast off, CC3 preloaded, CC3 mode PWM 1 (110)
@@ -122,21 +122,21 @@ void led_init(void)
     TIM1->ARR = LED_TIMER_PERIOD - 1;                                           // Period 800 kHz (1.25 uS)
     TIM1->BDTR = TIM_BDTR_MOE;                                                  // Main Output enable
     
-    // Конфигурирование DMA
+    // РљРѕРЅС„РёРіСѓСЂРёСЂРѕРІР°РЅРёРµ DMA
     DMA1->IFCR |= DMA_IFCR_CTCIF6;                                              // Clear CTCIF
-    // Канал 6
+    // РљР°РЅР°Р» 6
     mcu_dma_channel_setup_pm(DMA1_C6,
-        // В TIM CC3
+        // Р’ TIM CC3
         TIM1->CCR3, 
-        // Из памяти
+        // РР· РїР°РјСЏС‚Рё
         led_driver.dma_pointer_get());
     DMA1_C6->CCR |= DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 |              // Memory to peripheral, Memory increment (8-bit), Peripheral size 16-bit
                     DMA_CCR_PL | DMA_CCR_TCIE;                                  // Very high priority, Transfer complete interrupt enable
-    // Включаем прерывание канала DMA
+    // Р’РєР»СЋС‡Р°РµРј РїСЂРµСЂС‹РІР°РЅРёРµ РєР°РЅР°Р»Р° DMA
     nvic_irq_enable_set(DMA1_Channel6_IRQn, true);
-    // Добавляем в цепочку драйвер
+    // Р”РѕР±Р°РІР»СЏРµРј РІ С†РµРїРѕС‡РєСѓ РґСЂР°Р№РІРµСЂ
     led.attach(led_driver);
-    // Обновление светодиодов
+    // РћР±РЅРѕРІР»РµРЅРёРµ СЃРІРµС‚РѕРґРёРѕРґРѕРІ
     led.refresh();
 }
 

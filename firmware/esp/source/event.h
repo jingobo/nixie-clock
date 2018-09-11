@@ -1,55 +1,55 @@
-#ifndef __EVENT_H
+п»ї#ifndef __EVENT_H
 #define __EVENT_H
 
 #include "system.h"
 
-// Базовый класс события
+// Р…Р°Р·РѕРІС‹Р№ РєР»Р°СЃСЃ СЃРѕР±С‹С‚РёВ¤
 class event_base_t
 {
 protected:
-    // Тип для частички очереди
+    // вЂњРёРї РґР»В¤ С‡Р°СЃС‚РёС‡РєРё РѕС‡РµСЂРµРґРё
     typedef uint8_t queue_item_t;
-    // Используемая очередь для имитации событий
+    // В»СЃРїРѕР»СЊР·СѓРµРјР°В¤ РѕС‡РµСЂРµРґСЊ РґР»В¤ РёРјРёС‚Р°С†РёРё СЃРѕР±С‹С‚РёР№
     const xQueueHandle queue;
 public:
-    // Конструктор по умолчанию
+    // В РѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     event_base_t(void) : queue(xQueueCreate(1, sizeof(queue_item_t)))
     { }
 
-    // Установка события
+    // вЂќСЃС‚Р°РЅРѕРІРєР° СЃРѕР±С‹С‚РёВ¤
     ROM void set(void)
     {
         queue_item_t dummy;
         xQueueSend(queue, &dummy, 0);
     }
 
-    // Установка события (из под прерывания)
+    // вЂќСЃС‚Р°РЅРѕРІРєР° СЃРѕР±С‹С‚РёВ¤ (РёР· РїРѕРґ РїСЂРµСЂС‹РІР°РЅРёВ¤)
     ROM void set_isr(void)
     {
         queue_item_t dummy;
         xQueueSendFromISR(queue, &dummy, 0);
     }
 
-    // Ожидание события
+    // СњР¶РёРґР°РЅРёРµ СЃРѕР±С‹С‚РёВ¤
     ROM virtual bool wait(uint32_t mills = portMAX_DELAY) = 0;
 };
 
-// Событие с автосбросом
+// вЂ”РѕР±С‹С‚РёРµ СЃ Р°РІС‚РѕСЃР±СЂРѕСЃРѕРј
 class event_auto_t : public event_base_t
 {
 public:
-    // Ожидание события
+    // СњР¶РёРґР°РЅРёРµ СЃРѕР±С‹С‚РёВ¤
     virtual bool wait(uint32_t mills = portMAX_DELAY);
 };
 
-// Событие с ручным сбросом
+// вЂ”РѕР±С‹С‚РёРµ СЃ СЂСѓС‡РЅС‹Рј СЃР±СЂРѕСЃРѕРј
 class event_manual_t : public event_base_t
 {
 public:
-    // Ожидание события
+    // СњР¶РёРґР°РЅРёРµ СЃРѕР±С‹С‚РёВ¤
     virtual bool wait(uint32_t mills = portMAX_DELAY);
 
-    // Сброс события
+    // вЂ”Р±СЂРѕСЃ СЃРѕР±С‹С‚РёВ¤
     ROM void reset(void)
     {
         xQueueReset(queue);

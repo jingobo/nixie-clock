@@ -1,13 +1,13 @@
-#ifndef __WDT_H
+п»ї#ifndef __WDT_H
 #define __WDT_H
 
 #include "typedefs.h"
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void wdt_init(void);
-// Сброс таймера
+// РЎР±СЂРѕСЃ С‚Р°Р№РјРµСЂР°
 void wdt_pulse(void);
-// Остановка таймера
+// РћСЃС‚Р°РЅРѕРІРєР° С‚Р°Р№РјРµСЂР°
 void wdt_stop(void);
 
 #endif // __WDT_H

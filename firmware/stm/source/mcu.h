@@ -1,38 +1,38 @@
-#ifndef __MCU_H
+п»ї#ifndef __MCU_H
 #define __MCU_H
 
 #include "system.h"
 
-// Причина остановки
+// РџСЂРёС‡РёРЅР° РѕСЃС‚Р°РЅРѕРІРєРё
 typedef enum
 {
-    // Не удалось запустить HSE осцилятор или он встал
+    // РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РїСѓСЃС‚РёС‚СЊ HSE РѕСЃС†РёР»СЏС‚РѕСЂ РёР»Рё РѕРЅ РІСЃС‚Р°Р»
     MCU_HALT_REASON_RCC,
-    // Не удалось запустить LSE осцилятор или он встал
+    // РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РїСѓСЃС‚РёС‚СЊ LSE РѕСЃС†РёР»СЏС‚РѕСЂ РёР»Рё РѕРЅ РІСЃС‚Р°Р»
     MCU_HALT_REASON_RTC,
     
-    // Не обработнанное прерывание
+    // РќРµ РѕР±СЂР°Р±РѕС‚РЅР°РЅРЅРѕРµ РїСЂРµСЂС‹РІР°РЅРёРµ
     MCU_HALT_REASON_IRQ,
-    // Исключение Hard Fault
+    // РСЃРєР»СЋС‡РµРЅРёРµ Hard Fault
     MCU_HALT_REASON_SYS,
-    // Исключение Memory Fault
+    // РСЃРєР»СЋС‡РµРЅРёРµ Memory Fault
     MCU_HALT_REASON_MEM,
-    // Исключение Bus Fault
+    // РСЃРєР»СЋС‡РµРЅРёРµ Bus Fault
     MCU_HALT_REASON_BUS,
-    // Исключение Usage Fault
+    // РСЃРєР»СЋС‡РµРЅРёРµ Usage Fault
     MCU_HALT_REASON_USG
 } mcu_halt_reason_t;
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void mcu_init(void);
-// Импульс на выводе для отладки
+// РРјРїСѓР»СЊСЃ РЅР° РІС‹РІРѕРґРµ РґР»СЏ РѕС‚Р»Р°РґРєРё
 void mcu_debug_pulse(void);
-// Обработчик аварийной остановки приложения
+// РћР±СЂР°Р±РѕС‚С‡РёРє Р°РІР°СЂРёР№РЅРѕР№ РѕСЃС‚Р°РЅРѕРІРєРё РїСЂРёР»РѕР¶РµРЅРёСЏ
 __noreturn void mcu_halt(mcu_halt_reason_t reason);
 
-// Обновение участка бит регистра
+// РћР±РЅРѕРІРµРЅРёРµ СѓС‡Р°СЃС‚РєР° Р±РёС‚ СЂРµРіРёСЃС‚СЂР°
 void mcu_reg_update_32(volatile uint32_t *reg, uint32_t value_bits, uint32_t valid_bits);
-// Установка указателей каналу DMA (переферия <-> память)
+// РЈСЃС‚Р°РЅРѕРІРєР° СѓРєР°Р·Р°С‚РµР»РµР№ РєР°РЅР°Р»Сѓ DMA (РїРµСЂРµС„РµСЂРёСЏ <-> РїР°РјСЏС‚СЊ)
 void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, const void *mem);
 
 #endif // __MCU_H

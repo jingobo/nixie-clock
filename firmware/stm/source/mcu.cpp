@@ -1,21 +1,21 @@
-#include "io.h"
+ï»¿#include "io.h"
 #include "mcu.h"
 
 void mcu_init(void)
 {
-    // Ñáğîñ òàêòèğîâàíèÿ âñåé ïåğåôåğèè
+    // Ğ¡Ğ±Ñ€Ğ¾Ñ Ñ‚Ğ°ĞºÑ‚Ğ¸Ñ€Ğ¾Ğ²Ğ°Ğ½Ğ¸Ñ Ğ²ÑĞµĞ¹ Ğ¿ĞµÑ€ĞµÑ„ĞµÑ€Ğ¸Ğ¸
     RCC->AHBENR = 0;                                                            // Clock gate disable
     RCC->APB1ENR = 0;                                                           // Clock gate disable
     RCC->APB2ENR = 0;                                                           // Clock gate disable
-    // Îñòàíîâ Watchdog ïğè îòëàäêå
+    // ĞÑÑ‚Ğ°Ğ½Ğ¾Ğ² Watchdog Ğ¿Ñ€Ğ¸ Ğ¾Ñ‚Ğ»Ğ°Ğ´ĞºĞµ
     DBGMCU->CR |= DBGMCU_CR_DBG_IWDG_STOP;                                      // Disable watchdog on debug
-    // Òàêòèğîâàíèå DMA
+    // Ğ¢Ğ°ĞºÑ‚Ğ¸Ñ€Ğ¾Ğ²Ğ°Ğ½Ğ¸Ğµ DMA
     RCC->AHBENR |= RCC_AHBENR_DMA1EN;                                           // DMA1 clock enable
 }
 
 __noreturn void mcu_halt(mcu_halt_reason_t reason)
 {
-    UNUSED(reason); // TODO: êóäàíèòü ñîõğàíèòü ïğè÷èíó
+    UNUSED(reason); // TODO: ĞºÑƒĞ´Ğ°Ğ½Ğ¸Ñ‚ÑŒ ÑĞ¾Ñ…Ñ€Ğ°Ğ½Ğ¸Ñ‚ÑŒ Ğ¿Ñ€Ğ¸Ñ‡Ğ¸Ğ½Ñƒ
     IRQ_CTX_DISABLE();
     while (true)
     { }
@@ -32,21 +32,21 @@ void mcu_debug_pulse(void)
 OPTIMIZE_SPEED
 void mcu_reg_update_32(volatile uint32_t *reg, uint32_t value_bits, uint32_t valid_bits)
 {
-    // Ïğîâåğêà óêàçàòåëÿ îïóùåíà
+    // ĞŸÑ€Ğ¾Ğ²ĞµÑ€ĞºĞ° ÑƒĞºĞ°Ğ·Ğ°Ñ‚ĞµĞ»Ñ Ğ¾Ğ¿ÑƒÑ‰ĞµĞ½Ğ°
     uint32_t buffer = *reg;
-    // Ñíèìàåì çíà÷àùèå áèòû
+    // Ğ¡Ğ½Ğ¸Ğ¼Ğ°ĞµĞ¼ Ğ·Ğ½Ğ°Ñ‡Ğ°Ñ‰Ğ¸Ğµ Ğ±Ğ¸Ñ‚Ñ‹
     buffer &= ~valid_bits;
-    // Óñòàíàâëèâàåì íîâûå áèòû
+    // Ğ£ÑÑ‚Ğ°Ğ½Ğ°Ğ²Ğ»Ğ¸Ğ²Ğ°ĞµĞ¼ Ğ½Ğ¾Ğ²Ñ‹Ğµ Ğ±Ğ¸Ñ‚Ñ‹
     buffer |= value_bits;
-    // Âîçâğàùàåì â ğåãèñòğ
+    // Ğ’Ğ¾Ğ·Ğ²Ñ€Ğ°Ñ‰Ğ°ĞµĞ¼ Ğ² Ñ€ĞµĞ³Ğ¸ÑÑ‚Ñ€
     *reg = buffer;
 }
 
 void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, const void *mem)
 {
-    // Ïğîâåğêà àğãóìåíòîâ
+    // ĞŸÑ€Ğ¾Ğ²ĞµÑ€ĞºĞ° Ğ°Ñ€Ğ³ÑƒĞ¼ĞµĞ½Ñ‚Ğ¾Ğ²
     assert(channel != NULL && mem != NULL);
-    // Èíèöèàëèçàöèÿ êàíàëà
+    // Ğ˜Ğ½Ğ¸Ñ†Ğ¸Ğ°Ğ»Ğ¸Ğ·Ğ°Ñ†Ğ¸Ñ ĞºĞ°Ğ½Ğ°Ğ»Ğ°
     channel->CCR = 0;                                                           // Channel reset
     WARNING_SUPPRESS(Pa039)
         channel->CPAR = (uint32_t)&reg;                                         // Peripheral address

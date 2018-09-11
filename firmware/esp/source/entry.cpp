@@ -1,61 +1,61 @@
-#include "tool.h"
+п»ї#include "tool.h"
 
-// Номер UART для отладочного вывода
+// РќРѕРјРµСЂ UART РґР»СЏ РѕС‚Р»Р°РґРѕС‡РЅРѕРіРѕ РІС‹РІРѕРґР°
 #define UART_NO			0
-// Скорость обмена для отладочного вывода
+// РЎРєРѕСЂРѕСЃС‚СЊ РѕР±РјРµРЅР° РґР»СЏ РѕС‚Р»Р°РґРѕС‡РЅРѕРіРѕ РІС‹РІРѕРґР°
 #define UART_BAUD		115200
 
-// Предварительное объявление основной функции инициализации
+// РџСЂРµРґРІР°СЂРёС‚РµР»СЊРЅРѕРµ РѕР±СЉСЏРІР»РµРЅРёРµ РѕСЃРЅРѕРІРЅРѕР№ С„СѓРЅРєС†РёРё РёРЅРёС†РёР°Р»РёР·Р°С†РёРё
 E_SYMBOL void main_init(void);
-// Не объявленный символ
+// РќРµ РѕР±СЉСЏРІР»РµРЅРЅС‹Р№ СЃРёРјРІРѕР»
 C_SYMBOL void uart_div_modify(uint8 uart, uint32 divider);
 
-// Имя модуля для логирования
+// РРјСЏ РјРѕРґСѓР»СЏ РґР»СЏ Р»РѕРіРёСЂРѕРІР°РЅРёСЏ
 #define MODULE_NAME     "ENTRY"
 
-// Задача для входа в приложение
+// Р—Р°РґР°С‡Р° РґР»СЏ РІС…РѕРґР° РІ РїСЂРёР»РѕР¶РµРЅРёРµ
 static ROM void entry_wrap_task(void *dummy)
 {
-    // Ожидание завершения TX
+    // РћР¶РёРґР°РЅРёРµ Р·Р°РІРµСЂС€РµРЅРёСЏ TX
     while (READ_PERI_REG(UART_STATUS(UART_NO)) & (UART_TXFIFO_CNT << UART_TXFIFO_CNT_S))
     { }
-    // Скорость обмена
+    // РЎРєРѕСЂРѕСЃС‚СЊ РѕР±РјРµРЅР°
     uart_div_modify(UART_NO, UART_CLK_FREQ / UART_BAUD);
-    // Первый вывод (отчистка терминала)
+    // РџРµСЂРІС‹Р№ РІС‹РІРѕРґ (РѕС‚С‡РёСЃС‚РєР° С‚РµСЂРјРёРЅР°Р»Р°)
     log_raw("\033[2J");
-    // Приветствие
+    // РџСЂРёРІРµС‚СЃС‚РІРёРµ
     log_module(MODULE_NAME, "NixieClock communication frontend");
     log_module(MODULE_NAME, "Espressif SDK version: %s", system_get_sdk_version());
-    // ID чипа контроллера
+    // ID С‡РёРїР° РєРѕРЅС‚СЂРѕР»Р»РµСЂР°
     log_module(MODULE_NAME, "Core ID: %d", system_get_chip_id());
-    // ID чипа флеша
+    // ID С‡РёРїР° С„Р»РµС€Р°
     log_module(MODULE_NAME, "Flash ID: %d", spi_flash_get_id());
-	// Вывод информации о памяти
+	// Р’С‹РІРѕРґ РёРЅС„РѕСЂРјР°С†РёРё Рѕ РїР°РјСЏС‚Рё
     log_heap(MODULE_NAME);
 	system_print_meminfo();
-	// Вызов основной функции инициализации
+	// Р’С‹Р·РѕРІ РѕСЃРЅРѕРІРЅРѕР№ С„СѓРЅРєС†РёРё РёРЅРёС†РёР°Р»РёР·Р°С†РёРё
 	main_init();
-	// Выход из задачи
+	// Р’С‹С…РѕРґ РёР· Р·Р°РґР°С‡Рё
 	vTaskDelete(NULL);
 }
 
-// Точка входа
+// РўРѕС‡РєР° РІС…РѕРґР°
 C_SYMBOL ROM void user_init(void)
 {
-    // Запрет автоподключения в точке доступа
+    // Р—Р°РїСЂРµС‚ Р°РІС‚РѕРїРѕРґРєР»СЋС‡РµРЅРёСЏ РІ С‚РѕС‡РєРµ РґРѕСЃС‚СѓРїР°
     if (wifi_station_get_auto_connect())
         wifi_station_set_auto_connect(false);
-    // Разрешение переподключения после отключения от точки доступа
+    // Р Р°Р·СЂРµС€РµРЅРёРµ РїРµСЂРµРїРѕРґРєР»СЋС‡РµРЅРёСЏ РїРѕСЃР»Рµ РѕС‚РєР»СЋС‡РµРЅРёСЏ РѕС‚ С‚РѕС‡РєРё РґРѕСЃС‚СѓРїР°
     if (!wifi_station_get_reconnect_policy())
         wifi_station_set_reconnect_policy(true);
-    // Отключение WiFi
+    // РћС‚РєР»СЋС‡РµРЅРёРµ WiFi
     wifi_set_opmode(NULL_MODE);
-    // Запуск задачи на инициализацию
+    // Р—Р°РїСѓСЃРє Р·Р°РґР°С‡Рё РЅР° РёРЅРёС†РёР°Р»РёР·Р°С†РёСЋ
 	CREATE_TASK(entry_wrap_task, "entry", NULL);
 }
 
 #ifndef NDEBUG
-// Отлов Assert'ов
+// РћС‚Р»РѕРІ Assert'РѕРІ
 C_SYMBOL ROM NO_RETURN void __assert_func(const char *file, int line, const char *func, const char *expr)
 {
     UNUSED(func);

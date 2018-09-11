@@ -1,10 +1,10 @@
-#ifndef __SYSTEM_H
+ï»¿#ifndef __SYSTEM_H
 #define __SYSTEM_H
 
 #include "typedefs.h"
 #include <stm32f1xx.h>
 
-/* Èñïîëüçóåìàÿ ïåðåôåðèÿ:
+/* Ð˜ÑÐ¿Ð¾Ð»ÑŒÐ·ÑƒÐµÐ¼Ð°Ñ Ð¿ÐµÑ€ÐµÑ„ÐµÑ€Ð¸Ñ:
    rtc - RTC
    led - TIM1 (CH3), DMA1 (CH6)
    wdt - IWDG (2 Hz)
@@ -13,25 +13,25 @@
    esp - SPI1 (master), DMA1 (CH2, CH3)
 */
 
-// ×àñòîòà ÿäðà ïðè ñòàðòå
+// Ð§Ð°ÑÑ‚Ð¾Ñ‚Ð° ÑÐ´Ñ€Ð° Ð¿Ñ€Ð¸ ÑÑ‚Ð°Ñ€Ñ‚Ðµ
 #define FMCU_STARTUP_MHZ    8
 #define FMCU_STARTUP_KHZ    XK(FMCU_STARTUP_MHZ)
 #define FMCU_STARTUP_HZ     XM(FMCU_STARTUP_MHZ)
-// ×àñòîòà ÿäðà ïîñëå èíèöèàëèçàöèè
+// Ð§Ð°ÑÑ‚Ð¾Ñ‚Ð° ÑÐ´Ñ€Ð° Ð¿Ð¾ÑÐ»Ðµ Ð¸Ð½Ð¸Ñ†Ð¸Ð°Ð»Ð¸Ð·Ð°Ñ†Ð¸Ð¸
 #define FMCU_NORMAL_MHZ     96
 #define FMCU_NORMAL_KHZ     XK(FMCU_NORMAL_MHZ)
 #define FMCU_NORMAL_HZ      XM(FMCU_NORMAL_MHZ)
 
-// ×àñòîòà LSI [Ãö]
+// Ð§Ð°ÑÑ‚Ð¾Ñ‚Ð° LSI [Ð“Ñ†]
 #define FLSI_KHZ            40
 #define FLSI_HZ             XK(FLSI_KHZ)
 
-// Èìÿ ñåãìåíòà ñòåêà
+// Ð˜Ð¼Ñ ÑÐµÐ³Ð¼ÐµÐ½Ñ‚Ð° ÑÑ‚ÐµÐºÐ°
 #define SEGMENT_STACK       "CSTACK"
-// Èìÿ ñåãìåíòà òàáëèöû âåêòîðîâ ïðåðûâàíèé
+// Ð˜Ð¼Ñ ÑÐµÐ³Ð¼ÐµÐ½Ñ‚Ð° Ñ‚Ð°Ð±Ð»Ð¸Ñ†Ñ‹ Ð²ÐµÐºÑ‚Ð¾Ñ€Ð¾Ð² Ð¿Ñ€ÐµÑ€Ñ‹Ð²Ð°Ð½Ð¸Ð¹
 #define SEGMENT_VTBL        ".intvec"
 
-// Âêëþ÷àåò/Îòêëþ÷àåò äîñòóï íà çàïèñü â áýêàï äîìåí 
+// Ð’ÐºÐ»ÑŽÑ‡Ð°ÐµÑ‚/ÐžÑ‚ÐºÐ»ÑŽÑ‡Ð°ÐµÑ‚ Ð´Ð¾ÑÑ‚ÑƒÐ¿ Ð½Ð° Ð·Ð°Ð¿Ð¸ÑÑŒ Ð² Ð±ÑÐºÐ°Ð¿ Ð´Ð¾Ð¼ÐµÐ½ 
 #define BKP_ACCESS_ALLOW()  PWR->CR |= PWR_CR_DBP                               // Disable backup domain write protection
 #define BKP_ACCESS_DENY()   PWR->CR &= ~PWR_CR_DBP;                             // Enable backup domain write protection
 

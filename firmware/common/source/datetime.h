@@ -1,51 +1,51 @@
-#ifndef __DATETIME_H
+п»ї#ifndef __DATETIME_H
 #define __DATETIME_H
 
 #include "common.h"
 
-// Пределы для года
+// РџСЂРµРґРµР»С‹ РґР»СЏ РіРѕРґР°
 #define DATETIME_YEAR_MIN       1900
 #define DATETIME_YEAR_MAX       2099
-// Пределы для месяца
+// РџСЂРµРґРµР»С‹ РґР»СЏ РјРµСЃСЏС†Р°
 #define DATETIME_MONTH_MIN      1
 #define DATETIME_MONTH_MAX      12
-// Пределы для дней
+// РџСЂРµРґРµР»С‹ РґР»СЏ РґРЅРµР№
 #define DATETIME_DAY_MIN        1
 #define DATETIME_DAY_MAX        31
-// Пределы для часов
+// РџСЂРµРґРµР»С‹ РґР»СЏ С‡Р°СЃРѕРІ
 #define DATETIME_HOUR_MIN       0
 #define DATETIME_HOUR_MAX       23
-// Пределы для минут
+// РџСЂРµРґРµР»С‹ РґР»СЏ РјРёРЅСѓС‚
 #define DATETIME_MINUTE_MIN     0
 #define DATETIME_MINUTE_MAX     59
-// Пределы для секунд
+// РџСЂРµРґРµР»С‹ РґР»СЏ СЃРµРєСѓРЅРґ
 #define DATETIME_SECOND_MIN     0
 #define DATETIME_SECOND_MAX     59
 
 ALIGN_FIELD_8
-// Календарная дата/время
+// РљР°Р»РµРЅРґР°СЂРЅР°СЏ РґР°С‚Р°/РІСЂРµРјСЏ
 struct datetime_t
 {
-    // Дата
+    // Р”Р°С‚Р°
     uint16_t year;
     uint8_t month;
     uint8_t day;
-    // Время
+    // Р’СЂРµРјСЏ
     uint8_t hour;
     uint8_t minute;
     uint8_t second;
 
-    // Конструктор по умолчанию
+    // РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
     datetime_t();
 
-    // Проверка на валидность
+    // РџСЂРѕРІРµСЂРєР° РЅР° РІР°Р»РёРґРЅРѕСЃС‚СЊ
     bool check(void) const;
-    // Получает, високосный ли год
+    // РџРѕР»СѓС‡Р°РµС‚, РІРёСЃРѕРєРѕСЃРЅС‹Р№ Р»Рё РіРѕРґ
     bool leap(void) const;
     
-    // Получает кодичество дней в месяце
+    // РџРѕР»СѓС‡Р°РµС‚ РєРѕРґРёС‡РµСЃС‚РІРѕ РґРЅРµР№ РІ РјРµСЃСЏС†Рµ
     uint8_t month_day_count(void) const;
-    // Получает кодичество дней в месяце
+    // РџРѕР»СѓС‡Р°РµС‚ РєРѕРґРёС‡РµСЃС‚РІРѕ РґРЅРµР№ РІ РјРµСЃСЏС†Рµ
     static uint8_t month_day_count(uint8_t month, bool leap);
 };
 ALIGN_FIELD_DEF

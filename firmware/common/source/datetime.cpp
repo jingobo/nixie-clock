@@ -1,6 +1,6 @@
-#include "datetime.h"
+п»ї#include "datetime.h"
 
-// Конструктор по умолчанию
+// РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
 datetime_t::datetime_t()
 {
     year = DATETIME_YEAR_MIN;
@@ -26,7 +26,7 @@ ROM bool datetime_t::leap(void) const
     return (!(year & 3)) && (year != DATETIME_YEAR_MIN);
 }
 
-// Получает кодичество дней в месяце
+// РџРѕР»СѓС‡Р°РµС‚ РєРѕРґРёС‡РµСЃС‚РІРѕ РґРЅРµР№ РІ РјРµСЃСЏС†Рµ
 ROM uint8_t datetime_t::month_day_count(void) const
 {
     return month_day_count(month, leap());
@@ -34,11 +34,11 @@ ROM uint8_t datetime_t::month_day_count(void) const
 
 ROM uint8_t datetime_t::month_day_count(uint8_t month, bool leap)
 {
-    // Количество дней в месяцах
+    // РљРѕР»РёС‡РµСЃС‚РІРѕ РґРЅРµР№ РІ РјРµСЃСЏС†Р°С…
     static const uint8_t MONTH_DAYS[DATETIME_MONTH_MAX] = { 31,  0,  31,  30,  31,  30,  31,  31,  30,  31,  30,  31 };
-    // Если февраль
+    // Р•СЃР»Рё С„РµРІСЂР°Р»СЊ
     if (month == 2)
         return leap ? 29 : 28;
-    // Остальные месяцы
+    // РћСЃС‚Р°Р»СЊРЅС‹Рµ РјРµСЃСЏС†С‹
     return MONTH_DAYS[month - 1];
 }

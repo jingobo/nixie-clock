@@ -1,9 +1,9 @@
-#ifndef __DISPLAY_H
+п»ї#ifndef __DISPLAY_H
 #define __DISPLAY_H
 
 #include "typedefs.h"
 
-// Инициализация модуля
+// РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ РјРѕРґСѓР»СЏ
 void display_init(void);
 
 #endif // __DISPLAY_H
