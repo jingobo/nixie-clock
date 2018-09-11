@@ -343,6 +343,7 @@
                     <name>CCIncludePath2</name>
                     <state>$PROJ_DIR$\source</state>
                     <state>$PROJ_DIR$\source\cmsis\Include</state>
+                    <state>$PROJ_DIR$\source\..\..\common\source</state>
                     <state>$PROJ_DIR$\source\cmsis\Device\ST\STM32F1xx</state>
                 </option>
                 <option>
@@ -1019,21 +1020,42 @@
         </settings>
     </configuration>
     <group>
+        <name>common</name>
+        <group>
+            <name>proto</name>
+            <file>
+                <name>$PROJ_DIR$\..\common\source\proto\datetime.inc</name>
+            </file>
+        </group>
+        <file>
+            <name>$PROJ_DIR$\..\common\source\datetime.cpp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\common\source\ipc.cpp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\common\source\list.cpp</name>
+        </file>
+    </group>
+    <group>
         <name>hmi</name>
         <file>
-            <name>$PROJ_DIR$\source\hmi.c</name>
+            <name>$PROJ_DIR$\source\hmi.cpp</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\source\led.c</name>
+            <name>$PROJ_DIR$\source\led.cpp</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\source\tube.c</name>
+            <name>$PROJ_DIR$\source\tube.cpp</name>
         </file>
     </group>
     <group>
         <name>include</name>
         <file>
-            <name>$PROJ_DIR$\source\delegate.h</name>
+            <name>$PROJ_DIR$\..\common\source\common.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\source\platform.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\source\system.h</name>
@@ -1045,37 +1067,34 @@
     <group>
         <name>periphery</name>
         <file>
-            <name>$PROJ_DIR$\source\clk.c</name>
+            <name>$PROJ_DIR$\source\clk.cpp</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\source\io.c</name>
+            <name>$PROJ_DIR$\source\io.cpp</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\source\mcu.c</name>
+            <name>$PROJ_DIR$\source\mcu.cpp</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\source\nvic.c</name>
+            <name>$PROJ_DIR$\source\nvic.cpp</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\source\rtc.c</name>
+            <name>$PROJ_DIR$\source\rtc.cpp</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\source\wdt.c</name>
+            <name>$PROJ_DIR$\source\wdt.cpp</name>
         </file>
     </group>
     <file>
-        <name>$PROJ_DIR$\source\display.c</name>
+        <name>$PROJ_DIR$\source\display.cpp</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\source\esp.c</name>
+        <name>$PROJ_DIR$\source\esp.cpp</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\source\event.c</name>
+        <name>$PROJ_DIR$\source\event.cpp</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\source\list.c</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\source\main.c</name>
+        <name>$PROJ_DIR$\source\main.cpp</name>
     </file>
 </project>

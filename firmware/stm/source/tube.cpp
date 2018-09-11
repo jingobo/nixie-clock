@@ -205,7 +205,7 @@ void tube_init(void)
     // Обновление состояния ламп
     tube_refresh();
     // Выставление задачи мультиплексирования
-    event_timer_start_hz(DELEGATE_PROC(tube_mux), TUBE_MUX_HZ, EVENT_TIMER_PRI_CRITICAL | EVENT_TIMER_FLAG_LOOP);
+    //event_timer_start_hz(DELEGATE_PROC(tube_mux), TUBE_MUX_HZ, EVENT_TIMER_PRI_CRITICAL | EVENT_TIMER_FLAG_LOOP); TODO:
 }
 
 OPTIMIZE_SPEED
@@ -333,7 +333,7 @@ void tube_neon_sat_set(hmi_sat_t value)
 }
 
 // TODO: возможно выпилить
-IRQ_HANDLER
+IRQ_ROUTINE
 void tube_interrupt_nixie_selcrst(void)
 {
     // Форсирование сброса катодного напряжения

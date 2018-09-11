@@ -29,7 +29,7 @@ class led_driver_t : public hmi_filter_t<hmi_rgb_t, LED_COUNT>
     // Было ли перемещение данных в буфер DMA
     bool uploaded;
     // Внутренний буфер данных для DMA
-    FIELD_ALIGN_ONE
+    ALIGN_FIELD_8
     struct 
     {
         // Для формирования паузы
@@ -39,6 +39,7 @@ class led_driver_t : public hmi_filter_t<hmi_rgb_t, LED_COUNT>
         // Для отчистки CCR и установки линии в 0
         uint8_t gap;
     } dma_buffer;
+    ALIGN_FIELD_DEF
 protected:
     // Установка цвета светодиоду
     virtual void do_data_set(hmi_rank_t index, hmi_rgb_t &data);
@@ -71,7 +72,7 @@ void led_driver_t::do_refresh(void)
         return;
     uploaded = true;
     // Ожидание остановки TIM
-    WAITWHILE(TIM1->CR1 & TIM_CR1_CEN);
+    WAIT_WHILE(TIM1->CR1 & TIM_CR1_CEN);
     // Подготовка смещения буфера DMA
     rgb_t *dest = dma_buffer.data;
     for (hmi_rank_t led = 0; led < LED_COUNT; led++)
@@ -139,7 +140,7 @@ void led_init(void)
     led.refresh();
 }
 
-IRQ_HANDLER
+IRQ_ROUTINE
 void led_interrupt_dma(void)
 {
     TIM1->CR1 |= TIM_CR1_OPM;                                                   // OPM enable

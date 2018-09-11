@@ -12,7 +12,7 @@ SPI_SIZE_MAP    = 4
 ESPPORT         = COM4
 ESPBAUD         = 921600
 
-MODULES	= source
+MODULES	= source ../common/source
 LIBS	= gcc driver hal phy pp net80211 wpa crypto main freertos lwip minic
 
 # Root includes

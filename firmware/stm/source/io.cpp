@@ -42,7 +42,7 @@ void io_init(void)
         IO_INIT(IO_BTN1,        IO_MODE_INPUT_PULL);    IO_HIGH(IO_BTN1);
         IO_INIT(IO_SWDIO,       IO_MODE_INPUT_PULL);
         IO_INIT(IO_SWCLK,       IO_MODE_INPUT_PULL);
-        IO_INIT(IO_ESP_CS,      IO_MODE_OUTPUT_PP);
+        IO_INIT(IO_ESP_CS,      IO_MODE_OUTPUT_PP);     IO_HIGH(IO_ESP_CS);
     IO_SAVE(A);
     // Порт B
     IO_LOAD(B);
@@ -65,7 +65,7 @@ void io_init(void)
     IO_SAVE(B);
     // Порт C
     IO_LOAD(C);
-        IO_INIT(IO_ESP_RST,     IO_MODE_OUTPUT_PP);     IO_HIGH(IO_ESP_RST);
+        IO_INIT(IO_ESP_RST,     IO_MODE_OUTPUT_PP);
         IO_INIT(IO_OSC32_IN,    IO_MODE_INPUT_PULL);
         IO_INIT(IO_OSC32_OUT,   IO_MODE_INPUT_PULL);
     IO_SAVE(C);

@@ -2,7 +2,7 @@
 #define __HMI_H
 
 #include "typedefs.h"
-#include "list.h"
+#include <list.h>
 
 // Количество разрядов дисплея
 #define HMI_RANK_COUNT          6
@@ -30,7 +30,7 @@ typedef uint8_t hmi_sat_t;
 typedef hmi_sat_t hmi_sat_table_t[HMI_SAT_COUNT];
 
 // Тип для хранения цвета в формате RGB
-FIELD_ALIGN_ONE
+ALIGN_FIELD_8
 union hmi_rgb_t
 {
     uint32_t raw;
@@ -61,9 +61,10 @@ union hmi_rgb_t
     // Применение гамма коррекции
     void gamma(const hmi_sat_table_t &table);
 };
+ALIGN_FIELD_DEF
 
 // Тип для хранения цвета в формате HSV
-FIELD_ALIGN_ONE
+ALIGN_FIELD_8
 union hmi_hsv_t
 {
     uint32_t raw;
@@ -94,6 +95,7 @@ union hmi_hsv_t
     // Конвертирование HSV в RGB
     hmi_rgb_t to_rgb(void) const;
 };
+ALIGN_FIELD_DEF
 
 // Назначение передатчика данных
 enum hmi_filter_purpose_t
@@ -151,7 +153,7 @@ protected:
     // Получает приведенный указательн на следующий фильтр
     hmi_filter_t<DATA, COUNT> * next_cast(void) const
     {
-        return static_cast<hmi_filter_t<DATA, COUNT> *>(next_get());
+        return static_cast<hmi_filter_t<DATA, COUNT> *>(next());
     }
     // Безопасная передача данных следующему фильтру
     void next_data_set(hmi_rank_t index, DATA data) const
@@ -203,20 +205,14 @@ public:
         assert(item.purpose > purpose);
         // Добавление
         auto next = next_cast();
-        if (next == NULL)
-        {
-            push(&item);
-            return;
-        }
         // Не можем вместить между следущим и текущим элементом...
-        if (next->purpose < item.purpose)
+        if (next != NULL && next->purpose < item.purpose)
         {
             next->attach(item);
             return;
         }
         // Вмещаем между текущим и следующим
-        push(&item);
-        item.push(next);
+        item.link(this, LIST_SIDE_NEXT);
     }
     // Удаление фильтра из цепочки
     bool detach(hmi_filter_t &item)
@@ -224,7 +220,9 @@ public:
         // Проверка аргументов
         assert(&item != this);
         // Исключение
-        auto next = next_cast();
+        item.unlink();
+        return true;
+        /*auto next = next_cast();
         if (next == NULL)
             return false;
         // Нашли фильтр
@@ -233,7 +231,7 @@ public:
             item.remove(this);
             return true;
         }
-        return next->detach(item);
+        return next->detach(item);*/
     }
 };
 

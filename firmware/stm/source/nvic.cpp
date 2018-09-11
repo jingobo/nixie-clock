@@ -1,7 +1,5 @@
 #include "mcu.h"
-#include "esp.h"
 #include "nvic.h"
-#include "system.h"
 
 // Режимы групп приоритетов
 enum
@@ -21,14 +19,16 @@ enum
 // Текущий используемый режим группировки прерываний
 #define NVIC_PRIORITYGROUP      NVIC_PRIORITYGROUP_4
 
+// Прототип процедуры обработчика прерывания
+typedef void (* nvic_isr_ptr)(void);
+
 // Структура описания стека и обработчиков прерываний
-FIELD_ALIGN_HOUR
 struct nvic_vtbl_t
 {
     // Адрес базы стека
     void *stack_base;
     // Адреса обработчиков прерываний
-    notify_proc_ptr irq_handler[58];
+    nvic_isr_ptr irq_handler[58];
 };
 
 void nvic_init(void)
@@ -61,46 +61,48 @@ void nvic_irq_enable_set(IRQn_Type irq, bool state)
 }
 
 // Заглушка для обработчиков прерываний
-IRQ_HANDLER
+IRQ_ROUTINE
 static void nvic_interrupt_dummy(void)
 {
     mcu_halt(MCU_HALT_REASON_IRQ);
 }
 
 // Обработчик Hard Fault
-IRQ_HANDLER
+IRQ_ROUTINE
 static void nvic_interrupt_hard(void)
 {
     mcu_halt(MCU_HALT_REASON_SYS);
 }
 
 // Обработчик Memory Fault
-IRQ_HANDLER
+IRQ_ROUTINE
 static void nvic_interrupt_memory(void)
 {
     mcu_halt(MCU_HALT_REASON_MEM);
 }
 
 // Обработчик Usage Fault
-IRQ_HANDLER
+IRQ_ROUTINE
 static void nvic_interrupt_usage(void)
 {
     mcu_halt(MCU_HALT_REASON_USG);
 }
 
 // Обработчик Bus Fault
-IRQ_HANDLER
+IRQ_ROUTINE
 static void nvic_interrupt_bus(void)
 {
     mcu_halt(MCU_HALT_REASON_BUS);
 }
 
 // Точка старта программы
-EXTERN_C
+C_SYMBOL
 void __iar_program_start(void);
 
 // Модули в которых есть прерывания
+#include "esp.h"
 #include "clk.h"
+#include "rtc.h"
 #include "led.h"
 #include "tube.h"
 #include "event.h"
@@ -108,7 +110,7 @@ void __iar_program_start(void);
 // Обявление сегмента для sfe
 #pragma segment = SEGMENT_STACK
 // Имя не менять, это магическое значение для С-Spy
-EXTERN_C
+C_SYMBOL
 __root const nvic_vtbl_t __vector_table @ SEGMENT_VTBL =
 {
     __sfe(SEGMENT_STACK),                       // Stack base
@@ -134,7 +136,7 @@ __root const nvic_vtbl_t __vector_table @ SEGMENT_VTBL =
         nvic_interrupt_dummy,                   // Window Watchdog
         nvic_interrupt_dummy,                   // PVD through EXTI Line detect
         nvic_interrupt_dummy,                   // Tamper
-        nvic_interrupt_dummy,                   // RTC
+        rtc_interrupt_second,                   // RTC
         nvic_interrupt_dummy,                   // Flash
         nvic_interrupt_dummy,                   // RCC
         nvic_interrupt_dummy,                   // EXTI Line 0

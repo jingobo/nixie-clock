@@ -33,6 +33,6 @@ __noreturn void mcu_halt(mcu_halt_reason_t reason);
 // Обновение участка бит регистра
 void mcu_reg_update_32(volatile uint32_t *reg, uint32_t value_bits, uint32_t valid_bits);
 // Установка указателей каналу DMA (переферия <-> память)
-void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, volatile void *mem);
+void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, const void *mem);
 
 #endif // __MCU_H

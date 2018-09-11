@@ -110,14 +110,10 @@ static void main_tests(void)
     tube_nixie_text_set("128900");
     tube_neon_sat_set(70);
     tube_refresh();
-    event_timer_start_hz(display_update, 10, EVENT_TIMER_FLAG_LOOP);
-    event_timer_start_hz(neon_sat_test, 100, EVENT_TIMER_FLAG_LOOP);
+    //event_timer_start_hz(display_update, 10, EVENT_TIMER_FLAG_LOOP);
+    //event_timer_start_hz(neon_sat_test, 100, EVENT_TIMER_FLAG_LOOP);
 
-    event_timer_start_us(led_enable_switch, 10000000, EVENT_TIMER_FLAG_LOOP);
-
-    event_timer_start_hz(esp_transaction, 1, EVENT_TIMER_FLAG_LOOP);
-
-    
+    //event_timer_start_us(led_enable_switch, 10000000, EVENT_TIMER_FLAG_LOOP);
     
     // Проверка вывода частоты
     //RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;                                         // PA clock enable
@@ -171,16 +167,10 @@ __task __noreturn void main()
     main_init();
     // Выставление задач
     
+    // Тесты
     main_tests();
     
-    // Главный цикл
+    // Обработка событий
     for (;;)
-    {
-        // Обработка событий
-        for (bool again = true; again; again = event_execute())
-        { }
-        // Ожидание прерывания
-        WFI();
-    }
-    // WTF?
+        event_execute();
 }

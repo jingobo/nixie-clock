@@ -127,7 +127,7 @@ bool clk_pool(clk_pool_handler_ptr proc, clk_period_ms_t ms)
     return false;
 }
 
-IRQ_HANDLER
+IRQ_ROUTINE
 void clk_interrupt_systick(void)
 {
     clk_systick++;

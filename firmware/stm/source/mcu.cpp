@@ -16,7 +16,7 @@ void mcu_init(void)
 __noreturn void mcu_halt(mcu_halt_reason_t reason)
 {
     UNUSED(reason); // TODO: куданить сохранить причину
-    INTERRUPTS_DISABLE();
+    IRQ_CTX_DISABLE();
     while (true)
     { }
 }
@@ -42,7 +42,7 @@ void mcu_reg_update_32(volatile uint32_t *reg, uint32_t value_bits, uint32_t val
     *reg = buffer;
 }
 
-void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, volatile void *mem)
+void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, const void *mem)
 {
     // ѕроверка аргументов
     assert(channel != NULL && mem != NULL);

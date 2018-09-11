@@ -15,16 +15,16 @@
 
 // Частота ядра при старте
 #define FMCU_STARTUP_MHZ    8
-#define FMCU_STARTUP_KHZ    MUL_K(FMCU_STARTUP_MHZ)
-#define FMCU_STARTUP_HZ     MUL_M(FMCU_STARTUP_MHZ)
+#define FMCU_STARTUP_KHZ    XK(FMCU_STARTUP_MHZ)
+#define FMCU_STARTUP_HZ     XM(FMCU_STARTUP_MHZ)
 // Частота ядра после инициализации
 #define FMCU_NORMAL_MHZ     96
-#define FMCU_NORMAL_KHZ     MUL_K(FMCU_NORMAL_MHZ)
-#define FMCU_NORMAL_HZ      MUL_M(FMCU_NORMAL_MHZ)
+#define FMCU_NORMAL_KHZ     XK(FMCU_NORMAL_MHZ)
+#define FMCU_NORMAL_HZ      XM(FMCU_NORMAL_MHZ)
 
 // Частота LSI [Гц]
 #define FLSI_KHZ            40
-#define FLSI_HZ             MUL_K(FLSI_KHZ)
+#define FLSI_HZ             XK(FLSI_KHZ)
 
 // Имя сегмента стека
 #define SEGMENT_STACK       "CSTACK"
