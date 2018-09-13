@@ -5,6 +5,7 @@
 #include "nvic.h"
 #include "event.h"
 #include "system.h"
+#include "storage.h"
 #include <proto/datetime.inc>
 
 // Класс обслуживания часов реального времени
@@ -27,8 +28,8 @@ static class rtc_t : public event_base_t
     // Флаг состяония отправки ответа
     bool response_needed;
     
-    // Обработчик команды
-    class handler_command_t : public ipc_handler_command_template_t<command_datetime_t>
+    // Обработчик команды синхронизации даты/времени
+    class handler_command_sync_t : public ipc_handler_command_template_t<command_datetime_sync_t>
     {
         // Ссылка на основной класс
         rtc_t &rtc;
@@ -45,32 +46,36 @@ static class rtc_t : public event_base_t
             // Если нам ответили
             switch (data.response.quality)
             {
-                case command_datetime_response_t::QUALITY_SUCCESS:
+                case command_datetime_sync_response_t::QUALITY_SUCCESS:
                     // Получили дату TODO: применение GMT
                     rtc.sync_state = SYNC_STATE_SUCCESS;
                     rtc.time_sync = rtc.time_current = data.response.datetime;
                     break;
-                case command_datetime_response_t::QUALITY_NETWORK:
+                case command_datetime_sync_response_t::QUALITY_NETWORK:
                     // Ошибка сети
                     rtc.sync_state = SYNC_STATE_NEEDED_DELAY_2;
                     break;
-                case command_datetime_response_t::QUALITY_NOLIST:
+                case command_datetime_sync_response_t::QUALITY_NOLIST:
                     // TODO: отправка списка
                     break;
             }
         }
     public:
         // Конструктор по умолчанию
-        handler_command_t(rtc_t &parent) : rtc(parent)
+        handler_command_sync_t(rtc_t &parent) : rtc(parent)
         { }
-    } handler_command;
+    } handler_command_sync;
     
     // Обработчик простоя
     class handler_idle_t : public ipc_handler_idle_t
     {
         // Ссылка на основной класс
         rtc_t &rtc;
-    protected:
+    public:
+        // Конструктор по умолчанию
+        handler_idle_t(rtc_t &parent) : rtc(parent)
+        { }
+        
         // Событие оповещения
         virtual void notify_event(void)
         {
@@ -81,26 +86,29 @@ static class rtc_t : public event_base_t
                 return;
             }
             // Если нужно запросить дату/время
-            if (rtc.sync_state == SYNC_STATE_REQUEST && esp_transmit(IPC_DIR_REQUEST, rtc.handler_command.data))
+            if (rtc.sync_state == SYNC_STATE_REQUEST && esp_transmit(IPC_DIR_REQUEST, rtc.handler_command_sync.data))
                 rtc.sync_state = SYNC_STATE_NEEDED_DELAY_1;
         }
-    public:
-        // Конструктор по умолчанию
-        handler_idle_t(rtc_t &parent) : rtc(parent)
-        { }
-        
     } handler_idle;
     
     // Отправка ответа
     void response_send(void)
     {
-        auto &response = handler_command.data.response;
+        auto &response = handler_command_sync.data.response;
         // Заполняем ответ (quality не меняем)
         datetime_get(response.datetime);
         // Отправляем ответ
-        response_needed = !esp_transmit(IPC_DIR_RESPONSE, handler_command.data);
+        response_needed = !esp_transmit(IPC_DIR_RESPONSE, handler_command_sync.data);
     }
-protected:
+public:
+    // Конструктор по умолчанию
+    rtc_t(void) : 
+        sync_state(SYNC_STATE_SUCCESS), 
+        response_needed(false), 
+        handler_command_sync(*this),
+        handler_idle(*this)
+    { }
+
     // Событие инкремента секунды
     virtual void notify_event(void)
     {
@@ -130,14 +138,6 @@ protected:
         // Инкремент лет
         time_current.year++;
     }
-public:
-    // Конструктор по умолчанию
-    rtc_t(void) : 
-        sync_state(SYNC_STATE_SUCCESS), 
-        response_needed(false), 
-        handler_command(*this),
-        handler_idle(*this)
-    { }
     
     // Инициализация
     INLINE_FORCED
@@ -147,7 +147,7 @@ public:
         sync_state = SYNC_STATE_REQUEST;
         // Обработчики
         esp_handler_add_idle(handler_idle);
-        esp_handler_add_command(handler_command);
+        esp_handler_add_command(handler_command_sync);
     }
     
     // Получает текущую дату/время

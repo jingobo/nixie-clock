@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <project>
     <fileVersion>3</fileVersion>
     <configuration>
@@ -1234,5 +1234,11 @@
     </file>
     <file>
         <name>$PROJ_DIR$\source\main.cpp</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\source\storage.cpp</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\source\wifi.cpp</name>
     </file>
 </project>

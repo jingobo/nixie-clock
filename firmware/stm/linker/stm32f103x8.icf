@@ -1,0 +1,28 @@
+﻿define symbol __iar_maximum_atexit_calls = 1;
+define symbol ROM_START = 0x08000000;
+define symbol RAM_START = 0x20000000;
+
+/* Адресуемая память, регионы ПЗУ, ОЗУ */
+define memory MEM with size = 4G;
+define region ROM_REGION = MEM:[from ROM_START size 64K ];
+define region RAM_REGION = MEM:[from RAM_START size 20K ];
+
+/* Блоки стэка и кучи */
+define block HEAP   with alignment = 8, size = 16 { };
+define block CSTACK with alignment = 8, size = 2K { };
+
+/* Размер хранилища */
+define symbol STORAGE_SIZE = 1K;
+
+/* Хранилище настроек */
+define block STORAGE_RW with alignment = 8, size = STORAGE_SIZE { rw section .storage };
+define block STORAGE_RO with alignment = 1K, size = STORAGE_SIZE { ro section .storage_init };
+
+/* Инициализация */
+initialize by copy { rw };
+do not initialize  { section .noinit };
+
+/* Размещение */
+place at address MEM:ROM_START { ro section .intvec };
+place in ROM_REGION { ro, block STORAGE_RO };
+place in RAM_REGION { rw, block STORAGE_RW, block CSTACK, block HEAP };

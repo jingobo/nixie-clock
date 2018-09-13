@@ -51,7 +51,11 @@ static class esp_t : public ipc_controller_t, public event_base_t
                 &dma);
             channel->CCR |= DMA_CCR_MINC | DMA_CCR_PL_1 | flags;                // Direction (flags), Memory increment (8-bit), Peripheral size 8-bit, High priority
         }
-    protected:
+    public:
+        // Конструктор по умолчанию
+        io_t(esp_t &parent) : esp(parent), active(false)
+        { }
+
         // Обработчик события начала ввода/вывод
         virtual void notify_event(void)
         {
@@ -69,10 +73,6 @@ static class esp_t : public ipc_controller_t, public event_base_t
             DMA1_C2->CCR |= DMA_CCR_EN;                                         // Channel enable
             DMA1_C3->CCR |= DMA_CCR_EN;                                         // Channel enable
         }
-    public:
-        // Конструктор по умолчанию
-        io_t(esp_t &parent) : esp(parent), active(false)
-        { }
         
         // Инициализация каналов DMA
         void init(void) const
@@ -99,7 +99,11 @@ static class esp_t : public ipc_controller_t, public event_base_t
     {
         // Родительский класс
         esp_t &esp;
-    protected:
+    public:
+        // Конструктор по умолчанию
+        reset_chip_t(esp_t &parent) : esp(parent)
+        { }
+
         // Обработчик события начала ввода/вывод
         virtual void notify_event(void)
         {
@@ -107,10 +111,6 @@ static class esp_t : public ipc_controller_t, public event_base_t
             // Запуск таймера опроса на 10 Гц
             event_timer_start_hz(esp.io, 10, EVENT_TIMER_FLAG_LOOP);
         }
-    public:
-        // Конструктор по умолчанию
-        reset_chip_t(esp_t &parent) : esp(parent)
-        { }
         
         // Сброс чипа
         void operator ()(void)
@@ -130,10 +130,10 @@ static class esp_t : public ipc_controller_t, public event_base_t
     
 protected:
     // Сброс прикладного уровня
-    virtual void reset_layer(ipc_command_flow_t::reason_t reason, bool internal = true)
+    virtual void reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal = true)
     {
         ipc_controller_t::reset_layer(reason, internal);
-        if (internal && reason == ipc_command_flow_t::REASON_CORRUPTION)
+        if (internal && reason == ipc_command_flow_request_t::REASON_CORRUPTION)
             corruption_count += 2;
     }
     
@@ -145,6 +145,10 @@ protected:
             event_add(io);
         return result;
     }
+public:
+    // Конструктор по умолчанию
+    esp_t(void) : io(*this), reset_chip(*this), corruption_count(0)
+    { }
     
     // Обработчик события получения пакета
     virtual void notify_event(void)
@@ -163,11 +167,7 @@ protected:
         if (force)
             event_add(io);
     }
-public:
-    // Конструктор по умолчанию
-    esp_t(void) : io(*this), reset_chip(*this), corruption_count(0)
-    { }
-    
+
     // Инициализация контроллера
     void init(void)
     {

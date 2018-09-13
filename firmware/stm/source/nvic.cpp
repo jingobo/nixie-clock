@@ -19,6 +19,11 @@ enum
 // Текущий используемый режим группировки прерываний
 #define NVIC_PRIORITYGROUP      NVIC_PRIORITYGROUP_4
 
+// Имя секции стека
+#define NVIC_SECTION_STACK      "CSTACK"
+// Имя секции таблицы векторов прерываний
+#define NVIC_SECTION_VTBL       ".intvec"
+
 // Прототип процедуры обработчика прерывания
 typedef void (* nvic_isr_ptr)(void);
 
@@ -106,14 +111,15 @@ void __iar_program_start(void);
 #include "led.h"
 #include "tube.h"
 #include "event.h"
+#include "storage.h"
 
 // Обявление сегмента для sfe
-#pragma segment = SEGMENT_STACK
+SECTION_DECLARE(NVIC_SECTION_STACK)
 // Имя не менять, это магическое значение для С-Spy
 C_SYMBOL
-__root const nvic_vtbl_t __vector_table @ SEGMENT_VTBL =
+__root const nvic_vtbl_t __vector_table @ NVIC_SECTION_VTBL =
 {
-    __sfe(SEGMENT_STACK),                       // Stack base
+    __sfe(NVIC_SECTION_STACK),                  // Stack base
     {
         // Cortex-M3 Interrupts
         __iar_program_start,                    // Reset Handler
@@ -137,7 +143,7 @@ __root const nvic_vtbl_t __vector_table @ SEGMENT_VTBL =
         nvic_interrupt_dummy,                   // PVD through EXTI Line detect
         nvic_interrupt_dummy,                   // Tamper
         rtc_interrupt_second,                   // RTC
-        nvic_interrupt_dummy,                   // Flash
+        storage_interrupt_flash,                // Flash
         nvic_interrupt_dummy,                   // RCC
         nvic_interrupt_dummy,                   // EXTI Line 0
         nvic_interrupt_dummy,                   // EXTI Line 1

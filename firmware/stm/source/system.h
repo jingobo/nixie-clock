@@ -26,11 +26,6 @@
 #define FLSI_KHZ            40
 #define FLSI_HZ             XK(FLSI_KHZ)
 
-// Имя сегмента стека
-#define SEGMENT_STACK       "CSTACK"
-// Имя сегмента таблицы векторов прерываний
-#define SEGMENT_VTBL        ".intvec"
-
 // Включает/Отключает доступ на запись в бэкап домен 
 #define BKP_ACCESS_ALLOW()  PWR->CR |= PWR_CR_DBP                               // Disable backup domain write protection
 #define BKP_ACCESS_DENY()   PWR->CR &= ~PWR_CR_DBP;                             // Enable backup domain write protection

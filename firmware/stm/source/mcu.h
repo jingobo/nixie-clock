@@ -10,6 +10,8 @@ typedef enum
     MCU_HALT_REASON_RCC,
     // Не удалось запустить LSE осцилятор или он встал
     MCU_HALT_REASON_RTC,
+    // Ошибка при записи Fдash
+    MCU_HALT_REASON_FLASH,
     
     // Не обработнанное прерывание
     MCU_HALT_REASON_IRQ,

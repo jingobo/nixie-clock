@@ -24,33 +24,6 @@ RAM bool ipc_command_data_t::decode_packet(const ipc_packet_t &packet)
     return !packet.dll.more && decode_buffer(packet.dll.dir, packet.apl.u8, packet.dll.length);
 }
 
-RAM size_t ipc_command_flow_t::buffer_size(ipc_dir_t dir) const
-{
-    UNUSED(dir);
-    return sizeof(request);
-}
-
-RAM const void * ipc_command_flow_t::buffer_pointer(ipc_dir_t dir) const
-{
-    UNUSED(dir);
-    return &request;
-}
-
-ROM size_t  ipc_command_flow_t::encode(ipc_dir_t dir) const
-{
-    UNUSED(dir);
-    assert(dir == IPC_DIR_REQUEST);
-    assert(request.reason < REASON_COUNT);
-    return sizeof(request);
-}
-
-ROM bool ipc_command_flow_t::decode(ipc_dir_t dir, size_t size)
-{
-    if (dir != IPC_DIR_REQUEST || size < sizeof(request))
-        return false;
-    return request.reason < REASON_COUNT;
-}
-
 ROM ipc_slots_t::ipc_slots_t(void)
 {
     for (auto i = 0; i < ARRAY_SIZE(slots); i++)
@@ -112,7 +85,7 @@ ROM uint8_t ipc_controller_t::checksum(const void *source, uint8_t size)
     return result;
 }
 
-ROM void ipc_controller_t::transmit_flow(ipc_command_flow_t::reason_t reason)
+ROM void ipc_controller_t::transmit_flow(ipc_command_flow_request_t::reason_t reason)
 {
     command_flow.request.reason = reason;
     auto result = transmit(IPC_DIR_REQUEST, command_flow);
@@ -120,9 +93,9 @@ ROM void ipc_controller_t::transmit_flow(ipc_command_flow_t::reason_t reason)
     UNUSED(result);
 }
 
-ROM void ipc_controller_t::reset_layer(ipc_command_flow_t::reason_t reason, bool internal)
+ROM void ipc_controller_t::reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal)
 {
-    assert(reason > ipc_command_flow_t::REASON_NOP);
+    assert(reason > ipc_command_flow_request_t::REASON_NOP);
     // Сброс всех слотов
     clear_slots();
     // Отправка команды
@@ -234,7 +207,7 @@ ROM void ipc_controller_t::packet_output(ipc_packet_t &packet)
         if (try_idle)
         {
             // Нет команды
-            transmit_flow(ipc_command_flow_t::REASON_NOP);
+            transmit_flow(ipc_command_flow_request_t::REASON_NOP);
             continue;
         }
         // Обход обработчиков простоя
@@ -268,7 +241,7 @@ ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
     // Если нет свободных
     if (temp == NULL)
     {
-        reset_layer(ipc_command_flow_t::REASON_OVERFLOW);
+        reset_layer(ipc_command_flow_request_t::REASON_OVERFLOW);
         return;
     }
     // Валидация
@@ -277,7 +250,7 @@ ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
         if (packet.dll.magic != IPC_MAGIC || len > IPC_APL_SIZE ||  // Проверка магического поля и длинны
             packet.dll.checksum != checksum(&packet.apl, len))      // Проверка контрольной суммы
         {
-            reset_layer(ipc_command_flow_t::REASON_CORRUPTION);
+            reset_layer(ipc_command_flow_request_t::REASON_CORRUPTION);
             return;
         }
     }
@@ -287,12 +260,12 @@ ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
         // Декодирование
         if (!command_flow.decode_packet(packet))
         {
-            reset_layer(ipc_command_flow_t::REASON_BAD_CONTENT);
+            reset_layer(ipc_command_flow_request_t::REASON_BAD_CONTENT);
             return;
         }
         // Обработка
         auto reason = command_flow.request.reason;
-        if (reason > ipc_command_flow_t::REASON_NOP)
+        if (reason > ipc_command_flow_request_t::REASON_NOP)
             reset_layer(reason, false);
         return;
     }
@@ -316,10 +289,11 @@ ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
     receive_args_t args(size);
     if (!receive_prepare(packet, args))
     {
-        reset_layer(ipc_command_flow_t::REASON_BAD_CONTENT);
+        reset_layer(ipc_command_flow_request_t::REASON_BAD_CONTENT);
         return;
     }
-    assert(args.buffer != NULL);
+    // Может быть что буфер не указан, но только если и размер 0
+    assert(args.buffer != NULL || args.size == 0);
     // Сборка пакета
     auto buffer = (uint8_t *)args.buffer;
     for (auto i = rx.used.head(); i != NULL;)
@@ -343,7 +317,7 @@ ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
     // Вызов события о завершении сборки пакета
     if (!receive_finalize(packet, args))
     {
-        reset_layer(ipc_command_flow_t::REASON_BAD_CONTENT);
+        reset_layer(ipc_command_flow_request_t::REASON_BAD_CONTENT);
         return;
     }
 }

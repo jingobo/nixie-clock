@@ -755,11 +755,11 @@
                 </option>
                 <option>
                     <name>IlinkIcfOverride</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$TOOLKIT_DIR$\config\linker\ST\stm32f103x8.icf</state>
+                    <state>$PROJ_DIR$\linker\stm32f103x8.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
@@ -1096,5 +1096,11 @@
     </file>
     <file>
         <name>$PROJ_DIR$\source\main.cpp</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\source\storage.cpp</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\source\wifi.cpp</name>
     </file>
 </project>

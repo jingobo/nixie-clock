@@ -88,7 +88,11 @@ static struct event_t
                     return i;
             return EVENT_TIMER_NOT_FOUND;
         }
-    protected:
+    public:
+        // Конструктор по умолчанию
+        timer_t(void) : counter(0)
+        { }
+
         // Обработчик тиков таймеров
         virtual void notify_event(void)
         {
@@ -106,10 +110,6 @@ static struct event_t
                     IRQ_CTX_RESTORE();
                 }
         }
-    public:
-        // Конструктор по умолчанию
-        timer_t(void) : counter(0)
-        { }
 
         // Обработчик прерывания аппаратного таймера
         INLINE_FORCED

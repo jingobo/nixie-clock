@@ -28,6 +28,10 @@
 #define ALIGN_DATA_16           PRAGMA_OPTION(data_alignment, 2)
 #define ALIGN_DATA_32           PRAGMA_OPTION(data_alignment, 4)
 
+// Секции линковщика
+#define SECTION_USED(name)      PRAGMA_OPTION(location, name)
+#define SECTION_DECLARE(name)   PRAGMA_OPTION(section, name)
+
 // Модификатор для прерываний
 #define IRQ_ROUTINE             INLINE_NEVER OPTIMIZE_SPEED
 // Сохраняет текущее состояние прерываний
