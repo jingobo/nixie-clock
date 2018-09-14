@@ -8,113 +8,155 @@
 #include "storage.h"
 #include <proto/datetime.inc>
 
+// Настройки синхронизации
+static datetime_sync_settings_t rtc_sync_settings @ STORAGE_SECTION =
+{
+    // Синхронизация включена
+    .sync = IPC_BOOL_TRUE,
+    // UTC +03:00
+    .timezone = 6,
+    // Без смещения
+    .offset = 0,
+    // Раз в час
+    .period = datetime_sync_settings_t::SYNC_PERIOD_HOUR,
+    // Список хостов по умолчанию
+    .hosts = "ntp1.stratum2.ru\n0.pool.ntp.org"
+};
+
 // Класс обслуживания часов реального времени
-static class rtc_t : public event_base_t
+static class rtc_t : public event_base_t, ipc_handler_event_t
 {
     // Время текущее и время синхронизации
     datetime_t time_current, time_sync;
-    // Состояние синхронизации
-    enum
-    {
-        // Синхронизированно успешно
-        SYNC_STATE_SUCCESS = 0,
-        // Необходима синхронизация
-        SYNC_STATE_REQUEST,
-        // Задержка синхронизации 1
-        SYNC_STATE_NEEDED_DELAY_1,
-        // Задержка синхронизации 2
-        SYNC_STATE_NEEDED_DELAY_2
-    } sync_state;
-    // Флаг состяония отправки ответа
-    bool response_needed;
     
     // Обработчик команды синхронизации даты/времени
-    class handler_command_sync_t : public ipc_handler_command_template_t<command_datetime_sync_t>
+    class handler_command_sync_t : public ipc_handler_command_template_t<datetime_command_sync_t>
     {
+        // Состояние синхронизации
+        enum
+        {
+            // Синхронизированно успешно
+            STATE_SUCCESS = 0,
+            // Ожидание завершения синхронизации
+            STATE_RESPONSE,
+            // Необходима синхронизация
+            STATE_REQUEST,
+            // Задержка синхронизации 1
+            STATE_NEEDED_DELAY_1,
+            // Задержка синхронизации 2
+            STATE_NEEDED_DELAY_2
+        } state;
         // Ссылка на основной класс
         rtc_t &rtc;
     protected:
         // Оповещение о поступлении данных
         virtual void notify(ipc_dir_t dir)
         {
-            // Если у нас спрашивают время
-            if (dir == IPC_DIR_REQUEST)
+            // Мы можем только обрабатывать ответ
+            assert(dir == IPC_DIR_RESPONSE);
+            // Если ошибка, переспросим
+            if (!data.response.valid)
             {
-                rtc.response_send();
+                state = STATE_NEEDED_DELAY_2;
                 return;
             }
-            // Если нам ответили
-            switch (data.response.quality)
-            {
-                case command_datetime_sync_response_t::QUALITY_SUCCESS:
-                    // Получили дату TODO: применение GMT
-                    rtc.sync_state = SYNC_STATE_SUCCESS;
-                    rtc.time_sync = rtc.time_current = data.response.datetime;
-                    break;
-                case command_datetime_sync_response_t::QUALITY_NETWORK:
-                    // Ошибка сети
-                    rtc.sync_state = SYNC_STATE_NEEDED_DELAY_2;
-                    break;
-                case command_datetime_sync_response_t::QUALITY_NOLIST:
-                    // TODO: отправка списка
-                    break;
-            }
+            // Получили дату TODO: применение GMT
+            state = STATE_SUCCESS;
+            rtc.time_sync = rtc.time_current = data.response.datetime;
         }
     public:
         // Конструктор по умолчанию
-        handler_command_sync_t(rtc_t &parent) : rtc(parent)
+        handler_command_sync_t(rtc_t &parent) : rtc(parent), state(STATE_REQUEST)
         { }
+        
+        // Обработчик простоя
+        void idle(void)
+        {
+            if (state == STATE_REQUEST && esp_transmit(IPC_DIR_REQUEST, data))
+                // Ожидаем ответ
+                state = STATE_RESPONSE;
+        }
+        
+        // Обработчик сброса
+        void reset(void)
+        {
+            // Перезапрашиваем
+            if (state == STATE_RESPONSE)
+                state = STATE_REQUEST;
+        }
+        
+        // Секундное событие
+        void second(void)
+        {
+            // Задержка запроса даты/времени
+            if (state > STATE_REQUEST)
+                state = ENUM_DEC(state);
+        }
     } handler_command_sync;
-    
-    // Обработчик простоя
-    class handler_idle_t : public ipc_handler_idle_t
+
+    // Обработчик команды запроса списка SNTP хостов
+    class handler_command_hosts_t : public ipc_handler_command_template_t<datetime_command_hosts_require_t>
     {
         // Ссылка на основной класс
         rtc_t &rtc;
+        // Состояние
+        bool sending;
+        // Команда установки хостов
+        datetime_command_hosts_t command;
+    protected:
+        // Оповещение о поступлении данных
+        virtual void notify(ipc_dir_t dir)
+        {
+            // Мы можем только обрабатывать запрос
+            assert(dir == IPC_DIR_REQUEST);
+            // Заполняем ответ
+            datetime_hosts_data_copy(command.request.hosts, rtc_sync_settings.hosts);
+            // Указываем что нужно отапрвить ответ
+            sending = true;
+        }
     public:
         // Конструктор по умолчанию
-        handler_idle_t(rtc_t &parent) : rtc(parent)
+        handler_command_hosts_t(rtc_t &parent) : rtc(parent), sending(false)
         { }
         
-        // Событие оповещения
-        virtual void notify_event(void)
+        // Обработчик простоя
+        void idle(void)
         {
-            // Если нужно отправить ответ
-            if (rtc.response_needed)
-            {
-                rtc.response_send();
-                return;
-            }
-            // Если нужно запросить дату/время
-            if (rtc.sync_state == SYNC_STATE_REQUEST && esp_transmit(IPC_DIR_REQUEST, rtc.handler_command_sync.data))
-                rtc.sync_state = SYNC_STATE_NEEDED_DELAY_1;
+            if (sending)
+                sending = !esp_transmit(IPC_DIR_REQUEST, command);
         }
-    } handler_idle;
-    
-    // Отправка ответа
-    void response_send(void)
+    } handler_command_hosts;
+protected:
+    // Событие простоя
+    virtual void idle(void)
     {
-        auto &response = handler_command_sync.data.response;
-        // Заполняем ответ (quality не меняем)
-        datetime_get(response.datetime);
-        // Отправляем ответ
-        response_needed = !esp_transmit(IPC_DIR_RESPONSE, handler_command_sync.data);
+        // Базовый метод
+        ipc_handler_event_t::idle();
+        // Если нужно отправить список серверов
+        handler_command_hosts.idle();
+        // Если нужно запросить дату/время
+        handler_command_sync.idle();
+    }
+    
+    // Событие сброса
+    virtual void reset(void)
+    {
+        // Базовый метод
+        ipc_handler_event_t::reset();
+        // Сбросы команд
+        handler_command_sync.reset();
     }
 public:
     // Конструктор по умолчанию
     rtc_t(void) : 
-        sync_state(SYNC_STATE_SUCCESS), 
-        response_needed(false), 
         handler_command_sync(*this),
-        handler_idle(*this)
+        handler_command_hosts(*this)
     { }
 
     // Событие инкремента секунды
-    virtual void notify_event(void)
+    virtual void notify(void)
     {
-        // Задержка запроса даты/времени
-        if (sync_state > SYNC_STATE_REQUEST)
-            sync_state = ENUM_DEC(sync_state);
+        handler_command_sync.second();
         // Инкремент секунды
         if (++time_current.second <= DATETIME_SECOND_MAX)
             return;
@@ -143,11 +185,9 @@ public:
     INLINE_FORCED
     void init(void)
     {
-        // Запрос даты/времени
-        sync_state = SYNC_STATE_REQUEST;
-        // Обработчики
-        esp_handler_add_idle(handler_idle);
+        esp_handler_add_event(*this);
         esp_handler_add_command(handler_command_sync);
+        esp_handler_add_command(handler_command_hosts);
     }
     
     // Получает текущую дату/время

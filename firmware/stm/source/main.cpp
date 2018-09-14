@@ -101,20 +101,6 @@ static void led_enable_switch(void)
     }
 }
 
-__root struct
-{
-    uint8_t x1;
-    uint8_t x2;
-    uint8_t x3;
-    uint8_t x4;
-} rtc_test_data @ STORAGE_SECTION =
-{
-    .x1 = 0x11,
-    .x2 = 0x22,
-    .x3 = 0x33,
-    .x4 = 0x44,    
-};
-
 // Для тестов
 static void main_tests(void)
 {
@@ -157,10 +143,7 @@ static void main_tests(void)
         
     GPIOC->CRH |= GPIO_CRH_MODE13_0 | GPIO_CRH_MODE13_1;                        // Output 50 MHz
     
-    rtc_clock_output(true);*/    
-    
-    rtc_test_data.x1 = 0xA3;
-    storage_modified();
+    rtc_clock_output(true);*/        
 }
 
 static void led_sat_test(void)

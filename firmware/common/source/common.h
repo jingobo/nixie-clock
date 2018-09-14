@@ -86,7 +86,7 @@ class notify_t
 {
 public:
     // Событие оповещения
-    virtual void notify_event(void) = 0;
+    virtual void notify(void) = 0;
 };
 
 #endif // __TYPEDEFS_H

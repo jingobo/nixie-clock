@@ -8,8 +8,8 @@ void esp_init(void);
 // Обработчик DMA
 void esp_interrupt_dma(void);
 
-// Добавление обработчика простоя
-void esp_handler_add_idle(ipc_handler_idle_t &handler);
+// Добавление обработчика событий
+void esp_handler_add_event(ipc_handler_event_t &handler);
 // Добавление обработчика команд
 void esp_handler_add_command(ipc_handler_command_t &handler);
 // Передача данных

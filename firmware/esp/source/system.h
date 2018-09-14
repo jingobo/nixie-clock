@@ -23,9 +23,10 @@
 
 // Создание задачи с аргументами по умолчанию (стек максимум по докам)
 #define CREATE_TASK(routine, name, arg) xTaskCreate(routine, (const signed char *)(name), 512, arg, 1, NULL)
-// Вход/Выход из мьютекса
-#define MUTEX_ENTER(m)      xSemaphoreTake(m, portMAX_DELAY)
-#define MUTEX_LEAVE(m)      xSemaphoreGive(m)
+// Создание/Вход/Выход из мьютекса
+#define MUTEX_CREATE()      xSemaphoreCreateRecursiveMutex()
+#define MUTEX_ENTER(m)      xSemaphoreTakeRecursive(m, portMAX_DELAY)
+#define MUTEX_LEAVE(m)      xSemaphoreGiveRecursive(m)
 // Осутствующий макрос для пересчета милисекунд в тики
 #define portTICK_PERIOD_MS  ((portTickType )1000 / configTICK_RATE_HZ)
 

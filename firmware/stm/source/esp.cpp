@@ -18,7 +18,7 @@ static class esp_t : public ipc_controller_t, public event_base_t
     uint32_t corruption_count;
     
     // Ввода/вывод
-    class io_t : public event_base_t
+    class io_t : public notify_t
     {
         // Буфер пакета для DMA
         ALIGN_FIELD_8
@@ -57,7 +57,7 @@ static class esp_t : public ipc_controller_t, public event_base_t
         { }
 
         // Обработчик события начала ввода/вывод
-        virtual void notify_event(void)
+        virtual void notify(void)
         {
             if (active)
                 return;
@@ -84,13 +84,11 @@ static class esp_t : public ipc_controller_t, public event_base_t
         }
         
         // Завершение ввода/вывода (возвращает - нужно ли форсировать опрос)
-        bool finalize(void)
+        void finalize(void)
         {
             active = false;
             // Извлекаем пакет
             esp.packet_input(dma.rx);
-            // Определение форсирования
-            return dma.rx.dll.fast;
         }
     } io;
     
@@ -99,32 +97,59 @@ static class esp_t : public ipc_controller_t, public event_base_t
     {
         // Родительский класс
         esp_t &esp;
+        // Состояние сброса
+        enum
+        {
+            // Сброс не происходит
+            STATE_IDLE = 0,
+            // Сброс (вывод RST на землю)
+            STATE_RESET,
+            // Ожидание инициализации
+            STATE_WAIT
+        } state;
     public:
         // Конструктор по умолчанию
-        reset_chip_t(esp_t &parent) : esp(parent)
+        reset_chip_t(esp_t &parent) : esp(parent), state(STATE_IDLE)
         { }
 
         // Обработчик события начала ввода/вывод
-        virtual void notify_event(void)
+        virtual void notify(void)
         {
-            IO_PORT_SET(IO_ESP_CS);                                             // Slave deselect
-            // Запуск таймера опроса на 10 Гц
-            event_timer_start_hz(esp.io, 10, EVENT_TIMER_FLAG_LOOP);
+            switch (state)
+            {
+                case STATE_RESET:
+                    IO_PORT_SET(IO_ESP_RST);                                    // Esp unreset
+                    // Таймер на ожидание инициализации 500 мС
+                    event_timer_start_hz(*this, 2);
+                    // К следующему состоянию
+                    state = STATE_WAIT;
+                    return;
+                case STATE_WAIT:
+                    IO_PORT_SET(IO_ESP_CS);                                     // Slave deselect
+                    // Запуск таймера опроса на 100 Гц
+                    event_timer_start_hz(esp.io, 100, EVENT_TIMER_FLAG_LOOP);
+                    // Завершение инициализации
+                    state = STATE_IDLE;
+                    esp.corruption_count = 0;
+                    return;
+            }
         }
         
         // Сброс чипа
         void operator ()(void)
         {
+            if (state > STATE_IDLE)
+                return;
+            state = STATE_RESET;
             // Остановка таймера опроса
             event_timer_stop(esp.io);
             // Начало сброса
             IO_PORT_RESET(IO_ESP_CS);                                           // Slave select
             IO_PORT_RESET(IO_ESP_RST);                                          // Esp reset
-                // Сброс слотов
-                esp.clear_slots();
-                // Таймер на ожидание инициализации на 150 мС
-                event_timer_start_us(*this, 150000);
-            IO_PORT_SET(IO_ESP_RST);                                            // Esp unreset
+            // Сброс слотов
+            esp.clear_slots();
+            // Таймер на сброс 15 мС
+            event_timer_start_us(*this, 15000);
         }
     } reset_chip;
     
@@ -135,37 +160,20 @@ protected:
         ipc_controller_t::reset_layer(reason, internal);
         if (internal && reason == ipc_command_flow_request_t::REASON_CORRUPTION)
             corruption_count += 2;
-    }
-    
-    // Добавление данных к передаче
-    virtual bool transmit_raw(ipc_dir_t dir, ipc_command_t command, const void *source, size_t size)
-    {
-        auto result = ipc_controller_t::transmit_raw(dir, command, source, size);
-        if (result)
-            event_add(io);
-        return result;
-    }
+    }    
 public:
     // Конструктор по умолчанию
     esp_t(void) : io(*this), reset_chip(*this), corruption_count(0)
     { }
     
     // Обработчик события получения пакета
-    virtual void notify_event(void)
+    virtual void notify(void)
     {
         // Завершение ввода/вывода
-        auto force = io.finalize();
+        io.finalize();
         // Обработка счетчика ошибок передачи
         if (corruption_count > 0 && --corruption_count >= 10)
-        {
             reset_chip();
-            return;
-        }
-        if (!tx_empty())
-            force = true;
-        // Форсирование передачи
-        if (force)
-            event_add(io);
     }
 
     // Инициализация контроллера
@@ -204,9 +212,9 @@ void esp_handler_add_command(ipc_handler_command_t &handler)
     esp.handler_add_command(handler);
 }
 
-void esp_handler_add_idle(ipc_handler_idle_t &handler)
+void esp_handler_add_event(ipc_handler_event_t &handler)
 {
-    esp.handler_add_idle(handler);
+    esp.handler_add_event(handler);
 }
 
 bool esp_transmit(ipc_dir_t dir, const ipc_command_data_t &data)

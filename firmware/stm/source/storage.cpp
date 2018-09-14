@@ -35,7 +35,7 @@ static class storage_t : notify_t
         { }
         
         // Событие завершения записи
-        virtual void notify_event(void)
+        virtual void notify(void)
         {
             FLASH->CR &= ~FLASH_CR_PER;                                         // Page erase end
             // Начало копирования данных из ОЗУ в ПЗУ
@@ -59,7 +59,7 @@ static class storage_t : notify_t
                 return;
             // Принудительно обновляем данные снова
             storage.pending = false;
-            storage.notify_event();
+            storage.notify();
         }
     } fill_page_event;
     
@@ -126,7 +126,7 @@ public:
     { }
 
     // Событие таймера начала записи
-    virtual void notify_event(void)
+    virtual void notify(void)
     {
         // Проверка состояния
         if (saving)

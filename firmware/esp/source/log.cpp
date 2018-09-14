@@ -11,7 +11,7 @@ static struct log_t
     const xSemaphoreHandle mutex;
 
     // Конструктор по умолчанию
-    log_t(void) : mutex(xSemaphoreCreateMutex())
+    log_t(void) : mutex(MUTEX_CREATE())
     {
         assert(mutex != NULL);
     }

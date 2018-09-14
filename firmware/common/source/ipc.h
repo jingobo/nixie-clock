@@ -26,14 +26,14 @@ enum ipc_command_t
     // Синхронизация времени
     IPC_COMMAND_STM_DATETIME_SYNC,
     // Установка списка хостов SNTP
-    IPC_COMMAND_STM_DATETIME_SNTP_HOSTS,
+    IPC_COMMAND_STM_DATETIME_HOSTS,
     
     // Не команда, база для команд, обрабатываемых модулем ESP8266
     IPC_COMMAND_ESP_HANDLE_BASE = 100,
     // Запрос настроек WIFI
     IPC_COMMAND_ESP_REQUIRE_WIFI_PARAMS,
     // Запрос списка хостов SNTP
-    IPC_COMMAND_ESP_REQUIRE_SNTP_HOSTS,
+    IPC_COMMAND_ESP_DATETIME_HOSTS_REQUIRE,
 };
 
 // Тип направления
@@ -73,7 +73,8 @@ struct ipc_packet_t
         {
             // Есть ли еще данные для этой команды
             bool more : 1;
-            // Указывает что опрос нужно ускорять (есть еще команды)
+            // Указывает что опрос нужно ускорять (есть еще команды) (
+            // FUTURE: на данный момент не обрабатывается, возможно реализую
             bool fast : 1;
             // Указывает направление (запрос/ответ)
             ipc_dir_t dir : 1;
@@ -245,6 +246,25 @@ protected:
     { }
 };
 
+// Шаблон команды пустого запроса без ответа
+class ipc_command_data_empty_t : public ipc_command_data_t
+{
+public:
+    // Получает размер буфера
+    virtual size_t buffer_size(ipc_dir_t dir) const;
+    // Получает указатель буфера
+    virtual const void * buffer_pointer(ipc_dir_t dir) const;
+
+    // Кодирование данных, возвращает количество записанных данных
+    virtual size_t encode(ipc_dir_t dir) const;
+    // Декодирование данных
+    virtual bool decode(ipc_dir_t dir, size_t size);
+protected:
+    // Конструктор по умолчанию
+    ipc_command_data_empty_t(ipc_command_t command) : ipc_command_data_t(command)
+    { }
+};
+
 // Шаблон команды запроса данных (пустой запрос) с фиксированным размером ответа
 template <typename RESPONSE>
 class ipc_command_data_template_getter_t : public ipc_command_data_t
@@ -411,10 +431,15 @@ protected:
     }
 };
 
-// Обработчик простоя
-class ipc_handler_idle_t : protected notify_t, public list_item_t
+// Обработчик событий
+class ipc_handler_event_t : public list_item_t
 {
     friend class ipc_controller_t;
+protected:
+    // Событие простоя
+    virtual void idle(void);
+    // Событие сброса
+    virtual void reset(void);
 };
 
 // Контроллер пакетов
@@ -425,8 +450,8 @@ class ipc_controller_t
     ipc_slots_t tx, rx;
     // Данные команды управления потоком
     ipc_command_flow_t command_flow;
-    // Список обработчиков простоя
-    list_template_t<ipc_handler_idle_t> idle_handlers;
+    // Список обработчиков событий
+    list_template_t<ipc_handler_event_t> event_handlers;
     // Список обработчиков команд
     list_template_t<ipc_handler_command_t> command_handlers;
     
@@ -478,8 +503,8 @@ public:
     // Сброс всех слотов (TX, RX)
     void clear_slots(void);
     
-    // Добавление обработчика простоя
-    void handler_add_idle(ipc_handler_idle_t &handler);
+    // Добавление обработчика событий
+    void handler_add_event(ipc_handler_event_t &handler);
     // Добавление обработчика команд
     void handler_add_command(ipc_handler_command_t &handler);
 

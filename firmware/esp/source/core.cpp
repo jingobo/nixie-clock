@@ -68,13 +68,15 @@ static class core_t : public ipc_controller_t, public task_wrapper_t
 
     // Выполнение транзакции
     void transaction(void);
+    // Проверяет, что пакет обрабатывать не нам
+    static bool is_our_packet(const ipc_packet_t &packet);
 protected:
     // Обработчик события подготовки к получению данных (получение буфера и печенек)
     virtual bool receive_prepare(const ipc_packet_t &packet, receive_args_t &args);
     // Обработчик события завершения получения данных (пакеты собраны)
     virtual bool receive_finalize(const ipc_packet_t &packet, const receive_args_t &args);
     // Полный сброс прикладного уровня
-    virtual void reset_layer(ipc_command_flow_t::reason_t reason, bool internal = true);
+    virtual void reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal = true);
     // Обработчик задачи
     virtual void execute(void);
 public:
@@ -86,12 +88,17 @@ public:
     static void spi_isr(void *dummy);
 } core;
 
+RAM bool core_t::is_our_packet(const ipc_packet_t &packet)
+{
+    return  packet.dll.dir != IPC_DIR_REQUEST && packet.dll.command < IPC_COMMAND_ESP_HANDLE_BASE;
+}
+
 ROM bool core_t::receive_prepare(const ipc_packet_t &packet, receive_args_t &args)
 {
     // Индикация
     IO_LED_YELLOW.flash();
     // Если не запрос - значит не нам
-    if (packet.dll.dir != IPC_DIR_REQUEST)
+    if (is_our_packet(packet))
     {
         args.buffer = data;
         // TODO: отправка вебсокету
@@ -104,7 +111,7 @@ ROM bool core_t::receive_prepare(const ipc_packet_t &packet, receive_args_t &arg
 ROM bool core_t::receive_finalize(const ipc_packet_t &packet, const receive_args_t &args)
 {
     // Если не запрос - значит не нам
-    if (packet.dll.dir != IPC_DIR_REQUEST)
+    if (is_our_packet(packet))
     {
         log_module(MODULE_NAME, "Web response 0x%02x, %d bytes", packet.dll.command, args.size);
         // TODO: отправка вебсокету
@@ -115,7 +122,7 @@ ROM bool core_t::receive_finalize(const ipc_packet_t &packet, const receive_args
     return ipc_controller_t::receive_finalize(packet, args);
 }
 
-ROM void core_t::reset_layer(ipc_command_flow_t::reason_t reason, bool internal)
+ROM void core_t::reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal)
 {
     // Базовый метод
     ipc_controller_t::reset_layer(reason, internal);
@@ -181,6 +188,13 @@ ROM bool core_transmit(ipc_dir_t dir, const ipc_command_data_t &data)
         result = core.transmit(dir, data);
     MUTEX_LEAVE(core.mutex);
     return result;
+}
+
+ROM void core_handler_add_event(ipc_handler_event_t &handler)
+{
+    MUTEX_ENTER(core.mutex);
+        core.handler_add_event(handler);
+    MUTEX_LEAVE(core.mutex);
 }
 
 ROM void core_handler_add_command(ipc_handler_command_t &handler)

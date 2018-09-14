@@ -32,7 +32,7 @@ public:
     // Запуск задачи
     bool start(void);
     // Получает, выполняется ли задача
-    ROM bool running(void) const
+    RAM bool running(void) const
     {
         return active;
     }

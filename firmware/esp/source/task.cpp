@@ -16,7 +16,7 @@ ROM void task_wrapper_t::execute_wrapper(void)
 }
 
 task_wrapper_t::task_wrapper_t(const char * _name)
-    : mutex(xSemaphoreCreateMutex()), active(false), name(_name)
+    : mutex(MUTEX_CREATE()), active(false), name(_name)
 {
     assert(name != NULL);
     assert(mutex != NULL);

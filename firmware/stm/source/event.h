@@ -32,12 +32,12 @@ protected:
     }
     
     // Вызов события
-    virtual void notify(void)
+    virtual void execute(void)
     {
         // Проверка состояния
         assert(pending);
         // Вызов события
-        notify_event();
+        notify();
     }
 };
 

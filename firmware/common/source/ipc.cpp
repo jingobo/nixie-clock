@@ -24,6 +24,36 @@ RAM bool ipc_command_data_t::decode_packet(const ipc_packet_t &packet)
     return !packet.dll.more && decode_buffer(packet.dll.dir, packet.apl.u8, packet.dll.length);
 }
 
+RAM size_t ipc_command_data_empty_t::buffer_size(ipc_dir_t dir) const
+{
+    UNUSED(dir);
+    return 0;
+}
+
+RAM const void * ipc_command_data_empty_t::buffer_pointer(ipc_dir_t dir) const
+{
+    UNUSED(dir);
+    return NULL;
+}
+
+RAM size_t ipc_command_data_empty_t::encode(ipc_dir_t dir) const
+{
+    UNUSED(dir);
+    assert(dir == IPC_DIR_REQUEST);
+    return 0;
+}
+
+RAM bool ipc_command_data_empty_t::decode(ipc_dir_t dir, size_t size)
+{
+    return dir == IPC_DIR_REQUEST && size == 0;
+}
+
+RAM void ipc_handler_event_t::idle(void)
+{ }
+
+RAM void ipc_handler_event_t::reset(void)
+{ }
+
 ROM ipc_slots_t::ipc_slots_t(void)
 {
     for (auto i = 0; i < ARRAY_SIZE(slots); i++)
@@ -96,6 +126,9 @@ ROM void ipc_controller_t::transmit_flow(ipc_command_flow_request_t::reason_t re
 ROM void ipc_controller_t::reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal)
 {
     assert(reason > ipc_command_flow_request_t::REASON_NOP);
+    // Оповещение
+    for (auto i = event_handlers.head(); i != NULL; i = list_item_t::next(i))
+        i->reset();
     // Сброс всех слотов
     clear_slots();
     // Отправка команды
@@ -103,12 +136,12 @@ ROM void ipc_controller_t::reset_layer(ipc_command_flow_request_t::reason_t reas
         transmit_flow(reason);
 }
 
-ROM void ipc_controller_t::handler_add_idle(ipc_handler_idle_t &handler)
+ROM void ipc_controller_t::handler_add_event(ipc_handler_event_t &handler)
 {
     // Поиск обработчика с таким адресом
-    assert(!idle_handlers.contains(handler));
+    assert(!event_handlers.contains(handler));
     // Добавление
-    handler.link(idle_handlers);
+    handler.link(event_handlers);
 }
 
 ROM void ipc_controller_t::handler_add_command(ipc_handler_command_t &handler)
@@ -211,9 +244,9 @@ ROM void ipc_controller_t::packet_output(ipc_packet_t &packet)
             continue;
         }
         // Обход обработчиков простоя
-        for (auto i = idle_handlers.head(); i != NULL;)
+        for (auto i = event_handlers.head(); i != NULL;)
         {
-            i->notify_event();
+            i->idle();
             // Если ничего не записал...
             if (tx_empty())
             {
@@ -222,7 +255,7 @@ ROM void ipc_controller_t::packet_output(ipc_packet_t &packet)
             }
             // Что то было записано, этот обрабочтик в конец
             i->unlink();
-            i->link(idle_handlers);
+            i->link(event_handlers);
             break;
         }
         try_idle = true;

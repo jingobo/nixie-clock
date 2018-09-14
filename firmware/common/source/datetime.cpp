@@ -3,6 +3,11 @@
 // Конструктор по умолчанию
 datetime_t::datetime_t()
 {
+    clear();
+}
+
+ROM void datetime_t::clear()
+{
     year = DATETIME_YEAR_MIN;
     month = DATETIME_MONTH_MIN;
     day = DATETIME_DAY_MIN;

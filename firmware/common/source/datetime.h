@@ -38,6 +38,8 @@ struct datetime_t
     // Конструктор по умолчанию
     datetime_t();
 
+    // Сброс полей
+    void clear();
     // Проверка на валидность
     bool check(void) const;
     // Получает, високосный ли год

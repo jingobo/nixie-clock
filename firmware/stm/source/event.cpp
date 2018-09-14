@@ -94,7 +94,7 @@ static struct event_t
         { }
 
         // Обработчик тиков таймеров
-        virtual void notify_event(void)
+        virtual void notify(void)
         {
             // Сохранение состояния прерываний
             IRQ_CTX_SAVE();
@@ -103,7 +103,7 @@ static struct event_t
                 if (slot[i].state & EVENT_TIMER_STATE_PENDING)
                 {
                     // Обработчка тика
-                    slot[i].handler->notify_event();
+                    slot[i].handler->notify();
                     // Снятие состояния ожидания обработки
                     IRQ_CTX_DISABLE();
                         slot[i].state &= ~EVENT_TIMER_STATE_PENDING;
@@ -133,7 +133,7 @@ static struct event_t
                     // Генерирование события
                     if (slot[i].state & EVENT_TIMER_STATE_CIRQ)
                         // ...прямо из прерывания
-                        slot[i].handler->notify_event();
+                        slot[i].handler->notify();
                     else
                     {
                         // ...в основной нити
@@ -285,7 +285,7 @@ static struct event_t
                 // Получаем первый элемент списка
                 event_base_t &event = *list[i].head();
                 // Обработка события
-                event.notify();
+                event.execute();
                 // Удаляем из списка
                 event.unlink();
                 // Cбрасываем флаг ожидания

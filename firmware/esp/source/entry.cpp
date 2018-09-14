@@ -42,6 +42,9 @@ static ROM void entry_wrap_task(void *dummy)
 // Точка входа
 C_SYMBOL ROM void user_init(void)
 {
+    // Запрет вывода частоты кварца (я в шоке от китайцев)
+    GPIO_OUT_SET(0, false);
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
     // Запрет автоподключения в точке доступа
     if (wifi_station_get_auto_connect())
         wifi_station_set_auto_connect(false);
