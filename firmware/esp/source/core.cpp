@@ -36,7 +36,7 @@
         for (auto i = 0; i < 16; ++i)
         {
             auto reg = SPI_W0(HSPI) + i * 4;
-            log_module(MODULE_NAME, "ADDR[0x%08x],Value[0x%08x]", reg, READ_PERI_REG(reg));
+            log_module(MODULE_NAME, "ADDR[0x%08x], Value[0x%08x]", reg, READ_PERI_REG(reg));
         }
     }
     // Отладочный вывод
@@ -47,7 +47,7 @@
 #endif // NDEBUG
 
 // Контроллер пакетов
-static class core_t : public ipc_controller_t, public task_wrapper_t
+static class core_t : public ipc_controller_slave_t, public task_wrapper_t
 {
     // Буфер для пакетов приёма/передачи
     union
@@ -77,12 +77,24 @@ protected:
     virtual bool receive_finalize(const ipc_packet_t &packet, const receive_args_t &args);
     // Полный сброс прикладного уровня
     virtual void reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal = true);
+    // Добавление данных к передаче
+    virtual bool transmit_raw(ipc_dir_t dir, ipc_command_t command, const void *source, size_t size);
     // Обработчик задачи
     virtual void execute(void);
 public:
     // Конструктор по умолчанию
     core_t(void) : task_wrapper_t("core")
     { }
+
+    // Добавление обработчика событий
+    virtual void handler_add_event(ipc_handler_event_t &handler);
+    // Добавление обработчика команд
+    virtual void handler_add_command(ipc_handler_command_t &handler);
+
+    // Получение пакета к выводу
+    virtual void packet_output(ipc_packet_t &packet);
+    // Ввод полученного пакета
+    virtual void packet_input(const ipc_packet_t &packet);
 
     // Обработчик прерывания от HSPI
     static void spi_isr(void *dummy);
@@ -105,7 +117,7 @@ ROM bool core_t::receive_prepare(const ipc_packet_t &packet, receive_args_t &arg
         return true;
     }
     // Базовый обработчик
-    return ipc_controller_t::receive_prepare(packet, args);
+    return ipc_controller_slave_t::receive_prepare(packet, args);
 }
 
 ROM bool core_t::receive_finalize(const ipc_packet_t &packet, const receive_args_t &args)
@@ -119,31 +131,67 @@ ROM bool core_t::receive_finalize(const ipc_packet_t &packet, const receive_args
     }
     log_module(MODULE_NAME, "Esp request 0x%02x, %d bytes", packet.dll.command, args.size);
     // Базовый обработчик
-    return ipc_controller_t::receive_finalize(packet, args);
+    return ipc_controller_slave_t::receive_finalize(packet, args);
 }
 
 ROM void core_t::reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal)
 {
     // Базовый метод
-    ipc_controller_t::reset_layer(reason, internal);
+    ipc_controller_slave_t::reset_layer(reason, internal);
     // Вывод в лог
     log_module(MODULE_NAME, "Layer reset, reason %d, internal %d", reason, internal);
 }
 
+ROM bool core_t::transmit_raw(ipc_dir_t dir, ipc_command_t command, const void *source, size_t size)
+{
+    bool result;
+    MUTEX_ENTER(mutex);
+        result = ipc_controller_slave_t::transmit_raw(dir, command, source, size);
+    MUTEX_LEAVE(mutex);
+    return result;
+}
+
 ROM void core_t::execute(void)
 {
+    TASK_PRIORITY_SET(TASK_PRIORITY_CRITICAL);
     // SPI enable
     SET_PERI_REG_MASK(SPI_CMD(HSPI), SPI_USR);
     for (;;)
         transaction();
 }
 
+RAM void core_t::handler_add_event(ipc_handler_event_t &handler)
+{
+    MUTEX_ENTER(mutex);
+        ipc_controller_slave_t::handler_add_event(handler);
+    MUTEX_LEAVE(mutex);
+}
+
+RAM void core_t::handler_add_command(ipc_handler_command_t &handler)
+{
+    MUTEX_ENTER(mutex);
+        ipc_controller_slave_t::handler_add_command(handler);
+    MUTEX_LEAVE(mutex);
+}
+
+RAM void core_t::packet_output(ipc_packet_t &packet)
+{
+    MUTEX_ENTER(mutex);
+        ipc_controller_slave_t::packet_output(packet);
+    MUTEX_LEAVE(mutex);
+}
+
+RAM void core_t::packet_input(const ipc_packet_t &packet)
+{
+    MUTEX_ENTER(mutex);
+        ipc_controller_slave_t::packet_input(packet);
+    MUTEX_LEAVE(mutex);
+}
+
 ROM void core_t::transaction(void)
 {
     // Вывод пакета
-    MUTEX_ENTER(mutex);
-        packet_output(buffer.tx);
-    MUTEX_LEAVE(mutex);
+    packet_output(buffer.tx);
     // В регистры
     for (auto i = 8; i < 16; i++)
         WRITE_PERI_REG(SPI_W0(HSPI) + i * REG_SIZE, buffer.raw[i]);
@@ -153,9 +201,7 @@ ROM void core_t::transaction(void)
     for (auto i = 0; i < 8; i++)
         buffer.raw[i] = READ_PERI_REG(SPI_W0(HSPI) + i * REG_SIZE);
     // Ввод пакета
-    MUTEX_ENTER(mutex);
-        packet_input(buffer.rx);
-    MUTEX_LEAVE(mutex);
+    packet_input(buffer.rx);
 }
 
 RAM void core_t::spi_isr(void *dummy)
@@ -168,40 +214,28 @@ RAM void core_t::spi_isr(void *dummy)
     // HSPI
     if (!(sr & IRQ_SRC_HSPI))
         return;
-    // Сброс флага прерывания (не знаю почему и китайцев так через жопу)
+    // Сброс флага прерывания (не знаю почему у китайцев так через жопу)
     CLEAR_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_TRANS_DONE_EN);
         SET_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_SYNC_RESET);
         CLEAR_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_TRANS_DONE);
     SET_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_TRANS_DONE_EN);
-    // Сброс регистров TODO: возможно убрать
-    for (auto i = 8; i < 16; i++)
-        WRITE_PERI_REG(SPI_W0(HSPI) + i * REG_SIZE, 0xFFFFFFFF);
     // Вызов события
     core.event_data_ready.set_isr();
 }
 
-
-ROM bool core_transmit(ipc_dir_t dir, const ipc_command_data_t &data)
+RAM bool core_transmit(ipc_dir_t dir, const ipc_command_data_t &data)
 {
-    bool result;
-    MUTEX_ENTER(core.mutex);
-        result = core.transmit(dir, data);
-    MUTEX_LEAVE(core.mutex);
-    return result;
+    return core.transmit(dir, data);
 }
 
-ROM void core_handler_add_event(ipc_handler_event_t &handler)
+RAM void core_handler_add_event(ipc_handler_event_t &handler)
 {
-    MUTEX_ENTER(core.mutex);
-        core.handler_add_event(handler);
-    MUTEX_LEAVE(core.mutex);
+    core.handler_add_event(handler);
 }
 
-ROM void core_handler_add_command(ipc_handler_command_t &handler)
+RAM void core_handler_add_command(ipc_handler_command_t &handler)
 {
-    MUTEX_ENTER(core.mutex);
-        core.handler_add_command(handler);
-    MUTEX_LEAVE(core.mutex);
+    core.handler_add_command(handler);
 }
 
 ROM void core_init(void)
@@ -235,8 +269,6 @@ ROM void core_init(void)
     // Настройка прерывание HSPI
     _xt_isr_attach(ETS_SPI_INUM, core_t::spi_isr, NULL);
     _xt_isr_unmask(1 << ETS_SPI_INUM);
-    // Для отладки
-    //CORE_SPI_DEBUG();
 
     // Проверка размера пакета
     IPC_PKT_SIZE_CHECK();

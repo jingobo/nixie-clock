@@ -15,7 +15,7 @@ struct datetime_command_sync_response_t
     // Провера полей
     ROM bool check(void) const
     {
-        if (valid >= IPC_BOOL_COUNT)
+        if (valid > IPC_BOOL_TRUE)
             return false;
         return valid == IPC_BOOL_FALSE || datetime.check();
     }

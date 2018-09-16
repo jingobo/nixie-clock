@@ -3,6 +3,8 @@
 // Период мигания в мС
 #define GPIO_BLINK_DELAY    50
 
+gpio_t IO_LED_YELLOW, IO_LED_GREEN;
+
 // Обработчик таймера мигалки
 ROM void gpio_t::blink_timer_cb(void *arg)
 {
@@ -51,7 +53,12 @@ ROM void gpio_t::flash(void)
     this->opm = true;
 }
 
-gpio_t IO_LED_YELLOW, IO_LED_GREEN;
+ROM void io_init_entry(void)
+{
+    // Запрет вывода частоты кварца (я в шоке от китайцев)
+    GPIO_OUT_SET(0, false);
+    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
+}
 
 ROM void io_init(void)
 {

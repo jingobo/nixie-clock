@@ -10,13 +10,16 @@
 
 // Команда ESP8266 TX & RX подчиненного устройства
 #define ESP_SPI_CMD_RD_WR       0x06
+// Частота передачи пакетов IPC по SPI
+#define ESP_SPI_IPC_TX_HZ       100
+// Время ожидания после смены состояния выводов ESP8266
+#define ESP_PIN_SWUTCH_US       XK(50)
+// Время ожидания инициализации чипа ESP8266
+#define ESP_START_TIME_US       XK(300)
 
 // Класс работы с ESP
-static class esp_t : public ipc_controller_t, public event_base_t
-{
-    // Счетчик ошибок передачи
-    uint32_t corruption_count;
-    
+static class esp_t : public ipc_controller_master_t, public event_base_t
+{    
     // Ввода/вывод
     class io_t : public notify_t
     {
@@ -102,10 +105,12 @@ static class esp_t : public ipc_controller_t, public event_base_t
         {
             // Сброс не происходит
             STATE_IDLE = 0,
-            // Сброс (вывод RST на землю)
+            // Сброс (RST на землю)
             STATE_RESET,
+            // Загрузка (BOOT0 к питанию)
+            STATE_BOOT,
             // Ожидание инициализации
-            STATE_WAIT
+            STATE_INIT
         } state;
     public:
         // Конструктор по умолчанию
@@ -119,18 +124,23 @@ static class esp_t : public ipc_controller_t, public event_base_t
             {
                 case STATE_RESET:
                     IO_PORT_SET(IO_ESP_RST);                                    // Esp unreset
-                    // Таймер на ожидание инициализации 500 мС
-                    event_timer_start_hz(*this, 2);
+                    // Таймер на бутлоадер
+                    event_timer_start_us(*this, ESP_PIN_SWUTCH_US);
                     // К следующему состоянию
-                    state = STATE_WAIT;
+                    state = STATE_BOOT;
                     return;
-                case STATE_WAIT:
+                case STATE_BOOT:
                     IO_PORT_SET(IO_ESP_CS);                                     // Slave deselect
-                    // Запуск таймера опроса на 100 Гц
-                    event_timer_start_hz(esp.io, 100, EVENT_TIMER_FLAG_LOOP);
+                    // Таймер на ожидание инициализации
+                    event_timer_start_us(*this, ESP_START_TIME_US);
+                    // К следующему состоянию
+                    state = STATE_INIT;
+                    return;
+                case STATE_INIT:
+                    // Запуск таймера опроса
+                    event_timer_start_hz(esp.io, ESP_SPI_IPC_TX_HZ, EVENT_TIMER_FLAG_LOOP);
                     // Завершение инициализации
                     state = STATE_IDLE;
-                    esp.corruption_count = 0;
                     return;
             }
         }
@@ -148,34 +158,22 @@ static class esp_t : public ipc_controller_t, public event_base_t
             IO_PORT_RESET(IO_ESP_RST);                                          // Esp reset
             // Сброс слотов
             esp.clear_slots();
-            // Таймер на сброс 15 мС
-            event_timer_start_us(*this, 15000);
+            // Таймер на сброс
+            event_timer_start_us(*this, ESP_PIN_SWUTCH_US);
         }
     } reset_chip;
-    
 protected:
-    // Сброс прикладного уровня
-    virtual void reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal = true)
+    // Массовый сброс (другая сторона не отвечает)
+    virtual void reset_total(void)
     {
-        ipc_controller_t::reset_layer(reason, internal);
-        if (internal && reason == ipc_command_flow_request_t::REASON_CORRUPTION)
-            corruption_count += 2;
-    }    
+        // Сброс чипаа
+        reset_chip();
+    }
 public:
     // Конструктор по умолчанию
-    esp_t(void) : io(*this), reset_chip(*this), corruption_count(0)
+    esp_t(void) : io(*this), reset_chip(*this)
     { }
     
-    // Обработчик события получения пакета
-    virtual void notify(void)
-    {
-        // Завершение ввода/вывода
-        io.finalize();
-        // Обработка счетчика ошибок передачи
-        if (corruption_count > 0 && --corruption_count >= 10)
-            reset_chip();
-    }
-
     // Инициализация контроллера
     void init(void)
     {
@@ -184,6 +182,13 @@ public:
         // Сброс чипаа
         reset_chip();
     }    
+
+    // Обработчик события получения пакета
+    virtual void notify(void)
+    {
+        // Завершение ввода/вывода
+        io.finalize();
+    }
 } esp;
 
 void esp_init(void)

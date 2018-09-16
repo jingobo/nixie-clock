@@ -21,7 +21,7 @@ ROM bool ipc_command_data_t::decode_buffer(ipc_dir_t dir, const void *buffer, si
 
 RAM bool ipc_command_data_t::decode_packet(const ipc_packet_t &packet)
 {
-    return !packet.dll.more && decode_buffer(packet.dll.dir, packet.apl.u8, packet.dll.length);
+    return packet.dll.more != IPC_BOOL_TRUE && decode_buffer(packet.dll.dir, packet.apl.u8, packet.dll.length);
 }
 
 RAM size_t ipc_command_data_empty_t::buffer_size(ipc_dir_t dir) const
@@ -54,7 +54,7 @@ RAM void ipc_handler_event_t::idle(void)
 RAM void ipc_handler_event_t::reset(void)
 { }
 
-ROM ipc_slots_t::ipc_slots_t(void)
+ROM ipc_slots_t::ipc_slots_t(void) : phase(IPC_BOOL_FALSE)
 {
     for (auto i = 0; i < ARRAY_SIZE(slots); i++)
         slots[i].link(unused);
@@ -80,24 +80,26 @@ ROM void ipc_slots_t::free(ipc_slot_t &slot)
 
 ROM void ipc_slots_t::clear(void)
 {
+    phase = IPC_BOOL_FALSE;
     while (!used.empty())
         free(*used.last());
 }
 
-ROM ipc_controller_t::ipc_controller_t(void)
+ROM ipc_controller_slave_t::ipc_controller_slave_t(void) : reseting(false)
 {
     // Установка магического поля
     for (auto i = tx.unused.head(); i != NULL; i = list_item_t::next(i))
         i->dll.magic = IPC_MAGIC;
 }
 
-ROM void ipc_controller_t::clear_slots(void)
+ROM void ipc_controller_slave_t::clear_slots(void)
 {
+    reseting = false;
     tx.clear();
     rx.clear();
 }
 
-ROM ipc_handler_command_t * ipc_controller_t::handler_command_find(ipc_command_t command) const
+ROM ipc_handler_command_t * ipc_controller_slave_t::handler_command_find(ipc_command_t command) const
 {
     // Поиск обработчика с такой командой
     for (auto i = command_handlers.head(); i != NULL; i = list_item_t::next(i))
@@ -106,7 +108,7 @@ ROM ipc_handler_command_t * ipc_controller_t::handler_command_find(ipc_command_t
     return NULL;
 }
 
-ROM uint8_t ipc_controller_t::checksum(const void *source, uint8_t size)
+ROM uint8_t ipc_controller_slave_t::checksum(const void *source, uint8_t size)
 {
     auto result = size;
     auto src = (const uint8_t *)source;
@@ -115,7 +117,7 @@ ROM uint8_t ipc_controller_t::checksum(const void *source, uint8_t size)
     return result;
 }
 
-ROM void ipc_controller_t::transmit_flow(ipc_command_flow_request_t::reason_t reason)
+ROM void ipc_controller_slave_t::transmit_flow(ipc_command_flow_request_t::reason_t reason)
 {
     command_flow.request.reason = reason;
     auto result = transmit(IPC_DIR_REQUEST, command_flow);
@@ -123,7 +125,7 @@ ROM void ipc_controller_t::transmit_flow(ipc_command_flow_request_t::reason_t re
     UNUSED(result);
 }
 
-ROM void ipc_controller_t::reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal)
+ROM void ipc_controller_slave_t::reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal)
 {
     assert(reason > ipc_command_flow_request_t::REASON_NOP);
     // Оповещение
@@ -132,11 +134,17 @@ ROM void ipc_controller_t::reset_layer(ipc_command_flow_request_t::reason_t reas
     // Сброс всех слотов
     clear_slots();
     // Отправка команды
-    if (internal)
-        transmit_flow(reason);
+    if (!internal)
+    {
+        // Для выравнивания с фазой приёма
+        tx.phase_switch();
+        return;
+    }
+    transmit_flow(reason);
+    reseting = true;
 }
 
-ROM void ipc_controller_t::handler_add_event(ipc_handler_event_t &handler)
+ROM void ipc_controller_slave_t::handler_add_event(ipc_handler_event_t &handler)
 {
     // Поиск обработчика с таким адресом
     assert(!event_handlers.contains(handler));
@@ -144,7 +152,7 @@ ROM void ipc_controller_t::handler_add_event(ipc_handler_event_t &handler)
     handler.link(event_handlers);
 }
 
-ROM void ipc_controller_t::handler_add_command(ipc_handler_command_t &handler)
+ROM void ipc_controller_slave_t::handler_add_command(ipc_handler_command_t &handler)
 {
     // Поиск обработчика с такой командой
     assert(handler_command_find(handler.data_get().command) == NULL);
@@ -152,7 +160,7 @@ ROM void ipc_controller_t::handler_add_command(ipc_handler_command_t &handler)
     handler.link(command_handlers);
 }
 
-ROM bool ipc_controller_t::receive_prepare(const ipc_packet_t &packet, receive_args_t &args)
+ROM bool ipc_controller_slave_t::receive_prepare(const ipc_packet_t &packet, receive_args_t &args)
 {
     // Поиск обработчика по команде
     auto handler = handler_command_find(packet.dll.command);
@@ -169,7 +177,7 @@ ROM bool ipc_controller_t::receive_prepare(const ipc_packet_t &packet, receive_a
     return true;
 }
 
-ROM bool ipc_controller_t::receive_finalize(const ipc_packet_t &packet, const receive_args_t &args)
+ROM bool ipc_controller_slave_t::receive_finalize(const ipc_packet_t &packet, const receive_args_t &args)
 {
     // Проверка состояния
     assert(args.cookie != NULL);
@@ -184,7 +192,7 @@ ROM bool ipc_controller_t::receive_finalize(const ipc_packet_t &packet, const re
     return true;
 }
 
-ROM bool ipc_controller_t::transmit_raw(ipc_dir_t dir, ipc_command_t command, const void *source, size_t size)
+ROM bool ipc_controller_slave_t::transmit_raw(ipc_dir_t dir, ipc_command_t command, const void *source, size_t size)
 {
     // Проверка аргументов
     assert(size <= 0 || source != NULL);
@@ -205,8 +213,8 @@ ROM bool ipc_controller_t::transmit_raw(ipc_dir_t dir, ipc_command_t command, co
         // Заполнение команды и опций
         item.dll.command = command;
         item.dll.dir = dir;
-        item.dll.more = more;
         item.dll.length = len;
+        item.dll.more = more ? IPC_BOOL_TRUE : IPC_BOOL_FALSE;
         // Полезные данные
         memcpy(&item.apl, src, len);
         // Перенос в список используемых
@@ -218,15 +226,25 @@ ROM bool ipc_controller_t::transmit_raw(ipc_dir_t dir, ipc_command_t command, co
     return true;
 }
 
-ROM bool ipc_controller_t::transmit(ipc_dir_t dir, const ipc_command_data_t &data)
+RAM bool ipc_controller_slave_t::check_phase(const ipc_packet_t &packet)
+{
+    // Проверка последовательности
+    if (packet.dll.phase == rx.phase_switch())
+        return false;
+    // Возвращаем фазу
+    rx.phase_switch();
+    return true;
+}
+
+RAM bool ipc_controller_slave_t::transmit(ipc_dir_t dir, const ipc_command_data_t &data)
 {
     return transmit_raw(dir, data.command, data.buffer_pointer(dir), data.encode(dir));
 }
 
-ROM void ipc_controller_t::packet_output(ipc_packet_t &packet)
+ROM void ipc_controller_slave_t::packet_output(ipc_packet_t &packet)
 {
     // Проверяем, есть ли данные
-    for (auto try_idle = false;;)
+    for (auto nop = false;;)
     {
         // Получаем первый слот
         auto head = tx.used.head();
@@ -234,12 +252,12 @@ ROM void ipc_controller_t::packet_output(ipc_packet_t &packet)
         {
             // Перенос слота в не используемые
             tx.free(*head);
-            packet = *head;
+            packet.assign(*head);
             break;
         }
-        if (try_idle)
+        if (nop)
         {
-            // Нет команды
+            // Бездействие
             transmit_flow(ipc_command_flow_request_t::REASON_NOP);
             continue;
         }
@@ -248,7 +266,7 @@ ROM void ipc_controller_t::packet_output(ipc_packet_t &packet)
         {
             i->idle();
             // Если ничего не записал...
-            if (tx_empty())
+            if (tx.empty())
             {
                 i = list_item_t::next(i);
                 continue;
@@ -258,22 +276,31 @@ ROM void ipc_controller_t::packet_output(ipc_packet_t &packet)
             i->link(event_handlers);
             break;
         }
-        try_idle = true;
+        nop = true;
     }
     auto len = packet.dll.length;
     // Заполнение DLL полей
-    packet.dll.fast = tx.used.count() > 0;
+    packet.dll.phase = tx.phase_switch();
     packet.dll.checksum = checksum(&packet.apl, len);
     // Заполнение пустых данных
     memset(packet.apl.u8 + len, IPC_FILLER, IPC_APL_SIZE - len);
 }
 
-ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
+ROM void ipc_controller_slave_t::packet_input(const ipc_packet_t &packet)
 {
+    // Если был отправлен сброс, "старый" пакет не обрабатываем
+    if (reseting)
+    {
+        reseting = false;
+        // Для выравнивания с фазой передачи
+        rx.phase_switch();
+        return;
+    }
+    // Извлекаем конечный пакет из очереди
     auto temp = rx.unused.head();
-    // Если нет свободных
     if (temp == NULL)
     {
+        // Если нет свободных
         reset_layer(ipc_command_flow_request_t::REASON_OVERFLOW);
         return;
     }
@@ -296,12 +323,17 @@ ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
             reset_layer(ipc_command_flow_request_t::REASON_BAD_CONTENT);
             return;
         }
-        // Обработка
+        // Обработка команды управления потоком
         auto reason = command_flow.request.reason;
         if (reason > ipc_command_flow_request_t::REASON_NOP)
             reset_layer(reason, false);
-        return;
     }
+    // Проверка фазы
+    if (check_phase(packet))
+        return;
+    // Команда управления потоком уже обработана
+    if (packet.dll.command == command_flow.command)
+        return;
     // Используем
     rx.use(*temp);
     // Копирование пакета
@@ -355,8 +387,67 @@ ROM void ipc_controller_t::packet_input(const ipc_packet_t &packet)
     }
 }
 
-// Заполнение всех байт пакета байтом заполнения
-RAM void ipc_controller_t::packet_clear(ipc_packet_t &packet)
+RAM void ipc_controller_slave_t::packet_clear(ipc_packet_t &packet)
 {
     memset(&packet, IPC_FILLER, sizeof(packet));
 }
+
+RAM ipc_controller_master_t::ipc_controller_master_t(void) : corruption_count(0)
+{ }
+
+ROM bool ipc_controller_master_t::check_phase(const ipc_packet_t &packet)
+{
+    // Проверка последовательности
+    if (packet.dll.phase == rx.phase_switch())
+        return false;
+    // Фаза не слошлась, на другой стороне пропущен пакет
+    rx.phase_switch();
+    retry.index = 0;
+    return false;
+}
+
+ROM void ipc_controller_master_t::reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal)
+{
+    retry.index = ARRAY_SIZE(retry.packet);
+    // Базовый метод
+    ipc_controller_slave_t::reset_layer(reason, internal);
+    // Обработка счетчика ошибок передачи
+    if (internal && reason == ipc_command_flow_request_t::REASON_CORRUPTION)
+        corruption_count += 4;
+}
+
+ROM void ipc_controller_master_t::packet_output(ipc_packet_t &packet)
+{
+    if (retry.index < ARRAY_SIZE(retry.packet))
+    {
+        // Переотправляем
+        packet = retry.packet[retry.index++];
+        return;
+    }
+    // Выводим и кэшируем
+    ipc_controller_slave_t::packet_output(packet);
+    retry.packet[0] = retry.packet[1];
+    retry.packet[1] = packet;
+}
+
+ROM void ipc_controller_master_t::packet_input(const ipc_packet_t &packet)
+{
+    // Базовый метод
+    ipc_controller_slave_t::packet_input(packet);
+    // Обработка счетчика ошибок передачи
+    if (corruption_count <= 0 || --corruption_count < 10)
+        return;
+    // Жопа
+    corruption_count = 0;
+    reset_total();
+}
+
+ROM int ipc_string_length(const char *s, size_t size)
+{
+    assert(s != NULL && size > 0);
+    for (size_t i = 0; i < size; i++)
+        if (s[i] == '\0')
+            return (int)i;
+    return -1;
+}
+

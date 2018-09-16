@@ -111,7 +111,7 @@ static class rtc_t : public event_base_t, ipc_handler_event_t
             assert(dir == IPC_DIR_REQUEST);
             // Заполняем ответ
             datetime_hosts_data_copy(command.request.hosts, rtc_sync_settings.hosts);
-            // Указываем что нужно отапрвить ответ
+            // Указываем что нужно отправить ответ
             sending = true;
         }
     public:

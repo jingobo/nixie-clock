@@ -8,6 +8,8 @@ class task_wrapper_t
 {
     // Флаг активности задачи
     bool active;
+    // Флаг перезапуска задачи
+    bool restart;
     // Имя задачи
     const char * const name;
 
@@ -30,7 +32,7 @@ public:
     const xSemaphoreHandle mutex;
 
     // Запуск задачи
-    bool start(void);
+    bool start(bool auto_restart = false);
     // Получает, выполняется ли задача
     RAM bool running(void) const
     {

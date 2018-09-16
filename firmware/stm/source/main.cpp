@@ -7,6 +7,7 @@
 #include "esp.h"
 #include "tube.h"
 #include "nvic.h"
+#include "wifi.h"
 #include "event.h"
 #include "display.h"
 #include "storage.h"
@@ -24,6 +25,7 @@ static void main_init(void)
     event_init();
     // Остальные модули
     storage_init();
+    wifi_init();
     esp_init();
     led_init();
     tube_init();

@@ -1026,6 +1026,9 @@
             <file>
                 <name>$PROJ_DIR$\..\common\source\proto\datetime.inc</name>
             </file>
+            <file>
+                <name>$PROJ_DIR$\..\common\source\proto\wifi.inc</name>
+            </file>
         </group>
         <file>
             <name>$PROJ_DIR$\..\common\source\datetime.cpp</name>

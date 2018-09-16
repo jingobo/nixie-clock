@@ -29,6 +29,8 @@ public:
 // Доступные светодиоды
 E_SYMBOL gpio_t IO_LED_YELLOW, IO_LED_GREEN;
 
+// Инициализация модуля (из точки входа)
+void io_init_entry(void);
 // Инициализация модуля
 void io_init(void);
 

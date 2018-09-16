@@ -1,4 +1,6 @@
-﻿#include "tool.h"
+﻿#include "io.h"
+#include "tool.h"
+#include "wifi.h"
 
 // Номер UART для отладочного вывода
 #define UART_NO			0
@@ -42,19 +44,14 @@ static ROM void entry_wrap_task(void *dummy)
 // Точка входа
 C_SYMBOL ROM void user_init(void)
 {
-    // Запрет вывода частоты кварца (я в шоке от китайцев)
-    GPIO_OUT_SET(0, false);
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO0_U, FUNC_GPIO0);
-    // Запрет автоподключения в точке доступа
-    if (wifi_station_get_auto_connect())
-        wifi_station_set_auto_connect(false);
-    // Разрешение переподключения после отключения от точки доступа
-    if (!wifi_station_get_reconnect_policy())
-        wifi_station_set_reconnect_policy(true);
-    // Отключение WiFi
-    wifi_set_opmode(NULL_MODE);
+    // Переход на 160 МГц
+    REG_SET_BIT(0x3ff00014, BIT0);
+    ets_update_cpu_frequency(160);
+    // Инициализация модулей
+    io_init_entry();
+    wifi_init_entry();
     // Запуск задачи на инициализацию
-	CREATE_TASK(entry_wrap_task, "entry", NULL);
+    TASK_CREATE(entry_wrap_task, "entry", NULL);
 }
 
 #ifndef NDEBUG
