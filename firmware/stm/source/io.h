@@ -33,7 +33,7 @@
 
 // Конфигурирование режима порта (расширенное)
 #define IO_PORT_CFG_EXT(n, mode, crl, crh)              \
-    SAFE_BLOCK(                                         \
+    CODE_BLOCK(                                         \
         (((n) > 7) ?                                    \
             ((crh) &= ~MASK_32(0x0F, ((n) - 8) * 4)) :  \
             ((crl) &= ~MASK_32(0x0F, (n) * 4)));        \

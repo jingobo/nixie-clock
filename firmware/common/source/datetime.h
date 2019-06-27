@@ -4,8 +4,8 @@
 #include "common.h"
 
 // Пределы для года
-#define DATETIME_YEAR_MIN       1900
-#define DATETIME_YEAR_MAX       2099
+#define DATETIME_YEAR_MIN       0
+#define DATETIME_YEAR_MAX       99
 // Пределы для месяца
 #define DATETIME_MONTH_MIN      1
 #define DATETIME_MONTH_MAX      12
@@ -22,12 +22,14 @@
 #define DATETIME_SECOND_MIN     0
 #define DATETIME_SECOND_MAX     59
 
-ALIGN_FIELD_8
+// Смещение для значения года
+#define DATETIME_YEAR_BASE      2000
+
 // Календарная дата/время
 struct datetime_t
 {
     // Дата
-    uint16_t year;
+    uint8_t year;
     uint8_t month;
     uint8_t day;
     // Время
@@ -36,20 +38,34 @@ struct datetime_t
     uint8_t second;
 
     // Конструктор по умолчанию
-    datetime_t();
+    datetime_t(void)
+    {
+        clear();
+    }
 
     // Сброс полей
     void clear();
+    
     // Проверка на валидность
     bool check(void) const;
-    // Получает, високосный ли год
-    bool leap(void) const;
+    
+    // Инкремент секунды
+    void inc_second(void);
     
     // Получает кодичество дней в месяце
-    uint8_t month_day_count(void) const;
-    // Получает кодичество дней в месяце
     static uint8_t month_day_count(uint8_t month, bool leap);
+
+    // Получает, високосный ли год
+    bool leap(void) const
+    {
+        return (year & 3) == 0;
+    }
+    
+    // Получает кодичество дней в месяце
+    uint8_t month_day_count(void) const
+    {
+        return month_day_count(month, leap());
+    }
 };
-ALIGN_FIELD_DEF
 
 #endif // __DATETIME_H

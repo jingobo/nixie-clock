@@ -5,11 +5,13 @@
 #include <stm32f1xx.h>
 
 /* Используемая переферия:
+   mcu - RCC, SYSTICK
    rtc - RTC
    led - TIM1 (CH3), DMA1 (CH6)
    wdt - IWDG (2 Hz)
-   event - TIM3 (CH1)
-   tube - TIM4 (CH2), TIM2 (CH3)
+   timer - TIM3 (CH1)
+   neon - TIM2 (CH3)
+   nixie - TIM4 (CH2)
    esp - SPI1 (master), DMA1 (CH2, CH3)
 */
 
@@ -25,9 +27,5 @@
 // Частота LSI [Гц]
 #define FLSI_KHZ            40
 #define FLSI_HZ             XK(FLSI_KHZ)
-
-// Включает/Отключает доступ на запись в бэкап домен 
-#define BKP_ACCESS_ALLOW()  PWR->CR |= PWR_CR_DBP                               // Disable backup domain write protection
-#define BKP_ACCESS_DENY()   PWR->CR &= ~PWR_CR_DBP;                             // Enable backup domain write protection
 
 #endif // __SYSTEM_H

@@ -20,6 +20,7 @@ define block STORAGE_RO with alignment = 1K, size = STORAGE_SIZE { ro section .s
 
 /* Инициализация */
 initialize by copy { rw };
+initialize by copy with packing = none { section .storage };
 do not initialize  { section .noinit };
 
 /* Размещение */

@@ -3,6 +3,7 @@
 #include "mcu.h"
 #include "nvic.h"
 #include "event.h"
+#include "timer.h"
 
 // Alias
 #define DMA1_C2                 DMA1_Channel2
@@ -15,181 +16,152 @@
 // Время ожидания после смены состояния выводов ESP8266
 #define ESP_PIN_SWUTCH_US       XK(50)
 // Время ожидания инициализации чипа ESP8266
-#define ESP_START_TIME_US       XK(300)
+#define ESP_START_TIME_US       XK(500)
 
-// Класс работы с ESP
-static class esp_t : public ipc_controller_master_t, public event_base_t
-{    
-    // Ввода/вывод
-    class io_t : public notify_t
-    {
-        // Буфер пакета для DMA
-        ALIGN_FIELD_8
-        struct
-        {
-            // Для выравнивания к четному адресу
-            uint8_t pads[3];
-            struct
-            {
-                // Байт команды для ESP8266
-                uint8_t command;
-                // Пакет приёма и передачи
-                ipc_packet_t tx, rx;
-            } dma;
-        };
-        ALIGN_FIELD_DEF
-        // Родительский класс
-        esp_t &esp;
-        // Флаг активности транзакцими
-        bool active;
-        
-        // Инициализация канала DMA
-        void dma_channel_init(DMA_Channel_TypeDef *channel, uint32_t flags) const
-        {
-            // Конфигурирование DMA
-            mcu_dma_channel_setup_pm(channel,
-                // Из SPI
-                SPI1->DR, 
-                // В память
-                &dma);
-            channel->CCR |= DMA_CCR_MINC | DMA_CCR_PL_1 | flags;                // Direction (flags), Memory increment (8-bit), Peripheral size 8-bit, High priority
-        }
-    public:
-        // Конструктор по умолчанию
-        io_t(esp_t &parent) : esp(parent), active(false)
-        { }
+// Предварительное объявление
+static void esp_reset_do(void);
 
-        // Обработчик события начала ввода/вывод
-        virtual void notify(void)
-        {
-            if (active)
-                return;
-            active = true;
-            // Подготовка данных
-            packet_clear(dma.rx);
-            esp.packet_output(dma.tx);
-            dma.command = ESP_SPI_CMD_RD_WR;
-            // Начало передачи
-            IO_PORT_RESET(IO_ESP_CS);                                           // Slave select
-            // DMA
-            DMA1_C2->CNDTR = DMA1_C3->CNDTR = sizeof(dma);                      // Transfer data size
-            DMA1_C2->CCR |= DMA_CCR_EN;                                         // Channel enable
-            DMA1_C3->CCR |= DMA_CCR_EN;                                         // Channel enable
-        }
-        
-        // Инициализация каналов DMA
-        void init(void) const
-        {
-            // Канал 2 (RX)
-            dma_channel_init(DMA1_C2, DMA_CCR_TCIE);                            // Transfer complete IRQ enable
-            // Канал 3 (TX)
-            dma_channel_init(DMA1_C3, DMA_CCR_DIR);                             // Memory to peripheral
-        }
-        
-        // Завершение ввода/вывода (возвращает - нужно ли форсировать опрос)
-        void finalize(void)
-        {
-            active = false;
-            // Извлекаем пакет
-            esp.packet_input(dma.rx);
-        }
-    } io;
-    
-    // Cброс чипа
-    class reset_chip_t : public notify_t
-    {
-        // Родительский класс
-        esp_t &esp;
-        // Состояние сброса
-        enum
-        {
-            // Сброс не происходит
-            STATE_IDLE = 0,
-            // Сброс (RST на землю)
-            STATE_RESET,
-            // Загрузка (BOOT0 к питанию)
-            STATE_BOOT,
-            // Ожидание инициализации
-            STATE_INIT
-        } state;
-    public:
-        // Конструктор по умолчанию
-        reset_chip_t(esp_t &parent) : esp(parent), state(STATE_IDLE)
-        { }
+// Склеиватель входящих пакетов в команды команд
+static ipc_packet_glue_t esp_packet_glue;
 
-        // Обработчик события начала ввода/вывод
-        virtual void notify(void)
-        {
-            switch (state)
-            {
-                case STATE_RESET:
-                    IO_PORT_SET(IO_ESP_RST);                                    // Esp unreset
-                    // Таймер на бутлоадер
-                    event_timer_start_us(*this, ESP_PIN_SWUTCH_US);
-                    // К следующему состоянию
-                    state = STATE_BOOT;
-                    return;
-                case STATE_BOOT:
-                    IO_PORT_SET(IO_ESP_CS);                                     // Slave deselect
-                    // Таймер на ожидание инициализации
-                    event_timer_start_us(*this, ESP_START_TIME_US);
-                    // К следующему состоянию
-                    state = STATE_INIT;
-                    return;
-                case STATE_INIT:
-                    // Запуск таймера опроса
-                    event_timer_start_hz(esp.io, ESP_SPI_IPC_TX_HZ, EVENT_TIMER_FLAG_LOOP);
-                    // Завершение инициализации
-                    state = STATE_IDLE;
-                    return;
-            }
-        }
-        
-        // Сброс чипа
-        void operator ()(void)
-        {
-            if (state > STATE_IDLE)
-                return;
-            state = STATE_RESET;
-            // Остановка таймера опроса
-            event_timer_stop(esp.io);
-            // Начало сброса
-            IO_PORT_RESET(IO_ESP_CS);                                           // Slave select
-            IO_PORT_RESET(IO_ESP_RST);                                          // Esp reset
-            // Сброс слотов
-            esp.clear_slots();
-            // Таймер на сброс
-            event_timer_start_us(*this, ESP_PIN_SWUTCH_US);
-        }
-    } reset_chip;
+// Класс связи с ESP
+static class esp_link_t : public ipc_link_master_t
+{
 protected:
     // Массовый сброс (другая сторона не отвечает)
     virtual void reset_total(void)
     {
         // Сброс чипаа
-        reset_chip();
+        esp_reset_do();
     }
 public:
-    // Конструктор по умолчанию
-    esp_t(void) : io(*this), reset_chip(*this)
-    { }
-    
-    // Инициализация контроллера
-    void init(void)
+    // Ввод полученного пакета
+    virtual void packet_input(const ipc_packet_t &packet)
     {
-        // Инициализация каналов DMA
-        io.init();
-        // Сброс чипаа
-        reset_chip();
-    }    
-
-    // Обработчик события получения пакета
-    virtual void notify(void)
-    {
-        // Завершение ввода/вывода
-        io.finalize();
+        // Базовый метод
+        ipc_link_master_t::packet_input(packet);
+        // Обработка
+        if (!packet.dll.more)
+            process_incoming_packets(esp_packet_glue);
     }
-} esp;
+} esp_link;
+
+// Ввод/вывод
+static struct esp_io_t
+{
+    // Буфер пакета для DMA
+    struct
+    {
+        // Для выравнивания к четному адресу
+        uint8_t pads[3];
+        // Байт команды для ESP8266
+        uint8_t command;
+        // Пакет приёма и передачи
+        ipc_packet_t tx, rx;
+    } dma;
+    // Флаг активности транзакцими
+    bool active;
+
+    // Конструктор по умолчанию
+    esp_io_t(void) : active(false)
+    { }
+} esp_io;
+
+// Инициализация канала DMA
+static void esp_dma_channel_init(DMA_Channel_TypeDef *channel, uint32_t flags)
+{
+    // Конфигурирование DMA
+    mcu_dma_channel_setup_pm(channel,
+        // Из SPI
+        SPI1->DR, 
+        // В память
+        &esp_io.dma.command);
+    channel->CCR |= DMA_CCR_MINC | DMA_CCR_PL_1 | flags;                        // Direction (flags), Memory increment (8-bit), Peripheral size 8-bit, High priority
+}
+
+// Таймер начала ввода/вывода
+static timer_callback_t esp_io_begin_timer([](void)
+{
+    if (esp_io.active)
+        return;
+    esp_io.active = true;
+    // Подготовка данных
+    esp_io.dma.rx.clear();
+    esp_link.packet_output(esp_io.dma.tx);
+    esp_io.dma.command = ESP_SPI_CMD_RD_WR;
+    // Начало передачи
+    IO_PORT_RESET(IO_ESP_CS);                                                   // Slave select
+    // DMA
+    DMA1_C2->CNDTR = DMA1_C3->CNDTR = sizeof(esp_io.dma);                       // Transfer data size
+    DMA1_C2->CCR |= DMA_CCR_EN;                                                 // Channel enable
+    DMA1_C3->CCR |= DMA_CCR_EN;                                                 // Channel enable
+});
+
+// Событие завершения ввода/вывода
+static event_callback_t esp_io_complete_event([](void)
+{
+    esp_io.active = false;
+    // Извлекаем пакет
+    esp_link.packet_input(esp_io.dma.rx);
+});
+
+// Состояние сброса
+static enum
+{
+    // Сброс не происходит
+    ESP_RESET_STATE_IDLE = 0,
+    // Сброс (RST на землю)
+    ESP_RESET_STATE_RESET,
+    // Загрузка (BOOT0 к питанию)
+    ESP_RESET_STATE_BOOT,
+    // Ожидание инициализации
+    ESP_RESET_STATE_INIT
+} esp_reset_state = ESP_RESET_STATE_IDLE;
+
+// Таймер обработки текущего состояния сброса
+static timer_callback_t esp_reset_timer([](void)
+{
+    switch (esp_reset_state)
+    {
+        case ESP_RESET_STATE_RESET:
+            IO_PORT_SET(IO_ESP_RST);                                            // Esp unreset
+            // Таймер на бутлоадер
+            esp_reset_timer.start_us(ESP_PIN_SWUTCH_US);
+            // К следующему состоянию
+            esp_reset_state = ESP_RESET_STATE_BOOT;
+            return;
+        case ESP_RESET_STATE_BOOT:
+            IO_PORT_SET(IO_ESP_CS);                                             // Slave deselect
+            // Таймер на ожидание инициализации
+            esp_reset_timer.start_us(ESP_START_TIME_US);
+            // К следующему состоянию
+            esp_reset_state = ESP_RESET_STATE_INIT;
+            return;
+        case ESP_RESET_STATE_INIT:
+            // Запуск таймера опроса
+            esp_io_begin_timer.start_hz(ESP_SPI_IPC_TX_HZ, TIMER_FLAG_LOOP);
+            // Завершение инициализации
+            esp_reset_state = ESP_RESET_STATE_IDLE;
+            return;
+    }
+});
+
+// Сброс чипа
+static void esp_reset_do(void)
+{
+    if (esp_reset_state > ESP_RESET_STATE_IDLE)
+        return;
+    esp_reset_state = ESP_RESET_STATE_RESET;
+    // Остановка таймера опроса
+    esp_io_begin_timer.stop();
+    // Начало сброса
+    IO_PORT_RESET(IO_ESP_CS);                                                   // Slave select
+    IO_PORT_RESET(IO_ESP_RST);                                                  // Esp reset
+    // Сброс соединения
+    esp_link.reset();
+    // Таймер на сброс
+    esp_reset_timer.start_us(ESP_PIN_SWUTCH_US);
+}
 
 void esp_init(void)
 {
@@ -208,23 +180,27 @@ void esp_init(void)
     DMA1->IFCR |= DMA_IFCR_CTCIF2;                                              // Clear CTCIF
     // Включаем прерывание канала DMA
     nvic_irq_enable_set(DMA1_Channel2_IRQn, true);
-    // Инициализация контроллера
-    esp.init();
+    // Канал 2 (RX)
+    esp_dma_channel_init(DMA1_C2, DMA_CCR_TCIE);                                // Transfer complete IRQ enable
+    // Канал 3 (TX)
+    esp_dma_channel_init(DMA1_C3, DMA_CCR_DIR);                                 // Memory to peripheral
+    // Сброс чипа
+    esp_reset_do();
 }
 
-void esp_handler_add_command(ipc_handler_command_t &handler)
+void esp_add_command_handler(ipc_command_handler_t &handler)
 {
-    esp.handler_add_command(handler);
+    esp_packet_glue.add_command_handler(handler);
 }
 
-void esp_handler_add_event(ipc_handler_event_t &handler)
+void esp_add_event_handler(ipc_event_handler_t &handler)
 {
-    esp.handler_add_event(handler);
+    esp_link.add_event_handler(handler);
 }
 
-bool esp_transmit(ipc_dir_t dir, const ipc_command_data_t &data)
+bool esp_transmit(ipc_dir_t dir, ipc_command_t &command)
 {
-    return esp.transmit(dir, data);
+    return command.transmit(esp_link, dir);
 }
 
 IRQ_ROUTINE
@@ -238,5 +214,5 @@ void esp_interrupt_dma(void)
     WAIT_WHILE(SPI1->SR & SPI_SR_BSY);                                          // Wait for idle
     IO_PORT_SET(IO_ESP_CS);                                                     // Slave deselect
     // Event
-    event_add(esp);
+    esp_io_complete_event.raise();
 }

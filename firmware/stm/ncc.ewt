@@ -1092,7 +1092,7 @@
                 </option>
                 <option>
                     <name>GenRtcEnableBoundsChecking</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>GenRtcCheckPtrsNonInstrMem</name>
@@ -1116,7 +1116,7 @@
                 </option>
                 <option>
                     <name>GenRtcIntOverflow</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>GenRtcIncUnsigned</name>
@@ -1124,7 +1124,7 @@
                 </option>
                 <option>
                     <name>GenRtcIntConversion</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>GenRtcInclExplicit</name>
@@ -1140,11 +1140,11 @@
                 </option>
                 <option>
                     <name>GenRtcUnhandledCase</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>GenRtcDivByZero</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>GenRtcEnable</name>
@@ -1158,7 +1158,25 @@
         </settings>
     </configuration>
     <group>
-        <name>common</name>
+        <name>hmi</name>
+        <file>
+            <name>$PROJ_DIR$\source\hmi.cpp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\source\led.cpp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\source\neon.cpp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\source\nixie.cpp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\source\screen.cpp</name>
+        </file>
+    </group>
+    <group>
+        <name>include</name>
         <group>
             <name>proto</name>
             <file>
@@ -1169,34 +1187,10 @@
             </file>
         </group>
         <file>
-            <name>$PROJ_DIR$\..\common\source\datetime.cpp</name>
+            <name>$PROJ_DIR$\..\common\source\callback.h</name>
         </file>
-        <file>
-            <name>$PROJ_DIR$\..\common\source\ipc.cpp</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\common\source\list.cpp</name>
-        </file>
-    </group>
-    <group>
-        <name>hmi</name>
-        <file>
-            <name>$PROJ_DIR$\source\hmi.cpp</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\source\led.cpp</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\source\tube.cpp</name>
-        </file>
-    </group>
-    <group>
-        <name>include</name>
         <file>
             <name>$PROJ_DIR$\..\common\source\common.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\source\platform.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\source\system.h</name>
@@ -1208,7 +1202,7 @@
     <group>
         <name>periphery</name>
         <file>
-            <name>$PROJ_DIR$\source\clk.cpp</name>
+            <name>$PROJ_DIR$\source\esp.cpp</name>
         </file>
         <file>
             <name>$PROJ_DIR$\source\io.cpp</name>
@@ -1227,19 +1221,28 @@
         </file>
     </group>
     <file>
+        <name>$PROJ_DIR$\..\common\source\datetime.cpp</name>
+    </file>
+    <file>
         <name>$PROJ_DIR$\source\display.cpp</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\source\esp.cpp</name>
+        <name>$PROJ_DIR$\source\event.cpp</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\source\event.cpp</name>
+        <name>$PROJ_DIR$\..\common\source\ipc.cpp</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\..\common\source\list.cpp</name>
     </file>
     <file>
         <name>$PROJ_DIR$\source\main.cpp</name>
     </file>
     <file>
         <name>$PROJ_DIR$\source\storage.cpp</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\source\timer.cpp</name>
     </file>
     <file>
         <name>$PROJ_DIR$\source\wifi.cpp</name>

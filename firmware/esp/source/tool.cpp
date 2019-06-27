@@ -1,7 +1,14 @@
 ﻿#include "tool.h"
+#include "log.h"
 
-ROM void tool_byte_to_string(size_t bytes, tool_bts_buffer dest)
+// Имя модуля для логирования
+LOG_TAG_DECL("TOOL");
+
+void tool_byte_to_string(size_t bytes, tool_bts_buffer_t dest)
 {
+    // Проверка аргументов
+    assert(dest != NULL);
+    // Локальные константы
     const size_t MUL = 1024;
     const size_t KB = MUL;
     const size_t MB = MUL * KB;
@@ -37,4 +44,15 @@ ROM void tool_byte_to_string(size_t bytes, tool_bts_buffer dest)
     f /= MUL;
     // Вывод
     sprintf(dest, "%d.%02d %s (%d B)", i, f, suffix, bytes);
+}
+
+void tool_mac_to_string(const uint8_t mac[6], tool_mac_buffer_t dest)
+{
+    // Проверка аргументов
+    assert(mac != NULL);
+    assert(dest != NULL);
+    // Вывод
+    sprintf(dest, "%02x:%02x:%02x:%02x:%02x:%02x",
+            mac[0], mac[1], mac[2],
+            mac[3], mac[4], mac[5]);
 }

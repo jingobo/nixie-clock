@@ -1,20 +1,22 @@
 ﻿#ifndef __LWIP_H
 #define __LWIP_H
 
-//#include <lwip/netif.h>
-//#include <netif/etharp.h>
-//#include <lwip/tcp.h>
-//#include <lwip/ip.h>
-//#include <lwip/init.h>
-//#include <lwip/tcp_impl.h>
-//#include <lwip/memp.h>
+#include "lwip/sockets.h"
+#include "lwip/netdb.h"
 
-//#include <lwip/mem.h>
+// Определние для типа сокета
+typedef int lwip_socket_t;
 
-C_SYMBOL
-{
-    #include "lwip/ipv4/lwip/inet.h"
-    #include "lwip/netdb.h"
-}
+// Определение для невалидного сокета
+#define LWIP_INVALID_SOCKET             -1
+// Количество символов для хранения IP адреса
+#define LWIP_IP_ADDRESS_BUFFER_SIZE     16
+
+// Перевод сокета в не блокирующий режим
+bool lwip_socket_nbio(lwip_socket_t socket, const char *module);
+// Инициализация соекта по умолчанию
+bool lwip_socket_config(lwip_socket_t socket, const char *module);
+// Конвертирование IP адреса в строку
+const char * lwip_ip2string(const struct in_addr &addr, char *dest);
 
 #endif // __LWIP_H

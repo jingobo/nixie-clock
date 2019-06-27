@@ -101,23 +101,21 @@ static void nvic_interrupt_bus(void)
 }
 
 // Точка старта программы
-C_SYMBOL
-void __iar_program_start(void);
+extern "C" void __iar_program_start(void);
 
 // Модули в которых есть прерывания
 #include "esp.h"
-#include "clk.h"
+#include "mcu.h"
 #include "rtc.h"
 #include "led.h"
-#include "tube.h"
-#include "event.h"
+#include "timer.h"
 #include "storage.h"
 
 // Обявление сегмента для sfe
 SECTION_DECLARE(NVIC_SECTION_STACK)
+
 // Имя не менять, это магическое значение для С-Spy
-C_SYMBOL
-__root const nvic_vtbl_t __vector_table @ NVIC_SECTION_VTBL =
+extern "C" __root const nvic_vtbl_t __vector_table @ NVIC_SECTION_VTBL =
 {
     __sfe(NVIC_SECTION_STACK),                  // Stack base
     {
@@ -136,7 +134,7 @@ __root const nvic_vtbl_t __vector_table @ NVIC_SECTION_VTBL =
         nvic_interrupt_dummy,                   // Debug Monitor Handler
         NULL,                                   // Reserved
         nvic_interrupt_dummy,                   // PendSV Handler
-        clk_interrupt_systick,                  // SysTick Handler
+        mcu_interrupt_systick,                  // SysTick Handler
         
          // External Interrupts
         nvic_interrupt_dummy,                   // Window Watchdog
@@ -168,8 +166,8 @@ __root const nvic_vtbl_t __vector_table @ NVIC_SECTION_VTBL =
         nvic_interrupt_dummy,                   // TIM1 Trigger and Commutation
         nvic_interrupt_dummy,                   // TIM1 Capture Compare
         nvic_interrupt_dummy,                   // TIM2
-        event_interrupt_timer,                  // TIM3
-        tube_interrupt_nixie_selcrst,           // TIM4
+        timer_base_t::interrupt_htim,           // TIM3
+        nvic_interrupt_dummy,                   // TIM4
         nvic_interrupt_dummy,                   // I2C1 Event
         nvic_interrupt_dummy,                   // I2C1 Error
         nvic_interrupt_dummy,                   // I2C2 Event

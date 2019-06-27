@@ -18,12 +18,10 @@ RAM void list_t::clear(void)
 
 RAM bool list_t::contains(const list_item_t &item) const
 {
-    if (empty())
-        return false;
-    return head()->contains(item);
+    return item.list() == this;
 }
 
-ROM void list_item_t::link(list_t &list, list_side_t side)
+void list_item_t::link(list_t &list, list_side_t side)
 {
     // Проверка состояния
     assert(unlinked());
@@ -39,7 +37,7 @@ ROM void list_item_t::link(list_t &list, list_side_t side)
     parent = &list;
 }
 
-ROM void list_item_t::link(list_item_t &item, list_side_t side)
+void list_item_t::link(list_item_t &item, list_side_t side)
 {
     // Проверка состояния
     assert(unlinked());
@@ -55,7 +53,7 @@ ROM void list_item_t::link(list_item_t &item, list_side_t side)
         parent->sides[side] = this;
 }
 
-ROM list_item_t * list_item_t::unlink(list_side_t side)
+list_item_t * list_item_t::unlink(list_side_t side)
 {
     // Проверка аргументов
     assert(!unlinked());
@@ -88,7 +86,7 @@ RAM size_t list_item_t::count(list_side_t side) const
     return result;
 }
 
-ROM list_item_t & list_item_t::ending(list_side_t side)
+list_item_t & list_item_t::ending(list_side_t side)
 {
     auto current = this;
     while (current->sides[side] != NULL)
@@ -96,7 +94,7 @@ ROM list_item_t & list_item_t::ending(list_side_t side)
     return *current;
 }
     
-ROM void list_item_t::uncouple(list_side_t side)
+void list_item_t::uncouple(list_side_t side)
 {
     for (auto temp = this; temp != NULL;)
         temp = temp->unlink(side);

@@ -4,28 +4,23 @@
 #include "hmi.h"
 
 // Количество светодиодов
-#define LED_COUNT               HMI_RANK_COUNT
+#define LED_COUNT       HMI_RANK_COUNT
 
-// Класс цепочки фильтров светодиодов
-struct led_filter_chain_t : hmi_filter_chain_t<hmi_rgb_t, LED_COUNT>
+// Класс модели фильтров светодиодов
+class led_model_t : public hmi_model_t<hmi_rgb_t, LED_COUNT>
 { };
 
-// Класс фильтра коррекции гаммы для светодиодов
-struct led_filter_gamma_t : hmi_filter_gamma_t<hmi_rgb_t, LED_COUNT>
+// Базовый класс фильтров для светодиодов
+class led_filter_t : public led_model_t::filter_t
 {
 protected:
-    // События смены данных
-    virtual void do_data_set(hmi_rank_t index, hmi_rgb_t &data);
+    // Основой конструктор
+    led_filter_t(hmi_filter_purpose_t purpose) : filter_t(purpose)
+    { }
 };
-
-// Цепочка фильтров для светодиодов
-extern led_filter_chain_t led;
-// Фильтр коррекции гаммы для светодиодов
-extern led_filter_gamma_t led_filter_gamma;
 
 // Инициализация модуля
 void led_init(void);
-
 // Обработчик DMA
 void led_interrupt_dma(void);
 

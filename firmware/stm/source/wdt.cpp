@@ -1,9 +1,9 @@
 ﻿#include "wdt.h"
-#include "event.h"
+#include "timer.h"
 #include "system.h"
 
-// Для тестов зависания TODO:
-#define WDT_UNUSED          MACRO_EMPTY
+// Для тестов зависания
+// #define WDT_UNUSED          MACRO_EMPTY
 
 // Ключи для управления IWDG
 #define WDT_KEY_CONFIG      0x5555
@@ -11,6 +11,9 @@
 #define WDT_KEY_START       0xCCCC
 // Период таймера в Гц
 #define WDT_PERIOD_HZ       2
+
+// Таймер сброса watchdog
+static timer_callback_t wdt_pulse_timer(wdt_pulse);
 
 void wdt_init(void)
 {
@@ -23,7 +26,7 @@ void wdt_init(void)
     IWDG->KR = WDT_KEY_RELOAD;                                                  // Reload period
 #endif
     // Выставление задачи на сброс таймера (в два раза чаще чем частота таймера)
-    //event_timer_start_hz(DELEGATE_PROC(wdt_pulse), WDT_PERIOD_HZ * 2, EVENT_TIMER_PRI_DEFAULT | EVENT_TIMER_FLAG_LOOP); TODO:
+    wdt_pulse_timer.start_hz(WDT_PERIOD_HZ * 2, TIMER_PRI_DEFAULT | TIMER_FLAG_LOOP);
 }
 
 void wdt_pulse(void)

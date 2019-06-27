@@ -1,32 +1,36 @@
-﻿ALIGN_FIELD_8
-
-// Данные ответа команды даты/времени
-struct datetime_command_sync_response_t
+﻿// Данные ответа запроса даты/времени
+ALIGN_FIELD_8
+struct datetime_command_get_response_t
 {
     // Дата/время (возможно не валидная)
     datetime_t datetime;
-    // Валидность даты
-    ipc_bool_t valid : 8;
-
-    // Конструктор по умолчанию
-    datetime_command_sync_response_t(void) : valid(IPC_BOOL_FALSE)
-    { }
-
-    // Провера полей
-    ROM bool check(void) const
+    // Состояние
+    enum
     {
-        if (valid > IPC_BOOL_TRUE)
+        // Дата/время валидны
+        STATUS_VALID = 0,
+        // Ошибка сети
+        STATUS_NETWORK,
+        // Нет списка хостов
+        STATUS_HOSTLIST,
+    } status : 8;
+    
+    // Провера полей
+    bool check(void) const
+    {
+        if (status > STATUS_HOSTLIST)
             return false;
-        return valid == IPC_BOOL_FALSE || datetime.check();
+        return status > STATUS_VALID || datetime.check();
     }
 };
+ALIGN_FIELD_DEF
 
-// Команда синхронизации даты/времени
-class datetime_command_sync_t : public ipc_command_data_template_getter_t<datetime_command_sync_response_t>
+// Команда запроса даты/времени
+class datetime_command_get_t : public ipc_command_getter_t<datetime_command_get_response_t>
 {
 public:
     // Конструктор по умолчанию
-    datetime_command_sync_t(void) : ipc_command_data_template_getter_t(IPC_COMMAND_STM_DATETIME_SYNC)
+    datetime_command_get_t(void) : ipc_command_getter_t(IPC_OPCODE_ESP_DATETIME_GET)
     { }
 };
 
@@ -37,7 +41,7 @@ typedef char datetime_hosts_data_t[251];
  * Строка должна состоять из символов ['a'..'z', 'A'..'Z', '0'..'9', '.', '-'],
  * содержать минимум 1 симвыол. Строки разделены символом '\n', заканчиваться на
  * символ '\0'. */
-ROM static bool datetime_hosts_data_check(const datetime_hosts_data_t hosts)
+static inline bool datetime_hosts_data_check(const datetime_hosts_data_t hosts)
 {
     // Проверка аргументов
     assert(hosts != NULL);
@@ -74,7 +78,7 @@ ROM static bool datetime_hosts_data_check(const datetime_hosts_data_t hosts)
 }
 
 // Копирование списка хостов
-ROM static void datetime_hosts_data_copy(datetime_hosts_data_t dest, const datetime_hosts_data_t source)
+static inline void datetime_hosts_data_copy(datetime_hosts_data_t dest, const datetime_hosts_data_t source)
 {
     // Проверка аргументов
     assert(dest != NULL && source != NULL);
@@ -83,36 +87,30 @@ ROM static void datetime_hosts_data_copy(datetime_hosts_data_t dest, const datet
 }
 
 // Данные запроса команды установки хостов SNTP
-struct datetime_command_hosts_request_t
+ALIGN_FIELD_8
+struct datetime_command_hosts_set_request_t
 {
     // Список хостов
     datetime_hosts_data_t hosts;
     
     // Провера полей
-    ROM bool check(void) const
+    bool check(void) const
     {
         return datetime_hosts_data_check(hosts);
     }
 };
+ALIGN_FIELD_DEF
 
 // Команда отправки списка серверов
-class datetime_command_hosts_t : public ipc_command_data_template_notify_t<datetime_command_hosts_request_t>
+class datetime_command_hosts_set_t : public ipc_command_setter_t<datetime_command_hosts_set_request_t>
 {
 public:
     // Конструктор по умолчанию
-    datetime_command_hosts_t(void) : ipc_command_data_template_notify_t(IPC_COMMAND_STM_DATETIME_HOSTS)
+    datetime_command_hosts_set_t(void) : ipc_command_setter_t(IPC_OPCODE_ESP_DATETIME_HOSTS_SET)
     { }
 };
 
-// Команда запроса списка серверов
-class datetime_command_hosts_require_t : public ipc_command_data_empty_t
-{
-public:
-    // Конструктор по умолчанию
-    datetime_command_hosts_require_t(void) : ipc_command_data_empty_t(IPC_COMMAND_ESP_DATETIME_HOSTS_REQUIRE)
-    { }
-};
-
+ALIGN_FIELD_8
 // Структура настроек даты/времени
 struct datetime_sync_settings_t
 {
@@ -140,5 +138,4 @@ struct datetime_sync_settings_t
     // Список серверов
     datetime_hosts_data_t hosts;
 };
-
 ALIGN_FIELD_DEF

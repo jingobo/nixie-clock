@@ -1,278 +1,198 @@
 ﻿#include "io.h"
+#include "os.h"
+#include "log.h"
+#include "stm.h"
 #include "core.h"
-#include "task.h"
-#include "event.h"
 #include "ntime.h"
 
-// Номера модулей SPI
-#define SPI             0
-#define HSPI            1
-// Адрес статусного регистра прерываний SPI (HSPI, I2S)
-#define IRQ_SRC_REG     0x3ff00020
-// Источники прерывания
-#define IRQ_SRC_SPI     BIT4
-#define IRQ_SRC_HSPI    BIT7
-#define IRQ_SRC_I2S     BIT9
+#include "svc/wifi.h"
+#include "svc/ntime.h"
+#include "svc/httpd.h"
+
 // Имя модуля для логирования
-#define MODULE_NAME     "CORE"
+LOG_TAG_DECL("CORE");
 
-#ifndef NDEBUG
-    // Отладочный вывод содержимого SPI регистров
-    ROM static void core_spi_debug(void)
-    {
-        // Основные регистры
-        log_module(MODULE_NAME, "SPI_CMD       [0x%08x]", READ_PERI_REG(SPI_CMD(HSPI)));
-        log_module(MODULE_NAME, "SPI_CTRL      [0x%08x]", READ_PERI_REG(SPI_CTRL(HSPI)));
-        log_module(MODULE_NAME, "SPI_CTRL2     [0x%08x]", READ_PERI_REG(SPI_CTRL2(HSPI)));
-        log_module(MODULE_NAME, "SPI_CLOCK     [0x%08x]", READ_PERI_REG(SPI_CLOCK(HSPI)));
-        log_module(MODULE_NAME, "SPI_USER      [0x%08x]", READ_PERI_REG(SPI_USER(HSPI)));
-        log_module(MODULE_NAME, "SPI_USER1     [0x%08x]", READ_PERI_REG(SPI_USER1(HSPI)));
-        log_module(MODULE_NAME, "SPI_USER2     [0x%08x]", READ_PERI_REG(SPI_USER2(HSPI)));
-        log_module(MODULE_NAME, "SPI_PIN       [0x%08x]", READ_PERI_REG(SPI_PIN(HSPI)));
-        log_module(MODULE_NAME, "SPI_SLAVE     [0x%08x]", READ_PERI_REG(SPI_SLAVE(HSPI)));
-        log_module(MODULE_NAME, "SPI_SLAVE1    [0x%08x]", READ_PERI_REG(SPI_SLAVE1(HSPI)));
-        log_module(MODULE_NAME, "SPI_SLAVE2    [0x%08x]", READ_PERI_REG(SPI_SLAVE2(HSPI)));
-        // FIFO
-        for (auto i = 0; i < 16; ++i)
-        {
-            auto reg = SPI_W0(HSPI) + i * 4;
-            log_module(MODULE_NAME, "ADDR[0x%08x], Value[0x%08x]", reg, READ_PERI_REG(reg));
-        }
-    }
-    // Отладочный вывод
-    #define CORE_SPI_DEBUG()    core_spi_debug()
-#else // NDEBUG
-    // Отладочный вывод
-    #define CORE_SPI_DEBUG()    BLOCK_EMPTY
-#endif // NDEBUG
-
-// Контроллер пакетов
-static class core_t : public ipc_controller_slave_t, public task_wrapper_t
+// Карта маршрутизации ответных пакетов
+static struct core_route_t
 {
-    // Буфер для пакетов приёма/передачи
-    union
-    {
-        // Пакеты приёма/передачи
-        struct
-        {
-            ipc_packet_t rx, tx;
-        };
-        // Для FIFO
-        uint32_t raw[IPC_PKT_SIZE  / sizeof(uint32_t) * 2];
-    } buffer;
+    // Для синхронизации
+    os_mutex_t sync;
+    // Таблица сторон с которых прилетел запрос
+    bool map[IPC_OPCODE_LIMIT][CORE_LINK_SIDE_COUNT];
 
-    // Данные последнего полученного пакета TODO: нужно нормально рассчитать длинну массива
-    uint8_t data[256];
-    // Событие готовности данных
-    event_auto_t event_data_ready;
-
-    // Выполнение транзакции
-    void transaction(void);
-    // Проверяет, что пакет обрабатывать не нам
-    static bool is_our_packet(const ipc_packet_t &packet);
-protected:
-    // Обработчик события подготовки к получению данных (получение буфера и печенек)
-    virtual bool receive_prepare(const ipc_packet_t &packet, receive_args_t &args);
-    // Обработчик события завершения получения данных (пакеты собраны)
-    virtual bool receive_finalize(const ipc_packet_t &packet, const receive_args_t &args);
-    // Полный сброс прикладного уровня
-    virtual void reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal = true);
-    // Добавление данных к передаче
-    virtual bool transmit_raw(ipc_dir_t dir, ipc_command_t command, const void *source, size_t size);
-    // Обработчик задачи
-    virtual void execute(void);
-public:
     // Конструктор по умолчанию
-    core_t(void) : task_wrapper_t("core")
-    { }
-
-    // Добавление обработчика событий
-    virtual void handler_add_event(ipc_handler_event_t &handler);
-    // Добавление обработчика команд
-    virtual void handler_add_command(ipc_handler_command_t &handler);
-
-    // Получение пакета к выводу
-    virtual void packet_output(ipc_packet_t &packet);
-    // Ввод полученного пакета
-    virtual void packet_input(const ipc_packet_t &packet);
-
-    // Обработчик прерывания от HSPI
-    static void spi_isr(void *dummy);
-} core;
-
-RAM bool core_t::is_our_packet(const ipc_packet_t &packet)
-{
-    return  packet.dll.dir != IPC_DIR_REQUEST && packet.dll.command < IPC_COMMAND_ESP_HANDLE_BASE;
-}
-
-ROM bool core_t::receive_prepare(const ipc_packet_t &packet, receive_args_t &args)
-{
-    // Индикация
-    IO_LED_YELLOW.flash();
-    // Если не запрос - значит не нам
-    if (is_our_packet(packet))
+    core_route_t(void)
     {
-        args.buffer = data;
-        // TODO: отправка вебсокету
-        return true;
+        // Отчистка карты маршрутизации
+        memset(map, 0, sizeof(map));
     }
-    // Базовый обработчик
-    return ipc_controller_slave_t::receive_prepare(packet, args);
+} core_route;
+
+// Основная задача ядра
+core_main_task_t core_main_task;
+// Процессор исходящих пакетов с внешних сторон
+core_processor_out_t core_processor_out;
+
+// Процессор входящих пактов со стороны ESP
+static ipc_packet_glue_t esp_processor_in;
+// Процессоры входящих пакетов
+static ipc_processor_t * core_processor_in[CORE_LINK_SIDE_COUNT] =
+{
+    // CORE_LINK_SIDE_ESP
+    &esp_processor_in,
+    // CORE_LINK_SIDE_STM
+    &stm_processor_in,
+    // TODO: CORE_LINK_SIDE_WEB
+    NULL,
+};
+
+RAM void core_processor_out_t::side_t::packet_process_sync_accuire(bool get)
+{
+    if (get)
+        core_route.sync.enter();
+    else
+        core_route.sync.leave();
 }
 
-ROM bool core_t::receive_finalize(const ipc_packet_t &packet, const receive_args_t &args)
+RAM ipc_processor_status_t core_processor_out_t::side_t::packet_split(ipc_opcode_t opcode, ipc_dir_t dir, const void *source, size_t size)
 {
-    // Если не запрос - значит не нам
-    if (is_our_packet(packet))
-    {
-        log_module(MODULE_NAME, "Web response 0x%02x, %d bytes", packet.dll.command, args.size);
-        // TODO: отправка вебсокету
-        return true;
-    }
-    log_module(MODULE_NAME, "Esp request 0x%02x, %d bytes", packet.dll.command, args.size);
-    // Базовый обработчик
-    return ipc_controller_slave_t::receive_finalize(packet, args);
-}
-
-ROM void core_t::reset_layer(ipc_command_flow_request_t::reason_t reason, bool internal)
-{
-    // Базовый метод
-    ipc_controller_slave_t::reset_layer(reason, internal);
-    // Вывод в лог
-    log_module(MODULE_NAME, "Layer reset, reason %d, internal %d", reason, internal);
-}
-
-ROM bool core_t::transmit_raw(ipc_dir_t dir, ipc_command_t command, const void *source, size_t size)
-{
-    bool result;
-    MUTEX_ENTER(mutex);
-        result = ipc_controller_slave_t::transmit_raw(dir, command, source, size);
-    MUTEX_LEAVE(mutex);
+    core_route.sync.enter();
+        auto result = ipc_processor_t::packet_split(opcode, dir, source, size);
+        core_route.sync.leave();
     return result;
 }
 
-ROM void core_t::execute(void)
+RAM ipc_processor_status_t core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args)
 {
-    TASK_PRIORITY_SET(TASK_PRIORITY_CRITICAL);
-    // SPI enable
-    SET_PERI_REG_MASK(SPI_CMD(HSPI), SPI_USR);
+    auto result = IPC_PROCESSOR_STATUS_CORRUPTION;
+    // Определяем код команды
+    auto opcode = packet.dll.opcode;
+    // Определяем последний ли пакет
+    auto last = !packet.dll.more;
+    // Первым делом проверка на направление
+    switch (packet.dll.dir)
+    {
+        case IPC_DIR_REQUEST:
+            {
+                // Имя линка
+                const char *name = NULL;
+                // Конечный процессор
+                ipc_processor_t *dest = NULL;
+                // Определяем кому передать
+                if (opcode > IPC_OPCODE_ESP_HANDLE_BASE)
+                {
+                    // ESP
+                    name = "Esp";
+                    dest = core_processor_in[CORE_LINK_SIDE_ESP];
+                }
+                else if (opcode > IPC_OPCODE_STM_HANDLE_BASE)
+                {
+                    // STM
+                    name = "Stm";
+                    dest = core_processor_in[CORE_LINK_SIDE_STM];
+                }
+                else
+                {
+                    // WTF?
+                    LOGW("Unknown opcode group %d!", opcode);
+                    return result;
+                }
+                if (last)
+                {
+                    // Индикация
+                    io_led_yellow.flash();
+                    // Лог
+                    assert(name != NULL);
+                    LOGI("%s request 0x%02x, %d bytes", name, packet.dll.opcode, args.size);
+                }
+                // Передача
+                assert(dest != NULL);
+                result = dest->packet_process(packet, args);
+                // Если результат ОК и это последний пакет...
+                if (result == IPC_PROCESSOR_STATUS_SUCCESS && last)
+                    // Помечаем с какой стороны пришел запрос
+                    core_route.map[opcode][side] = true;
+            }
+            break;
+        case IPC_DIR_RESPONSE:
+            {
+                // TODO: тотальный выпил LOGI("Response 0x%02x, %d bytes", packet.dll.opcode, args.size);
+                // Определяем кому разослать
+                for (auto lside = CORE_LINK_SIDE_ESP; lside < CORE_LINK_SIDE_COUNT; lside = ENUM_VALUE_NEXT(lside))
+                {
+                    // Пропускаем того кто отвечает
+                    if (lside == side)
+                        continue;
+                    // Нужно ли обрабатывать запрос
+                    if (!core_route.map[opcode][lside])
+                        continue;
+                    // Передача
+                    auto status = core_processor_in[lside]->packet_process(packet, args);
+                    // Если передать не удалось или это последний пакет...
+                    if (status != IPC_PROCESSOR_STATUS_SUCCESS || last)
+                        // Снимаем метку
+                        core_route.map[opcode][lside] = false;
+                    // Готовим ответ
+                    if (result > status)
+                        result = status;
+                }
+                // TODO: тотальный выпил LOGI("Result %d", result);
+            }
+            break;
+        default:
+            assert(false);
+            break;
+    }
+    return result;
+}
+
+void core_add_command_handler(ipc_command_handler_t &handler)
+{
+    core_route.sync.enter();
+        esp_processor_in.add_command_handler(handler);
+    core_route.sync.leave();
+}
+
+core_main_task_t::core_main_task_t(void) :
+    os_task_base_t("core"),
+    deffered_call_queue(xQueueCreate(15, sizeof(callback_t)))
+{ }
+
+void core_main_task_t::deffered_call(callback_t callback)
+{
+     auto result = xQueueSend(deffered_call_queue, &callback, OS_MS_TO_TICKS(1000));
+     assert(result == pdTRUE);
+     UNUSED(result);
+}
+
+void core_main_task_t::execute(void)
+{
     for (;;)
-        transaction();
+    {
+        // Обработка отложенных вызовов
+        callback_t callback;
+        if (xQueueReceive(deffered_call_queue, &callback, portMAX_DELAY))
+            callback();
+    }
 }
 
-RAM void core_t::handler_add_event(ipc_handler_event_t &handler)
+// Точка входа
+extern "C" void app_main(void)
 {
-    MUTEX_ENTER(mutex);
-        ipc_controller_slave_t::handler_add_event(handler);
-    MUTEX_LEAVE(mutex);
-}
-
-RAM void core_t::handler_add_command(ipc_handler_command_t &handler)
-{
-    MUTEX_ENTER(mutex);
-        ipc_controller_slave_t::handler_add_command(handler);
-    MUTEX_LEAVE(mutex);
-}
-
-RAM void core_t::packet_output(ipc_packet_t &packet)
-{
-    MUTEX_ENTER(mutex);
-        ipc_controller_slave_t::packet_output(packet);
-    MUTEX_LEAVE(mutex);
-}
-
-RAM void core_t::packet_input(const ipc_packet_t &packet)
-{
-    MUTEX_ENTER(mutex);
-        ipc_controller_slave_t::packet_input(packet);
-    MUTEX_LEAVE(mutex);
-}
-
-ROM void core_t::transaction(void)
-{
-    // Вывод пакета
-    packet_output(buffer.tx);
-    // В регистры
-    for (auto i = 8; i < 16; i++)
-        WRITE_PERI_REG(SPI_W0(HSPI) + i * REG_SIZE, buffer.raw[i]);
-    // Ожидание транзакции
-    event_data_ready.wait();
-    // Чтение из регистров
-    for (auto i = 0; i < 8; i++)
-        buffer.raw[i] = READ_PERI_REG(SPI_W0(HSPI) + i * REG_SIZE);
-    // Ввод пакета
-    packet_input(buffer.rx);
-}
-
-RAM void core_t::spi_isr(void *dummy)
-{
-    auto sr = READ_PERI_REG(IRQ_SRC_REG);
-    // SPI
-    if (sr & IRQ_SRC_SPI)
-        // Сброс флагов, источников прерывания
-        CLEAR_PERI_REG_MASK(SPI_SLAVE(SPI), 0x3ff);
-    // HSPI
-    if (!(sr & IRQ_SRC_HSPI))
-        return;
-    // Сброс флага прерывания (не знаю почему у китайцев так через жопу)
-    CLEAR_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_TRANS_DONE_EN);
-        SET_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_SYNC_RESET);
-        CLEAR_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_TRANS_DONE);
-    SET_PERI_REG_MASK(SPI_SLAVE(HSPI), SPI_TRANS_DONE_EN);
-    // Вызов события
-    core.event_data_ready.set_isr();
-}
-
-RAM bool core_transmit(ipc_dir_t dir, const ipc_command_data_t &data)
-{
-    return core.transmit(dir, data);
-}
-
-RAM void core_handler_add_event(ipc_handler_event_t &handler)
-{
-    core.handler_add_event(handler);
-}
-
-RAM void core_handler_add_command(ipc_handler_command_t &handler)
-{
-    core.handler_add_command(handler);
-}
-
-ROM void core_init(void)
-{
-    assert(!core.running());
-    // HSPI GPIO
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_HSPIQ_MISO);
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, FUNC_HSPID_MOSI);
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTMS_U, FUNC_HSPI_CLK);
-    PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDO_U, FUNC_HSPI_CS0);
-
-    // CTRL (MSB)
-    WRITE_PERI_REG(SPI_CTRL(HSPI), 0);
-    // SLAVE
-    WRITE_PERI_REG(SPI_SLAVE(HSPI), SPI_SLAVE_MODE | SPI_SLV_WR_RD_BUF_EN | SPI_TRANS_DONE_EN);
-    // USER (Half-Duplex, CHPA first, MISO on FIFO bottom)
-    WRITE_PERI_REG(SPI_USER(HSPI), SPI_CK_I_EDGE | SPI_USR_MISO_HIGHPART);
-    // CLOCK (reset)
-    WRITE_PERI_REG(SPI_CLOCK(HSPI), 0);
-
-    SET_PERI_REG_BITS(SPI_CTRL2(HSPI), SPI_MISO_DELAY_MODE, 1, SPI_MISO_DELAY_MODE_S);
-
-    // USER1 (8-bit address phase)
-    WRITE_PERI_REG(SPI_USER1(HSPI), 7 << SPI_USR_ADDR_BITLEN_S);
-    // USER2 (8-bit command phase)
-    WRITE_PERI_REG(SPI_USER2(HSPI), 7 << SPI_USR_COMMAND_BITLEN_S);
-    // SLAVE1 (slave buffer size 32 byte)
-    WRITE_PERI_REG(SPI_SLAVE1(HSPI), ((32 * 8 - 1) << SPI_SLV_BUF_BITLEN_S));
-    // PIN (CPOL low, CS)
-    WRITE_PERI_REG(SPI_PIN(HSPI), BIT19);
-    // Настройка прерывание HSPI
-    _xt_isr_attach(ETS_SPI_INUM, core_t::spi_isr, NULL);
-    _xt_isr_unmask(1 << ETS_SPI_INUM);
-
-    // Проверка размера пакета
-    IPC_PKT_SIZE_CHECK();
-    // Запуск задачи обработки пакетов
-    core.start();
-    assert(core.running());
+    // Переход на 160 МГц
+    rtc_clk_cpu_freq_set(RTC_CPU_FREQ_160M);
+    // Приветствие
+    LOGI("=== NixieClock communication backend ===");
+    LOGI("IDF version: %s", esp_get_idf_version());
+    // Вывод информации о памяти
+    LOGH();
+    // Старт основной задачи
+    core_main_task.start();
+    // Инициализация модулей
+    io_init();
+    wifi_init();
+    ntime_init();
+    //httpd_init();
+    // Инициализация связи с STM (последним)
+    stm_init();
 }

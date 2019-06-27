@@ -1,7 +1,7 @@
 ﻿#ifndef __TYPEDEFS_H
 #define __TYPEDEFS_H
 
-// Common
+// Общие
 #include <common.h>
 // IAR
 #include <intrinsics.h>
@@ -34,17 +34,17 @@
 
 // Модификатор для прерываний
 #define IRQ_ROUTINE             INLINE_NEVER OPTIMIZE_SPEED
-// Сохраняет текущее состояние прерываний
+// Сохраняет/Возвращает текущее состояние прерываний
 #define IRQ_CTX_SAVE()          __istate_t __istate = __get_interrupt_state()
-// Возвращает сохраненное состояние прерываний
 #define IRQ_CTX_RESTORE()       __set_interrupt_state(__istate)
-// Отключает все маскируемеые прерывания
+// Включает/Отключает все маскируемеые прерывания
+#define IRQ_CTX_ENABLE()        __enable_interrupt()
 #define IRQ_CTX_DISABLE()       __disable_interrupt()
 
 // Вход/Выход в безопасный  от прерываний код
+#define IRQ_SAFE_LEAVE()        IRQ_CTX_RESTORE()
 #define IRQ_SAFE_ENTER()        \
     IRQ_CTX_SAVE();             \
     IRQ_CTX_DISABLE()
-#define IRQ_SAFE_LEAVE()        IRQ_CTX_RESTORE()
 
 #endif // __TYPEDEFS_H

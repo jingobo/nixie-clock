@@ -1,19 +1,5 @@
-SDK_BASE        ?= C:/Programs/Espressif/ESP8266/sdk/rtos
-BUILD_PATH_BASE	?= C:/Programs/Espressif/ESP8266/build
+PROJECT_NAME = nixie-clock
+COMPONENTS = esp bootloader bootloader_support esp8266 esptool_py freertos heap log newlib lwip nvs_flash partition_table pthread spi_flash tcpip_adapter wpa_supplicant util
+EXTRA_COMPONENT_DIRS = $(PROJECT_PATH)
 
-# Main settings includes
-include	$(BUILD_PATH_BASE)/settings.mk
-
-BOOT            = new
-APP		        = 0
-SPI_SPEED       = 40
-SPI_MODE        = DIO
-SPI_SIZE_MAP    = 4
-ESPPORT         = COM4
-ESPBAUD         = 921600
-
-MODULES	= source ../common/source
-LIBS	= gcc driver hal phy pp net80211 wpa crypto main freertos lwip minic
-
-# Root includes
-include	$(BUILD_PATH_BASE)/common_rtos.mk
+include $(IDF_PATH)/make/project.mk

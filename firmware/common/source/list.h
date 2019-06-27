@@ -19,6 +19,11 @@ enum list_side_t
 // Последний элемент
 #define LIST_SIDE_LAST      LIST_SIDE_NEXT
 
+// Получает следующий элемент
+#define LIST_ITEM_NEXT(item)     ((decltype(item))(item)->next())
+// Получает следующий элемент
+#define LIST_ITEM_PREV(item)     ((decltype(item))(item)->prev())
+
 // Элемент списка (предварительное объявление)
 class list_item_t;
 
@@ -28,7 +33,7 @@ class list_sides_t
     friend class list_item_t;
 public:
     // Получает указатель на элемент с указанной стороны
-    RAM list_item_t * side(list_side_t side) const
+    list_item_t * side(list_side_t side) const
     {
         return sides[side];
     }
@@ -43,13 +48,13 @@ protected:
     }
     
     // Получает, пусты ли указатели
-    RAM bool cleared(void) const
+    bool cleared(void) const
     {
         return sides[LIST_SIDE_PREV] == NULL && sides[LIST_SIDE_NEXT] == NULL;
     }
     
     // Отчистка указателей
-    RAM void clear(void)
+    void clear(void)
     {
         sides[LIST_SIDE_PREV] = sides[LIST_SIDE_NEXT] = NULL;
     }
@@ -60,19 +65,19 @@ class list_t : public list_sides_t
 {
 public:
     // Получает указатель на первый элемент
-    RAM list_item_t * head(void) const
+    list_item_t * head(void) const
     {
         return sides[LIST_SIDE_HEAD];
     }
     
     // Получает указатель на последний элемент
-    RAM list_item_t * last(void) const
+    list_item_t * last(void) const
     {
         return sides[LIST_SIDE_LAST];
     }
     
     // Получает, пуст ли список
-    RAM bool empty(void) const
+    bool empty(void) const
     {
         return cleared();
     }
@@ -93,13 +98,13 @@ class list_template_t : public list_t
 {
 public:
     // Получает указатель на первый элемент
-    RAM ITEM * head(void) const
+    ITEM * head(void) const
     {
         return (ITEM *)list_t::head();
     }
     
     // Получает указатель на последний элемент
-    RAM ITEM * last(void) const
+    ITEM * last(void) const
     {
         return (ITEM *)list_t::last();
     }
@@ -119,9 +124,15 @@ public:
     { }
     
     // Получает, расцеплен ли элемент
-    RAM bool unlinked(void) const
+    bool unlinked(void) const
     {
         return parent == NULL && cleared();
+    }
+
+    // Получает, сцеплен ли элемент
+    bool linked(void) const
+    {
+        return !unlinked();
     }
     
     // Связка со списком
@@ -134,55 +145,41 @@ public:
     list_item_t * unlink(list_side_t side = LIST_SIDE_NEXT);
     
     // Связка со списком
-    RAM void link(list_t *list, list_side_t side = LIST_SIDE_NEXT)
+    void link(list_t *list, list_side_t side = LIST_SIDE_NEXT)
     {
         assert(list != NULL);
         link(*list, side);
     }
     
     // Связка с элементом
-    RAM void link(list_item_t *item, list_side_t side = LIST_SIDE_NEXT)
+    void link(list_item_t *item, list_side_t side = LIST_SIDE_NEXT)
     {
         assert(item != NULL);
         link(*item, side);
     }
     
     // Связка c конечным элементом
-    RAM void link_ending(list_item_t &item, list_side_t side)
+    void link_ending(list_item_t &item, list_side_t side)
     {
         link(item.ending(side), side);
     }
     
     // Получает указатель на следующий элемент
-    RAM list_item_t * next(void) const
+    list_item_t * next(void) const
     {
         return sides[LIST_SIDE_NEXT];
     }
     
     // Получает указатель на предыдущий элемент
-    RAM list_item_t * prev(void) const
+    list_item_t * prev(void) const
     {
         return sides[LIST_SIDE_PREV];
     }
 
     // Получает указатель на родительский список
-    RAM list_t * list(void)
+    list_t * list(void) const
     {
         return parent;
-    }
-
-    // Переход к слудющему элементу без приведений
-    template <typename ITEM>
-    RAM static ITEM * next(const ITEM *item)
-    {
-        return (ITEM *)item->next();
-    }
-
-    // Переход к предыдущему элементу без приведений
-    template <typename ITEM>
-    RAM static ITEM * prev(const ITEM *item)
-    {
-        return (ITEM *)item->prev();
     }
     
     // Получает количество элементов с указанной стороны
