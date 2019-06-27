@@ -1,180 +1,15 @@
 ﻿#include "rtc.h"
 #include "mcu.h"
-#include "esp.h"
 #include "nvic.h"
 #include "event.h"
 #include "system.h"
-#include "storage.h"
-#include <proto/datetime.inc>
 
 // Включает/Отключает доступ на запись в бэкап домен 
 #define RTC_BKP_ACCESS_ALLOW()      PWR->CR |= PWR_CR_DBP                       // Disable backup domain write protection
 #define RTC_BKP_ACCESS_DENY()       PWR->CR &= ~PWR_CR_DBP                      // Enable backup domain write protection
 
-// Настройки синхронизации
-static datetime_sync_settings_t rtc_sync_settings @ STORAGE_SECTION =
-{
-    // Синхронизация включена
-    .sync = IPC_BOOL_TRUE,
-    // UTC +03:00
-    .timezone = 6,
-    // Без смещения
-    .offset = 0,
-    // Раз в час
-    .period = datetime_sync_settings_t::SYNC_PERIOD_HOUR,
-    // Список хостов по умолчанию
-    .hosts = "ntp1.stratum2.ru\n0.pool.ntp.org"
-};
-
-// Хранит локальные времена
-static struct
-{
-    // ...NTP синхронизации
-    datetime_t sync;
-    // ...текущее
-    datetime_t current;
-} rtc_time;
-
-// Обработчик команды получения даты/времени
-static class rtc_command_date_get_t : public ipc_command_handler_template_t<datetime_command_get_t>
-{
-    // Состояние синхронизации
-    enum
-    {
-        // Синхронизированно успешно
-        STATE_SUCCESS = 0,
-        // Ожидание завершения синхронизации
-        STATE_RESPONSE,
-        // Необходима синхронизация
-        STATE_REQUEST,
-        // Задержка синхронизации 1
-        STATE_NEEDED_DELAY_1,
-        // Задержка синхронизации 2
-        STATE_NEEDED_DELAY_2
-    } state = STATE_SUCCESS;
-protected:
-    // Оповещение о поступлении данных
-    virtual void notify(ipc_dir_t dir)
-    {
-        // Мы можем только обрабатывать ответ
-        assert(dir == IPC_DIR_RESPONSE);
-        // Если ошибка, переспросим
-        switch (command.response.status)
-        {
-            case datetime_command_get_response_t::STATUS_VALID:
-                // Получили дату TODO: применение GMT
-                state = STATE_SUCCESS;
-                rtc_time.sync = rtc_time.current = command.response.datetime;
-                break;
-            case datetime_command_get_response_t::STATUS_NETWORK:
-                // Сетевая ошибка, перезапрос через задержку
-                state = STATE_NEEDED_DELAY_2;
-                break;
-            case datetime_command_get_response_t::STATUS_HOSTLIST:
-                // TODO: Нет хостов, отаправляем
-                state = STATE_NEEDED_DELAY_2;
-                break;
-            default:
-                assert(false);
-                break;
-        }
-    }
-public:
-    // Сброс
-    void reset(void)
-    {
-        // Перезапрашиваем
-        state = STATE_REQUEST;
-    }
-    
-    // Простой
-    void idle(void)
-    {
-        if (state == STATE_REQUEST && esp_transmit(IPC_DIR_REQUEST, command))
-            // Ожидаем ответ
-            state = STATE_RESPONSE;
-    }
-        
-    // Секундное событие
-    void second(void)
-    {
-        // Задержка запроса даты/времени
-        if (state > STATE_REQUEST)
-            state = ENUM_VALUE_PREV(state);
-    }
-} rtc_command_date_get;
-
-// Обработчик команды запроса списка SNTP хостов
-static class rtc_command_hosts_set_t : public ipc_command_handler_template_t<datetime_command_hosts_set_t>
-{
-    // Хранит, отправили ли запрос
-    bool sended = false;
-protected:
-    // Оповещение о поступлении данных
-    virtual void notify(ipc_dir_t dir)
-    {
-        // Мы можем только обрабатывать ответ
-        assert(dir == IPC_DIR_RESPONSE);
-        // Сброс
-        reset();
-    }
-public:
-    // Передача команды
-    void transmit(void)
-    {
-        // Если уже отправили
-        if (sended)
-            return;
-        // Заполняем ответ
-        datetime_hosts_data_copy(command.request.hosts, rtc_sync_settings.hosts);
-        // Передачем
-        sended = esp_transmit(IPC_DIR_REQUEST, command);
-    }
-    
-    // Сброс
-    void reset(void)
-    {
-        sended = false;
-        rtc_command_date_get.reset();
-    }
-} rtc_command_hosts_set;
-
-// Класс обслуживания часов реального времени
-static class rtc_ipc_handler_t : public ipc_event_handler_t
-{
-protected:
-    // Событие простоя
-    virtual void idle(void)
-    {
-        // Базовый метод
-        ipc_event_handler_t::idle();
-        // Команды
-        rtc_command_date_get.idle();
-    }
-    
-    // Событие сброса
-    virtual void reset(void)
-    {
-        // Базовый метод
-        ipc_event_handler_t::reset();
-        // Команды
-        rtc_command_hosts_set.reset();
-    }
-} rtc_ipc_handler;
-
-// Список обработчиков секундных собюытий
-static callback_list_t rtc_second_event_callbacks;
-
-// Обработчик события инкремента секунды
-static event_callback_t rtc_second_event([](void)
-{
-    // Оповещение о секунде
-    rtc_command_date_get.second();
-    // Инкремент секунды
-    rtc_time.current.inc_second();
-    // Вызов цепочки обработчиков
-    rtc_second_event_callbacks();
-});
+// Хранит локальное время
+/*__no_init*/ static datetime_t rtc_time;
 
 // Проверка работы LSE
 static bool rtc_check_lse(void)
@@ -232,10 +67,6 @@ void rtc_init(void)
     // Прерывание
     nvic_irq_enable_set(RTC_IRQn, true);                                        // RTC IRQ enable
     nvic_irq_priority_set(RTC_IRQn, NVIC_IRQ_PRIORITY_LOWEST);                  // Lowest RTC IRQ priority
-    // IPC
-    //esp_add_event_handler(rtc_ipc_handler);
-    //esp_add_command_handler(rtc_command_date_get);
-    //esp_add_command_handler(rtc_command_hosts_set);
 }
 
 void rtc_clock_output(bool enabled)
@@ -253,8 +84,26 @@ void rtc_clock_output(bool enabled)
 
 void rtc_datetime_get(datetime_t &dest)
 {
-    dest = rtc_time.current;
+    dest = rtc_time;
 }
+
+void rtc_datetime_set(const datetime_t &source)
+{
+    assert(source.check());
+    rtc_time = source;
+}
+
+// Список обработчиков секундных собюытий
+static callback_list_t rtc_second_event_callbacks;
+
+// Обработчик события инкремента секунды
+static event_callback_t rtc_second_event([](void)
+{
+    // Инкремент секунды
+    rtc_time.inc_second();
+    // Вызов цепочки обработчиков
+    rtc_second_event_callbacks();
+});
 
 void rtc_second_event_add(callback_list_item_t &callback)
 {

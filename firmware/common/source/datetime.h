@@ -51,6 +51,22 @@ struct datetime_t
     
     // Инкремент секунды
     void inc_second(void);
+    // Инкремент минуты
+    void inc_minute(void);
+    // Инкремент часа
+    void inc_hour(void);
+
+    // Декремент секунды
+    void dec_second(void);
+    // Декремент минуты
+    void dec_minute(void);
+    // Декремент часа
+    void dec_hour(void);
+    
+    // Смещение часа
+    void shift_hour(int8_t dx);
+    // Смещение минут
+    void shift_minute(int8_t dx);
     
     // Получает кодичество дней в месяце
     static uint8_t month_day_count(uint8_t month, bool leap);

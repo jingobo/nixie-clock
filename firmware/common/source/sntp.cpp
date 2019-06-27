@@ -41,7 +41,7 @@ void sntp_time_t::ready(void)
 }
 
 // Конвертирование в календарное представление
-void sntp_time_t::datetime_get(datetime_t &dest) const
+bool sntp_time_t::datetime_get(datetime_t &dest) const
 {
     // Количество секунд с полночи
     auto dayclock = seconds % SNTP_SECS_PER_DAY;
@@ -65,7 +65,11 @@ void sntp_time_t::datetime_get(datetime_t &dest) const
     dayno += 1;
     // Подсчет количества лет
     dayno <<= 8;
-    dest.year = DATETIME_YEAR_MIN + (uint16_t)(dayno / SNTP_DAYS_PER_YEAR);
+    auto year = 1900 + (uint16_t)(dayno / SNTP_DAYS_PER_YEAR);
+    if (year < DATETIME_YEAR_BASE)
+        // Год не корректный
+        return false;
+    dest.year = (uint8_t)(year - DATETIME_YEAR_BASE);
     // Количество дней в текущем году
     auto day = (int16_t)((dayno % SNTP_DAYS_PER_YEAR) >> 8);
     // Определение високосного года
@@ -76,6 +80,8 @@ void sntp_time_t::datetime_get(datetime_t &dest) const
         day -= datetime_t::month_day_count(++month, leap);
     dest.month = (uint8_t)month;
     dest.day = (uint8_t)(day + datetime_t::month_day_count(month, leap) + 1);
+    // Резеультат
+    return dest.check();
 }
 
 // Подготавливает поля после записи

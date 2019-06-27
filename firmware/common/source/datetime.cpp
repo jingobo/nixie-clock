@@ -36,11 +36,19 @@ void datetime_t::inc_second(void)
     if (++second <= DATETIME_SECOND_MAX)
         return;
     second = DATETIME_SECOND_MIN;
-    // Инкремент минут
+    inc_minute();
+}
+
+void datetime_t::inc_minute(void)
+{
     if (++minute <= DATETIME_MINUTE_MAX)
         return;
     minute = DATETIME_MINUTE_MIN;
-    // Инкремент часов
+    inc_hour();
+}
+
+void datetime_t::inc_hour(void)
+{
     if (++hour <= DATETIME_HOUR_MAX)
         return;
     hour = DATETIME_HOUR_MIN;
@@ -57,4 +65,86 @@ void datetime_t::inc_second(void)
         return;
     // Ничесе 0_o
     year = DATETIME_YEAR_MIN;
+}
+
+void datetime_t::dec_second(void)
+{
+    if (second > DATETIME_SECOND_MIN)
+    {
+        second--;
+        return;
+    }
+    second = DATETIME_SECOND_MAX;
+    dec_minute();
+}
+
+void datetime_t::dec_minute(void)
+{
+    if (minute > DATETIME_MINUTE_MIN)
+    {
+        minute--;
+        return;
+    }
+    minute = DATETIME_MINUTE_MAX;
+    dec_hour();
+}
+
+void datetime_t::dec_hour(void)
+{
+    if (hour > DATETIME_HOUR_MIN)
+    {
+        hour--;
+        return;
+    }
+    hour = DATETIME_HOUR_MAX;
+    // Декремент дней
+    if (day > DATETIME_MINUTE_MIN)
+    {
+        day--;
+        return;
+    }
+    // Декремент месяцев
+    if (month > DATETIME_MONTH_MIN)
+        month--;
+    else
+    {
+        month = DATETIME_MONTH_MAX;
+        // Декремент лет
+        if (year > DATETIME_YEAR_MIN)
+            year--;
+        else
+            // Ого 0_o
+            year = DATETIME_YEAR_MAX;
+    }
+    day = month_day_count();
+}
+
+void datetime_t::shift_hour(int8_t dx)
+{
+    while (dx != 0)
+        if (dx > 0)
+        {
+            inc_hour();
+            dx--;
+        }
+        else
+        {
+            dec_hour();
+            dx++;
+        }
+}
+
+void datetime_t::shift_minute(int8_t dx)
+{
+    while (dx != 0)
+        if (dx > 0)
+        {
+            inc_minute();
+            dx--;
+        }
+        else
+        {
+            dec_minute();
+            dx++;
+        }
 }

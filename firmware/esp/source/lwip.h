@@ -13,9 +13,9 @@ typedef int lwip_socket_t;
 #define LWIP_IP_ADDRESS_BUFFER_SIZE     16
 
 // Перевод сокета в не блокирующий режим
-bool lwip_socket_nbio(lwip_socket_t socket, const char *module);
+bool lwip_socket_nbio(lwip_socket_t socket);
 // Инициализация соекта по умолчанию
-bool lwip_socket_config(lwip_socket_t socket, const char *module);
+bool lwip_socket_config(lwip_socket_t socket);
 // Конвертирование IP адреса в строку
 const char * lwip_ip2string(const struct in_addr &addr, char *dest);
 

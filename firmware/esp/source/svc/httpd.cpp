@@ -71,7 +71,7 @@ static class httpd_t
                     return;
                 }
                 // Установка не блокирующего режима
-                if (!lwip_socket_nbio(client_fd, LOG_TAG))
+                if (!lwip_socket_nbio(client_fd))
                 {
                     lwip_close(client_fd);
                     return;

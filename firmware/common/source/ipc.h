@@ -49,10 +49,11 @@ enum ipc_opcode_t
     IPC_OPCODE_ESP_HANDLE_BASE = 100,
         // Оповещение, что настройки WiFi сменились
         IPC_OPCODE_ESP_WIFI_SETTINGS_CHANGED,
+        
         // Запрос даты/времени из интернета
-        IPC_OPCODE_ESP_DATETIME_GET,
-        // Запрос списка хостов SNTP
-        IPC_OPCODE_ESP_DATETIME_HOSTS_SET,
+        IPC_OPCODE_ESP_TIME_GET,
+        // Передача списка хостов SNTP
+        IPC_OPCODE_ESP_TIME_HOSTLIST_SET,
     // Не команда, определяет лимит количества команд
     IPC_OPCODE_LIMIT = 200,
 };
@@ -361,6 +362,35 @@ protected:
     virtual ipc_command_t &command_get(void)
     {
         return command;
+    }
+};
+
+// Шаблон класса обработчика липкой команды
+template <typename COMMAND>
+class ipc_command_handler_template_sticky_t : public ipc_command_handler_template_t<COMMAND>
+{
+    bool transmit_needed = false;
+protected:
+    // Обработчик передачи
+    virtual bool transmit_internal(void) = 0;
+public:
+    // Передача данных
+    void transmit(void)
+    {
+        transmit_needed = !transmit_internal();
+    }
+
+    // Обработчик сброса
+    virtual void reset(void)
+    {
+        transmit_needed = false;
+    }
+
+    // Обработчик простоя
+    virtual void idle(void)
+    {
+        if (transmit_needed)
+            transmit();
     }
 };
 

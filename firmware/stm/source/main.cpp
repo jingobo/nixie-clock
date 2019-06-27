@@ -7,6 +7,7 @@
 #include "nvic.h"
 #include "wifi.h"
 #include "neon.h"
+#include "ntime.h"
 #include "nixie.h"
 #include "event.h"
 #include "timer.h"
@@ -27,13 +28,15 @@ __task __noreturn void main(void)
         timer_init();
         // Остальные модули
         storage_init();
-        wifi_init();
         esp_init();
         led_init();
         neon_init();
         nixie_init();
         screen_init();
         display_init();
+        // Сервисы
+        wifi_init();
+        ntime_init();
     IRQ_CTX_ENABLE();
 
     // Обработка событий

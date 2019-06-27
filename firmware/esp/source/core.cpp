@@ -46,6 +46,14 @@ static ipc_processor_t * core_processor_in[CORE_LINK_SIDE_COUNT] =
     NULL,
 };
 
+// Имена сторон (для логов)
+static const char * const CORE_SIDE_NAME[] =
+{
+    "ESP",
+    "STM",
+    "WEB",
+};
+
 RAM void core_processor_out_t::side_t::packet_process_sync_accuire(bool get)
 {
     if (get)
@@ -64,7 +72,7 @@ RAM ipc_processor_status_t core_processor_out_t::side_t::packet_split(ipc_opcode
 
 RAM ipc_processor_status_t core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args)
 {
-    auto result = IPC_PROCESSOR_STATUS_CORRUPTION;
+    auto result = IPC_PROCESSOR_STATUS_OVERLOOK;
     // Определяем код команды
     auto opcode = packet.dll.opcode;
     // Определяем последний ли пакет
@@ -74,40 +82,31 @@ RAM ipc_processor_status_t core_processor_out_t::side_t::packet_process(const ip
     {
         case IPC_DIR_REQUEST:
             {
-                // Имя линка
-                const char *name = NULL;
-                // Конечный процессор
-                ipc_processor_t *dest = NULL;
+                // Конечная сторона
+                core_link_side_t dest = CORE_LINK_SIDE_COUNT;
                 // Определяем кому передать
                 if (opcode > IPC_OPCODE_ESP_HANDLE_BASE)
-                {
-                    // ESP
-                    name = "Esp";
-                    dest = core_processor_in[CORE_LINK_SIDE_ESP];
-                }
+                    dest = CORE_LINK_SIDE_ESP;
                 else if (opcode > IPC_OPCODE_STM_HANDLE_BASE)
-                {
-                    // STM
-                    name = "Stm";
-                    dest = core_processor_in[CORE_LINK_SIDE_STM];
-                }
+                    dest = CORE_LINK_SIDE_STM;
                 else
                 {
                     // WTF?
                     LOGW("Unknown opcode group %d!", opcode);
-                    return result;
+                    result = IPC_PROCESSOR_STATUS_CORRUPTION;
+                    break;
                 }
+                assert(dest != CORE_LINK_SIDE_COUNT);
+                // Если пакет последний
                 if (last)
                 {
                     // Индикация
                     io_led_yellow.flash();
                     // Лог
-                    assert(name != NULL);
-                    LOGI("%s request 0x%02x, %d bytes", name, packet.dll.opcode, args.size);
+                    LOGI("%s request 0x%02x, %d bytes", CORE_SIDE_NAME[dest], packet.dll.opcode, args.size);
                 }
                 // Передача
-                assert(dest != NULL);
-                result = dest->packet_process(packet, args);
+                result = core_processor_in[dest]->packet_process(packet, args);
                 // Если результат ОК и это последний пакет...
                 if (result == IPC_PROCESSOR_STATUS_SUCCESS && last)
                     // Помечаем с какой стороны пришел запрос
@@ -116,7 +115,6 @@ RAM ipc_processor_status_t core_processor_out_t::side_t::packet_process(const ip
             break;
         case IPC_DIR_RESPONSE:
             {
-                // TODO: тотальный выпил LOGI("Response 0x%02x, %d bytes", packet.dll.opcode, args.size);
                 // Определяем кому разослать
                 for (auto lside = CORE_LINK_SIDE_ESP; lside < CORE_LINK_SIDE_COUNT; lside = ENUM_VALUE_NEXT(lside))
                 {
@@ -126,6 +124,8 @@ RAM ipc_processor_status_t core_processor_out_t::side_t::packet_process(const ip
                     // Нужно ли обрабатывать запрос
                     if (!core_route.map[opcode][lside])
                         continue;
+                    // Лог
+                    LOGI("%s response 0x%02x, %d bytes", CORE_SIDE_NAME[lside], packet.dll.opcode, args.size);
                     // Передача
                     auto status = core_processor_in[lside]->packet_process(packet, args);
                     // Если передать не удалось или это последний пакет...
@@ -136,13 +136,18 @@ RAM ipc_processor_status_t core_processor_out_t::side_t::packet_process(const ip
                     if (result > status)
                         result = status;
                 }
-                // TODO: тотальный выпил LOGI("Result %d", result);
+                // Индикация
+                if (last)
+                    io_led_yellow.flash();
             }
             break;
         default:
             assert(false);
             break;
     }
+    // Лог
+    if (result != IPC_PROCESSOR_STATUS_SUCCESS)
+        LOGW("Packet process failed! Code: %d.", result);
     return result;
 }
 

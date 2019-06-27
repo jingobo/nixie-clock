@@ -49,7 +49,7 @@ struct sntp_time_t
     // Подготавливает поля после записи
     void ready(void);
     // Конвертирование в календарное представление
-    void datetime_get(datetime_t &dest) const;
+    bool datetime_get(datetime_t &dest) const;
 };
 
 // Сырой пакет SNTP

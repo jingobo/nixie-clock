@@ -1042,7 +1042,7 @@
         <group>
             <name>proto</name>
             <file>
-                <name>$PROJ_DIR$\..\common\source\proto\datetime.inc</name>
+                <name>$PROJ_DIR$\..\common\source\proto\time.inc</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\common\source\proto\wifi.inc</name>
@@ -1082,6 +1082,15 @@
             <name>$PROJ_DIR$\source\wdt.cpp</name>
         </file>
     </group>
+    <group>
+        <name>service</name>
+        <file>
+            <name>$PROJ_DIR$\source\ntime.cpp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\source\wifi.cpp</name>
+        </file>
+    </group>
     <file>
         <name>$PROJ_DIR$\..\common\source\datetime.cpp</name>
     </file>
@@ -1105,8 +1114,5 @@
     </file>
     <file>
         <name>$PROJ_DIR$\source\timer.cpp</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\source\wifi.cpp</name>
     </file>
 </project>
