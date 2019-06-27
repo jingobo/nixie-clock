@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ru">
+    <head>
+        <title>Hello, world!</title>
+        <!-- Meta -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="description" content="Nixie Clock admin panel">
+        <meta name="theme-color" content="#317EFB"/>
+        <link rel="manifest" href="/manifest.json">
+        <!-- CSS -->
+        <link rel="stylesheet" href="css/bootstrap.min.css">
+        <link rel="stylesheet" href="css/main.css">
+    </head>
+    <body>
+        <div class="center-panel" id="overlay">
+            <div class="row justify-content-center justify-content-md-start  border rounded text-muted bg-light">
+                <div class="col-auto no-padding">
+                    <div class="loader"></div>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                        <path d="M16 3 L30 29 2 29 Z M16 11 L16 19 M16 23 L16 25" />
+                    </svg>
+                </div>
+                <div class="col-auto">
+                    <h4>Nixie Clock</h4>
+                    <div class="text-info">Восстановление сессии...</div>
+                    <div class="text-danger">Ошибка инициализации</div>
+                </div>
+            </div>
+        </div>
+        <div class="container" style="display: none">
+            <!-- Дисплей часов -->
+            <div class="row justify-content-center">
+                <div class="col col-md-auto">
+                    <canvas id="nixie-display" width="1020" height="242">
+                        Нет поддержки Canvas :(
+                    </canvas>
+                </div>
+            </div>
+            <!-- Навигация -->
+            <div class="nav nav-tabs nav-fill" id="nav-tab" role="tablist">
+                <a class="nav-item nav-link active" data-toggle="tab" id="nav-date" href="#tab-date">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                        <circle cx="16" cy="16" r="14" />
+                        <path d="M16 8 L16 16 20 20" />
+                    </svg>
+                    Дата и время
+                </a>
+                <a class="nav-item nav-link" data-toggle="tab" id="nav-wifi" href="#tab-wifi">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                        <circle cx="6" cy="26" r="2" fill="currentColor" />
+                        <path d="M4 15 C11 15 17 21 17 28 M4 6 C17 6 26 15 26 28" />
+                    </svg>
+                    WiFi
+                </a>
+                <a class="nav-item nav-link" data-toggle="tab" id="nav-disp" href="#tab-disp">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
+                        <path d="M28 6 L4 6 M28 16 L4 16 M28 26 L4 26 M24 3 L24 9 M8 13 L8 19 M20 23 L20 29" />
+                    </svg>
+                    Дисплей
+                </a>
+            </div>
+            <!-- Контент вкладок -->
+            <div class="tab-content">
+                <!-- Вкладка даты и времени -->
+                <div class="tab-pane fade show active" id="tab-date">
+                    <!-- Ручная настройка -->
+                    <div class="row form-part">Ручная настройка</div>
+                    <div class="row">
+                        <!-- Время -->
+                        <label class="col-md-2 col-form-label">Время</label>
+                        <div class="col-md-4">
+                            <div class="input-group" id="date-manual-tm">
+                                <select class="custom-select select-group-first">
+                                  <option selected>1</option>
+                                </select>
+                                <span>:</span>
+                                <select class="custom-select select-group-middle">
+                                  <option selected>1</option>
+                                </select>
+                                <span>:</span>
+                                <select class="custom-select select-group-last">
+                                  <option selected>1</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Дата -->
+                        <label class="col-md-2 col-form-label">Дата</label>
+                        <div class="col-md-4">
+                            <div class="input-group" id="date-manual-dt">
+                                <select class="custom-select select-group-first">
+                                  <option selected>27</option>
+                                </select>
+                                <select class="custom-select select-group-middle">
+                                  <option selected>января</option>
+                                </select>
+                                <select class="custom-select select-group-last">
+                                  <option selected>2019</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- NTP -->
+                    <div class="row form-part">
+                        <label for="date-ntp-enable" class="col-auto mr-auto">NTP синхронизация</label>
+                        <div class="col-auto">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="date-ntp-enable">
+                                <label class="custom-control-label" for="date-ntp-enable"></label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Действия -->
+                    <div class="row">
+                        <label class="col-md-2 col-form-label">Действия</label>
+                        <div class="col-md-10">
+                            <button type="button" class="btn btn-single btn-success">Синхронизировать сейчас</button>
+                        </div>
+                    </div>
+                    <!-- Период синхронизации -->
+                    <div class="row">
+                        <label for="date-ntp-period" class="col-md-2 col-form-label">Период</label>
+                        <div class="col-md-10">
+                            <select class="custom-select" id="date-ntp-period">
+                              <option selected>Раз в час</option>
+                              <option selected>Раз в сутки</option>
+                              <option selected>Раз в месяц</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Список серверов -->
+                    <div class="row">
+                        <label for="date-ntp-list" class="col-md-2 col-form-label">Серверы</label>
+                        <div class="col-md-10">
+                            <div class="line-numbers text-muted">
+                                <div>1</div>
+                                <div>2</div>
+                                <div>3</div>
+                                <div>4</div>
+                                <div>5</div>
+                                <div>6</div>
+                                <div>7</div>
+                                <div>8</div>
+                                <div>9</div>
+                                <div>10</div>
+                            </div>
+                            <textarea class="form-control" id="date-ntp-list" rows="10"></textarea>
+                            <small class="form-text text-muted">
+                                Один сервер на строку, максимум 10 серверов.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <!-- Вкладка WiFi -->
+                <div class="tab-pane fade" id="tab-wifi">
+                    <!-- Своя сеть -->
+                    <div class="row form-part">
+                        <label for="wifi-ap-enable" class="col-auto mr-auto">Создать новую сеть</label>
+                        <div class="col-auto">
+                            <div class="custom-control custom-switch">
+                                <input type="checkbox" class="custom-control-input" id="wifi-ap-enable">
+                                <label class="custom-control-label" for="wifi-ap-enable"></label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <!-- SSID -->
+                        <label for="wifi-ap-ssid" class="col-md-2 col-form-label">Имя сети</label>
+                        <div class="col-md-4">
+                            <input type="text" class="form-control" id="wifi-ap-ssid" placeholder="Имя новой сети">
+                        </div>
+                        <!-- Пароль -->
+                        <label for="wifi-ap-pass" class="col-md-2 col-form-label">Пароль</label>
+                        <div class="col-md-4">
+                            <input type="password" class="form-control" id="wifi-ap-pass" placeholder="Пароль доступа к сети">
+                        </div>
+                    </div>
+                    
+                    <!-- Подключиться к чужой сети -->
+                    <div class="row form-part">
+                        <div class="col-auto mr-auto">Подключение к сети</div>
+                        <div class="col-auto spinner-border spinner-inline text-primary" id="wifi-sta-preloader">
+                            <span class="sr-only">Загрузка...</span>
+                        </div>
+                    </div>
+                    <!-- Список доступных сетей -->
+                    <div class="list-group">
+                        <a href="#" class="list-group-item list-group-item-action active">
+                            <div class="d-flex w-100 justify-content-between">
+                                <span>Holiday [2.4 GHz]</span>
+                                <small>-117 дБм</small>
+                            </div>
+                        </a>
+                        <a href="#" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <span>Сеть 23</span>
+                                <small>-90 дБм</small>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <!-- Вкладка настроек дисплея -->
+                <div class="tab-pane fade" id="tab-disp">
+                    123
+                </div>
+            </div>
+        </div>
+        <!-- Scripts -->
+        <script src="js/jquery.min.js"></script>
+        <script src="js/bootstrap.min.js"></script>
+
+        <script src="js/utils.js"></script>
+        <script src="js/nixie.js"></script>
+        <script src="js/main.js"></script>
+        <!-- https://jsfiddle.net/4u7Lbn2r/1/ -->
+    </body>
+</html>

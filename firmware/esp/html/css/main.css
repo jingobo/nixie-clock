@@ -1,0 +1,309 @@
+html, body
+{
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+svg
+{
+    height: 1rem;
+    width: 1rem;
+    position: relative;
+    left: -0.05rem;
+    top: -0.08rem;
+}
+
+textarea
+{
+    resize: none;
+    overflow: hidden;
+    padding: .375rem .75rem .375rem 2.5rem !important;
+}
+
+#nixie-display 
+{ 
+    width: 100%;
+    margin-top: 5px;
+}
+
+.container
+{
+    margin-bottom: 1rem;
+}
+
+.tab-content,
+.form-part,
+#date-manual-tm span
+{
+    border: 1px solid #ced4da;
+}
+
+.tab-content
+{
+    padding: 0.5rem;
+    padding-bottom: 0;
+    border-top-width: 0;
+}
+
+.tab-content,
+.nav-link.active { background-color: #f9f9f9 !important }
+.nav-link.active { border-bottom-color: #f9f9f9 !important }
+
+.form-part
+{
+    border-width: 0 0 1px 0;
+    margin: 0;
+    text-transform: uppercase;
+    padding: 0.5rem 0;
+    color: #6c757d;
+}
+
+.form-part label,
+.spinner-inline
+{
+    margin: 0;
+    padding: 0;
+}
+
+.form-part div.col-auto,
+.no-padding
+{
+    padding: 0;
+}
+
+.tab-pane .row,
+.tab-pane .list-group
+{
+    margin-bottom: 0.5rem;
+}
+
+.form-break
+{
+    margin-bottom: 0 !important;
+}
+
+.list-group-item
+{
+    padding: 0.5rem 1rem;
+}
+
+.list-group div
+{
+    align-items: center;
+}
+
+.spinner-inline
+{
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+.select-group-first
+{
+    border-right-width: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.select-group-middle
+{
+    border-width: 1px 0;
+}
+
+.select-group-last
+{
+    border-left-width: 0;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.select-group-first,
+.select-group-middle,
+.select-group-last
+{
+    background: none;
+    text-align-last: center;
+    background-color: white;
+    padding-right: 0.75rem;
+}
+
+.btn-single
+{
+    width: 100%;
+}
+
+.line-numbers
+{
+    position: absolute;
+    padding: .375rem .5rem;
+    margin: 1px 0;
+}
+
+.line-numbers div
+{
+    padding: 0 0.25rem;
+}
+
+.line-numbers div:after 
+{
+      content: ".";
+}
+
+.center-panel
+{
+    height: 100%;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.center-panel > div
+{
+    margin: auto;
+}
+
+.loader 
+{
+    width: 4rem;
+    height: 4rem;
+    border-radius: 50%;
+    border: 0.1rem solid transparent;
+    border-top-color: #9370DB;
+    -webkit-animation: spin 2s linear infinite;
+    animation: spin 2s linear infinite;
+}
+
+.loader:before 
+{
+    content: "";
+    position: absolute;
+    top: 0.2rem;
+    left: 0.2rem;
+    right: 0.2rem;
+    bottom: 0.2rem;
+    border-radius: 50%;
+    border: 0.1rem solid transparent;
+    border-top-color: #BA55D3;
+    -webkit-animation: spin 3s linear infinite;
+    animation: spin 3s linear infinite;
+}
+
+.loader:after 
+{
+    content: "";
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    border-radius: 50%;
+    border: 0.1rem solid transparent;
+    border-top-color: #FF00FF;
+    -webkit-animation: spin 1.5s linear infinite;
+    animation: spin 1.5s linear infinite;
+}
+
+@-webkit-keyframes spin
+{
+    0%
+    {
+        -webkit-transform: rotate(0deg);
+        -ms-transform: rotate(0deg);
+        transform: rotate(0deg);
+    }
+    100% 
+    {
+        -webkit-transform: rotate(360deg);
+        -ms-transform: rotate(360deg);
+        transform: rotate(360deg);
+    }
+}
+@keyframes spin 
+{
+    0%   
+    {
+        -webkit-transform: rotate(0deg);
+        -ms-transform: rotate(0deg);
+        transform: rotate(0deg);
+    }
+    100% 
+    {
+        -webkit-transform: rotate(360deg);
+        -ms-transform: rotate(360deg);
+        transform: rotate(360deg);
+    }
+}
+
+#date-manual-tm span
+{
+    padding: 0.375rem 0.5rem;
+    border-width: 1px 0;
+}
+
+#date-manual-dt select
+{
+    width: auto;
+}
+
+#overlay > div
+{
+    padding: 1rem;
+    padding-bottom: 0;
+}
+
+#overlay > div > div:last-child
+{
+    padding-left: 1.5rem;
+    position: relative;
+    top: 0.1rem;
+}
+
+#overlay div.col-auto
+{
+    margin-bottom: 1rem;
+}
+
+#overlay svg
+{
+    width: 4rem;
+    height: 4rem;
+    display: none;
+}
+
+#overlay .text-danger,
+#overlay.error .loader,
+#overlay.error .text-info
+{
+    display: none;
+}
+
+#overlay.error svg,
+#overlay.error .text-danger
+{
+    display: block;
+}
+
+#overlay .text-danger:after
+{
+    content: "!";
+}
+
+/* Medium */
+@media (min-width: 768px)
+{
+    .container
+    {
+        max-width: 720px !important;
+    }
+    
+    #nixie-display 
+    {
+        width: 700px;
+    }
+    
+    .btn-single
+    {
+        width: auto;
+    }
+}
