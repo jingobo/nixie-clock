@@ -7,4 +7,4 @@ include $(IDF_PATH)/make/project.mk
 # Update RomFS
 .PHONY: romfs
 romfs:
-	$(ESPTOOLPY_WRITE_FLASH) 0x100000 $(PROJECT_PATH)/web.rom
+	$(ESPTOOLPY_WRITE_FLASH) 0x100000 $(PROJECT_PATH)/meta/web.rom
