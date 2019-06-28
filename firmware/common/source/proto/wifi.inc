@@ -45,12 +45,33 @@ struct wifi_settings_part_t
     // Пароль
     wifi_password_t password;
 
+    // Оператор равенства
+    bool operator == (const wifi_settings_part_t &other)
+    {
+        return use == other.use &&
+               strcmp(ssid, other.ssid) == 0 &&
+               strcmp(password, other.password) == 0;
+    }
+
+    // Оператор неравенства
+    bool operator != (const wifi_settings_part_t &other)
+    {
+        return !(*this == other);
+    }
+
     // Провера полей
     bool check(void) const
     {
         return use <= IPC_BOOL_TRUE &&
                (!use || wifi_ssid_check(ssid)) &&
                (!use || wifi_password_check(password));
+    }
+    
+    // Отчистка полей
+    void clear(void)
+    {
+        use = IPC_BOOL_FALSE;
+        ssid[0] = password[0] = '\0';
     }
 };
 ALIGN_FIELD_DEF
@@ -69,6 +90,13 @@ struct wifi_settings_t
     {
         return softap.check() && station.check();
     }
+    
+    // Отчистка полей
+    void clear(void)
+    {
+        softap.clear();
+        station.clear();
+    }
 };
 ALIGN_FIELD_DEF
 
@@ -85,11 +113,20 @@ struct wifi_command_settings_get_response_t
     }
 };
 
-// Команда запроса настроек WIFI
+// Команда запроса настроек WiFi
 class wifi_command_settings_get_t : public ipc_command_getter_t<wifi_command_settings_get_response_t>
 {
 public:
     // Конструктор по умолчанию
     wifi_command_settings_get_t(void) : ipc_command_getter_t(IPC_OPCODE_STM_WIFI_SETTINGS_GET)
+    { }
+};
+
+// Команда оповещения изменения настроек WiFi
+class wifi_command_settings_changed_t : public ipc_command_empty_t
+{
+public:
+    // Конструктор по умолчанию
+    wifi_command_settings_changed_t(void) : ipc_command_empty_t(IPC_OPCODE_ESP_WIFI_SETTINGS_CHANGED)
     { }
 };

@@ -11,8 +11,6 @@ struct time_command_get_response_t
         STATUS_SUCCESS = 0,
         // Дата/время не получены
         STATUS_FAILED,
-        // Нет сети
-        STATUS_NETWORK,
         // Нет списка хостов
         STATUS_HOSTLIST,
     } status : 8;

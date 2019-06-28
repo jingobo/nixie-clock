@@ -141,15 +141,13 @@ void ntime_command_time_get_t::notify(ipc_dir_t dir)
             if (ntime_sync_settings.can_sync())
                 rtc_datetime_set(command.response.value);
             break;
-        case time_command_get_response_t::STATUS_NETWORK:
-            // Нет сети
+        case time_command_get_response_t::STATUS_FAILED:
+            // Возможно ошибка сети
             if (!wifi_has_internet_get())
             {
                 state = STATE_SUCCESS;
                 break;
             }
-            // Нет опечатки
-        case time_command_get_response_t::STATUS_FAILED:
             // Сетевая ошибка, перезапрос через задержку
             state = STATE_NEEDED_DELAY_2;
             break;

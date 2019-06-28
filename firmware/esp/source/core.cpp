@@ -1,5 +1,6 @@
 ﻿#include "io.h"
 #include "os.h"
+#include "fs.h"
 #include "log.h"
 #include "stm.h"
 #include "core.h"
@@ -195,6 +196,7 @@ extern "C" void app_main(void)
     core_main_task.start();
     // Инициализация модулей
     io_init();
+    fs_init();
     wifi_init();
     ntime_init();
     //httpd_init();

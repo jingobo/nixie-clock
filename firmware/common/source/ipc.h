@@ -584,6 +584,16 @@ protected:
     { }
 };
 
+// Шаблон команды c пустым запросом и пустым ответом
+class ipc_command_empty_t : public ipc_command_fixed_t<ipc_dummy_block_t, ipc_dummy_block_t>
+{
+protected:
+    // Конструктор по умолчанию
+    ipc_command_empty_t(ipc_opcode_t opcode)
+        : ipc_command_fixed_t<ipc_dummy_block_t, ipc_dummy_block_t>(opcode)
+    { }
+};
+
 // Возвращает количество символов
 int ipc_string_length(const char *s, size_t size);
 

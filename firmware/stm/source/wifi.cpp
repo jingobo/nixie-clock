@@ -3,7 +3,7 @@
 #include "storage.h"
 #include <proto/wifi.inc>
 
-// Настройки WIFI
+// Настройки WiFi
 static wifi_settings_t wifi_settings @ STORAGE_SECTION =
 {
     .softap =
@@ -20,7 +20,7 @@ static wifi_settings_t wifi_settings @ STORAGE_SECTION =
     }
 };
 
-// Обработчик команды запроса настроек WIFI
+// Обработчик команды запроса настроек WiFi
 class wifi_handler_command_settings_get_t : public ipc_command_handler_template_sticky_t<wifi_command_settings_get_t>, public ipc_event_handler_t
 {
 protected:
@@ -53,7 +53,7 @@ protected:
     {
         ipc_event_handler_t::idle();
         ipc_command_handler_template_sticky_t::idle();
-    }    
+    }
 } wifi_handler_command_settings_get;
 
 void wifi_init(void)

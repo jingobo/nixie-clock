@@ -2,7 +2,7 @@
 
 #ifndef NDEBUG
 // Проверка пути
-bool romfs_t::check_path(const char *path)
+RAM bool romfs_t::check_path(const char *path)
 {
     if (path == NULL)
         return false;
@@ -11,7 +11,7 @@ bool romfs_t::check_path(const char *path)
 }
 #endif
 
-bool romfs_t::reader_t::handle_t::read(void *dest, size_t size)
+RAM bool romfs_t::reader_t::handle_t::read(void *dest, size_t size)
 {
     // Если файл не открыт
     if (!opened())
@@ -29,7 +29,7 @@ bool romfs_t::reader_t::handle_t::read(void *dest, size_t size)
     return false;
 }
 
-bool romfs_t::reader_t::handle_t::seek(size_t offset)
+RAM bool romfs_t::reader_t::handle_t::seek(size_t offset)
 {
     // Если файл не открыт
     if (!opened())

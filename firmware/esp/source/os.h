@@ -121,4 +121,10 @@ public:
     static void priority_set(os_task_priority_t priority);
 };
 
+// Тип для тиков
+typedef TickType_t os_tick_t;
+
+// Получает текущее количество тиков с момента запуска
+os_tick_t os_tick_get(void);
+
 #endif // __OS_H

@@ -15,7 +15,7 @@
 LOG_TAG_DECL("WIFI");
 
 // Обработчик команды запроса настроек WIFI
-class wifi_handler_command_settings_get_t : public ipc_command_handler_template_t<wifi_command_settings_get_t>
+class wifi_command_handler_settings_get_t : public ipc_command_handler_template_t<wifi_command_settings_get_t>
 {
     // Состояние
     enum
@@ -28,12 +28,20 @@ class wifi_handler_command_settings_get_t : public ipc_command_handler_template_
         STATE_RESPONSE
     } state = STATE_REQUEST;
     // Количество тиков с момента запроса
-    TickType_t request_time;
+    os_tick_t request_time;
 protected:
     // Оповещение о поступлении данных
     virtual void notify(ipc_dir_t dir);
 public:
-    // Событие простоя
+    // Обработчик события сброса
+    void reset(void)
+    {
+        // Сброс в начальное состояние
+        if (state == STATE_RESPONSE)
+            state = STATE_REQUEST;
+    }
+
+    // Обработчик события простоя
     void idle(void)
     {
         // Определяем что делать
@@ -44,7 +52,7 @@ public:
                 break;
             case STATE_RESPONSE:
                 // Если прошло много времени с момента запроса
-                if (xTaskGetTickCount() - request_time < OS_MS_TO_TICKS(1000))
+                if (os_tick_get() - request_time < OS_MS_TO_TICKS(1000))
                     return;
                 break;
             default:
@@ -54,17 +62,33 @@ public:
         if (!command.transmit(core_processor_out.esp, IPC_DIR_REQUEST))
             return;
         LOGI("Settings requested...");
+        request_time = os_tick_get();
         state = STATE_RESPONSE;
-        request_time = xTaskGetTickCount();
+    }
+} wifi_command_handler_settings_get;
+
+// Обработчик команды оповещения о смене настроек WiFi
+static class wifi_command_handler_settings_changed_t : public ipc_command_handler_template_sticky_t<wifi_command_settings_changed_t>
+{
+protected:
+    // Оповещение о поступлении данных
+    virtual void notify(ipc_dir_t dir)
+    {
+        // Мы можем только обрабатывать запрос
+        assert(dir == IPC_DIR_REQUEST);
+        // Отправляем ответ
+        transmit();
+        // Перезапрашиваем настройки
+        wifi_command_handler_settings_get.reset();
     }
 
-    // Событие сброса
-    void reset(void)
+    // Обработчик передачи
+    virtual bool transmit_internal(void)
     {
-        if (state == STATE_RESPONSE)
-            state = STATE_REQUEST;
+        return command.transmit(core_processor_out.esp, IPC_DIR_RESPONSE);
     }
-} wifi_handler_command_settings_get;
+
+} wifi_command_handler_settings_changed;
 
 // Базовый класс обработчика событий
 class wifi_ipc_events_t : public ipc_event_handler_t
@@ -76,7 +100,8 @@ protected:
         // Базовый метод
         ipc_event_handler_t::idle();
         // Команда
-        wifi_handler_command_settings_get.idle();
+        wifi_command_handler_settings_get.idle();
+        wifi_command_handler_settings_changed.idle();
     }
 
     // Событие сброса
@@ -85,7 +110,8 @@ protected:
         // Базовый метод
         ipc_event_handler_t::reset();
         // Команда
-        wifi_handler_command_settings_get.reset();
+        wifi_command_handler_settings_get.reset();
+        wifi_command_handler_settings_changed.reset();
     }
 } wifi_ipc_events;
 
@@ -146,15 +172,26 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 
 // Промежуточный буфер для настроек
 static wifi_settings_t wifi_settings;
+// Структура хранения изменений по блокам настроек
+static struct
+{
+    // Своя точка доступа
+    bool softap;
+    // Подключение к точке доступа
+    bool station;
+} wifi_settings_changed;
 
-void wifi_handler_command_settings_get_t::notify(ipc_dir_t dir)
+void wifi_command_handler_settings_get_t::notify(ipc_dir_t dir)
 {
     // Мы можем только обрабатывать ответ
     assert(dir == IPC_DIR_RESPONSE);
     LOGI("Settings fetched!");
     state = STATE_IDLE;
-    // Копирование настроек в промежуточный буфер
     core_main_task.mutex.enter();
+        // Проверка изменений
+        wifi_settings_changed.softap = wifi_settings.softap != command.response.settings.softap;
+        wifi_settings_changed.station = wifi_settings.station != command.response.settings.station;
+        // Копирование настроек в промежуточный буфер
         wifi_settings = command.response.settings;
     core_main_task.mutex.leave();
     // Отложенный вызов пересоздания точек доступа
@@ -170,12 +207,15 @@ void wifi_handler_command_settings_get_t::notify(ipc_dir_t dir)
             else if (wifi_settings.station.use)
                 mode = WIFI_MODE_STA;
             // Активация интерфейсов
-            ESP_ERROR_CHECK(esp_wifi_set_mode(mode));
+            wifi_mode_t mode_current;
+            ESP_ERROR_CHECK(esp_wifi_get_mode(&mode_current));
+            if (mode_current != mode)
+                ESP_ERROR_CHECK(esp_wifi_set_mode(mode));
 
             // Конфигурирование
             wifi_config_t config;
             // Точка доступа
-            if (wifi_settings.softap.use)
+            if (wifi_settings.softap.use && wifi_settings_changed.softap)
             {
                 memset(&config.ap, 0, sizeof(config.ap));
                 // Имя, пароль
@@ -194,7 +234,7 @@ void wifi_handler_command_settings_get_t::notify(ipc_dir_t dir)
             }
 
             // Подключение к точке
-            if (wifi_settings.station.use)
+            if (wifi_settings.station.use && wifi_settings_changed.station)
             {
                 memset(&config.sta, 0, sizeof(config.sta));
                 // Имя, пароль
@@ -216,6 +256,8 @@ static const wifi_init_config_t WIFI_INIT_CONFIG = WIFI_INIT_CONFIG_DEFAULT();
 void wifi_init(void)
 {
     tcpip_adapter_init();
+    // Отчистка промежуточного буфера настроек
+    wifi_settings.clear();
     // Обработчик событий ядра WiFi
     ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
     // Инициализация подсистемы WiFi
@@ -232,5 +274,5 @@ void wifi_init(void)
     ESP_ERROR_CHECK(esp_wifi_start());
 
     stm_add_event_handler(wifi_ipc_events);
-    core_add_command_handler(wifi_handler_command_settings_get);
+    core_add_command_handler(wifi_command_handler_settings_get);
 }

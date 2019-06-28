@@ -149,3 +149,8 @@ RAM void os_task_base_t::priority_set(os_task_priority_t priority)
 {
     vTaskPrioritySet(NULL, (unsigned)priority);
 }
+
+RAM os_tick_t os_tick_get(void)
+{
+    return (os_tick_t)xTaskGetTickCount();
+}

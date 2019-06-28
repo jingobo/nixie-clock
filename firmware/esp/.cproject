@@ -96,6 +96,14 @@
 				<useDefaultCommand>true</useDefaultCommand>
 				<runAllBuilders>true</runAllBuilders>
 			</target>
+			<target name="romfs" path="" targetID="org.eclipse.cdt.build.MakeTargetBuilder">
+				<buildCommand>python</buildCommand>
+				<buildArguments>${IDF_PATH}/tools/windows/eclipse_make.py -j2</buildArguments>
+				<buildTarget>romfs</buildTarget>
+				<stopOnError>true</stopOnError>
+				<useDefaultCommand>true</useDefaultCommand>
+				<runAllBuilders>true</runAllBuilders>
+			</target>
 		</buildTargets>
 	</storageModule>
 </cproject>
