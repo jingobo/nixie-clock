@@ -16,7 +16,7 @@
 // Имя модуля для логирования
 LOG_TAG_DECL("STM");
 
-#ifndef NDEBUG
+#if 0 && !defined NDEBUG
     // Отладочный вывод содержимого SPI регистров
     static void stm_spi_debug(void)
     {
@@ -43,7 +43,7 @@ LOG_TAG_DECL("STM");
     #define STM_SPI_DEBUG()     stm_spi_debug()
 #else // NDEBUG
     // Отладочный вывод
-    #define STM_SPI_DEBUG()     BLOCK_EMPTY
+    #define STM_SPI_DEBUG()     EMPTY_BLOCK
 #endif // NDEBUG
 
 // Задача обслуживания SPI
@@ -224,6 +224,8 @@ void stm_init(void)
     WRITE_PERI_REG(SPI_SLAVE1(STM_HSPI), ((32 * 8 - 1) << SPI_SLV_BUF_BITLEN_S));
     // PIN (CPOL low, CS)
     WRITE_PERI_REG(SPI_PIN(STM_HSPI), BIT19);
+    // Отладочный вывод
+    STM_SPI_DEBUG();
     // Настройка прерывание HSPI
     _xt_isr_attach(ETS_SPI_INUM, stm_link_t::spi_isr, NULL);
     _xt_isr_unmask(1 << ETS_SPI_INUM);

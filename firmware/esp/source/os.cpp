@@ -13,10 +13,8 @@ os_mutex_t::os_mutex_t(void)
 
 os_mutex_t::~os_mutex_t(void)
 {
-    if (!OS_CHECK_HANDLE(mutex))
-        return;
-    vSemaphoreDelete(mutex);
-    mutex = NULL;
+    if (OS_CHECK_HANDLE(mutex))
+        vSemaphoreDelete(mutex);
 }
 
 void os_mutex_t::enter(void) const
@@ -68,16 +66,16 @@ RAM void os_event_base_t::set_isr(void)
     xQueueSendFromISR(queue, &item, NULL);
 }
 
-RAM bool os_event_auto_t::wait(uint32_t mills)
+RAM bool os_event_auto_t::wait(os_tick_t ticks)
 {
     queue_item_t item;
-    return xQueueReceive(queue, &item, OS_MS_TO_TICKS(mills)) > 0;
+    return xQueueReceive(queue, &item, ticks) > 0;
 }
 
-RAM bool os_event_manual_t::wait(uint32_t mills)
+RAM bool os_event_manual_t::wait(os_tick_t ticks)
 {
     queue_item_t item;
-    return xQueuePeek(queue, &item, OS_MS_TO_TICKS(mills)) > 0;
+    return xQueuePeek(queue, &item, ticks) > 0;
 }
 
 RAM void os_event_manual_t::reset(void)
@@ -90,6 +88,35 @@ RAM void os_event_manual_t::reset_isr(void)
 {
     queue_item_t item;
     xQueueReceiveFromISR(queue, &item, NULL);
+}
+
+os_event_group_t::os_event_group_t(void) : handle(xEventGroupCreate())
+{
+    assert(OS_CHECK_HANDLE(handle));
+}
+
+os_event_group_t::~os_event_group_t(void)
+{
+    if (OS_CHECK_HANDLE(handle))
+        vEventGroupDelete(handle);
+}
+
+RAM void os_event_group_t::set(uint32_t bits)
+{
+    assert(bits > 0);
+    xEventGroupSetBits(handle, bits);
+}
+
+RAM void os_event_group_t::reset(uint32_t bits)
+{
+    assert(bits > 0);
+    xEventGroupClearBits(handle, bits);
+}
+
+RAM bool os_event_group_t::wait(uint32_t bits, bool all, os_tick_t ticks)
+{
+    assert(bits > 0);
+    return xEventGroupWaitBits(handle, bits, pdFALSE, all ? pdTRUE : pdFALSE, ticks) > 0;
 }
 
 // --- Task --- //

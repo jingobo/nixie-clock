@@ -1,5 +1,4 @@
-﻿#include <os.h>
-#include <stm.h>
+﻿#include <stm.h>
 #include <log.h>
 #include <core.h>
 #include <tool.h>
@@ -141,6 +140,14 @@ static void wifi_log_country_info(void)
     LOGI("Policy: %s", info_country.policy != WIFI_COUNTRY_POLICY_AUTO ? "manual" : "auto");
 }
 
+// Событие появления сетевого интерфейса
+static os_event_group_t wifi_intf_event;
+
+// По подключению к чужой точке
+#define WIFI_INTF_EVENT_STATION     MASK_32(1, 0)
+// По созданию своей точки
+#define WIFI_INTF_EVENT_SOFTAP      MASK_32(1, 1)
+
 // Обработчик событий ядра WiFi
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 {
@@ -148,25 +155,46 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 
     switch (event->event_id)
     {
+        // --- Station --- //
+
+        case SYSTEM_EVENT_STA_START:
+            LOGI("[Station] started...");
+            wifi_intf_event.set(WIFI_INTF_EVENT_STATION);
+            break;
+        case SYSTEM_EVENT_STA_STOP:
+            LOGI("[Station] stopped...");
+            wifi_intf_event.reset(WIFI_INTF_EVENT_STATION);
+            break;
+
         case SYSTEM_EVENT_STA_GOT_IP:
-            LOGI("Station got IP: %s", ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
-            //xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
+            LOGI("[Station] got IP: %s", ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
             break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
-            LOGI("Station disconnected, reason: %d", info->disconnected.reason);
-            esp_wifi_connect();
-            //xEventGroupClearBits(wifi_event_group, WIFI_CONNECTED_BIT);
+            LOGI("[Station] disconnected, reason: %d", info->disconnected.reason);
+            ESP_ERROR_CHECK(esp_wifi_connect());
             break;
+
+        // --- Softap --- //
+
+        case SYSTEM_EVENT_AP_START:
+            LOGI("[Softap] started...");
+            wifi_intf_event.set(WIFI_INTF_EVENT_SOFTAP);
+            break;
+        case SYSTEM_EVENT_AP_STOP:
+            LOGI("[Softap] stopped...");
+            wifi_intf_event.reset(WIFI_INTF_EVENT_SOFTAP);
+            break;
+
         case SYSTEM_EVENT_AP_STACONNECTED:
-            LOGI("Station: " MACSTR " join.", MAC2STR(event->event_info.sta_connected.mac));
+            LOGI("[Softap] Station: " MACSTR " join.", MAC2STR(event->event_info.sta_connected.mac));
             break;
         case SYSTEM_EVENT_AP_STADISCONNECTED:
-            LOGI("Station: " MACSTR "leave.", MAC2STR(event->event_info.sta_disconnected.mac));
+            LOGI("[Softap] Station: " MACSTR "leave.", MAC2STR(event->event_info.sta_disconnected.mac));
             break;
         default:
             break;
     }
-    LOGI("Event code: %d", event->event_id);
+    // TODO: тотальный выпил LOGI("Event code: %d", event->event_id);
     return ESP_OK;
 }
 
@@ -275,4 +303,9 @@ void wifi_init(void)
 
     stm_add_event_handler(wifi_ipc_events);
     core_add_command_handler(wifi_command_handler_settings_get);
+}
+
+bool wifi_wait_interface(os_tick_t ticks)
+{
+    return wifi_intf_event.wait(WIFI_INTF_EVENT_STATION | WIFI_INTF_EVENT_SOFTAP, false, ticks);
 }

@@ -4,6 +4,7 @@
 #include <sntp.h>
 #include <lwip.h>
 #include <core.h>
+#include "wifi.h"
 #include "ntime.h"
 
 #include <proto/time.inc>
@@ -134,6 +135,12 @@ static void ntime_try_hosts(void)
         return;
     }
     ntime_command_time_get.command.response.status = time_command_get_response_t::STATUS_FAILED;
+    // Проверяем, есть ли какой либо сетевой интерфейс
+    if (!wifi_wait_interface())
+    {
+        LOGW("Sync canceled, no network interfaces!");
+        return;
+    }
     // Обход списка
     auto size = 0;
     char host[TIME_HOSTANME_CHARS_MAX];

@@ -9,6 +9,13 @@
 #include <freertos/timers.h>
 #include <freertos/event_groups.h>
 
+// Тип для тиков
+typedef TickType_t os_tick_t;
+
+// Минимальное количество тиков
+#define OS_TICK_MIN                 0
+// Максимальное количество тиков
+#define OS_TICK_MAX                 portMAX_DELAY
 // Перевод мС в тики FreeRTOS
 #define OS_MS_TO_TICKS(ms)          ((ms) / portTICK_PERIOD_MS)
 // Проверка хэндла на валидность
@@ -53,7 +60,7 @@ public:
     void set_isr(void);
 
     // Ожидание события
-    virtual bool wait(uint32_t mills = portMAX_DELAY) = 0;
+    virtual bool wait(os_tick_t ticks = OS_TICK_MAX) = 0;
 };
 
 // Событие с автосбросом
@@ -61,7 +68,7 @@ class os_event_auto_t : public os_event_base_t
 {
 public:
     // Ожидание события
-    virtual bool wait(uint32_t mills = portMAX_DELAY);
+    virtual bool wait(os_tick_t ticks = OS_TICK_MAX);
 };
 
 // Событие с ручным сбросом
@@ -69,11 +76,30 @@ class os_event_manual_t : public os_event_base_t
 {
 public:
     // Ожидание события
-    virtual bool wait(uint32_t mills = portMAX_DELAY);
+    virtual bool wait(os_tick_t ticks = OS_TICK_MAX);
 
     // Сброс события
     void reset(void);
     void reset_isr(void);
+};
+
+// Групповое событие
+class os_event_group_t
+{
+    // Дескриптор группового события
+    const EventGroupHandle_t handle;
+public:
+    // Конструктор по умолчанию
+    os_event_group_t(void);
+    // Деструктор
+    ~os_event_group_t(void);
+
+    // Установка/Сброс битов события
+    void set(uint32_t bits);
+    void reset(uint32_t bits);
+
+    // Ожидание указанных бит
+    bool wait(uint32_t bits, bool all = true, os_tick_t ticks = OS_TICK_MAX);
 };
 
 // Приоритеты задач
@@ -120,9 +146,6 @@ public:
     // Устанока приоритета текущей выполняемой задачи
     static void priority_set(os_task_priority_t priority);
 };
-
-// Тип для тиков
-typedef TickType_t os_tick_t;
 
 // Получает текущее количество тиков с момента запуска
 os_tick_t os_tick_get(void);
