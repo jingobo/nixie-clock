@@ -82,7 +82,7 @@ static const char WEB_HTTP_STR_HEADER_FINAL_DEFAULT[] =
     "Server: NixieClock (ESP8266EX)" WEB_HTTP_CRLF
     "Pragma: no-cache" WEB_HTTP_CRLF
     "Cache-Control: no-cache" WEB_HTTP_CRLF
-    "Connection : closed" WEB_HTTP_CRLF WEB_HTTP_CRLF;
+    "Connection : close" WEB_HTTP_CRLF WEB_HTTP_CRLF;
 static const char WEB_HTTP_STR_HEADER_FINAL_UPGRADE[] =
     "Upgrade: WebSocket" WEB_HTTP_CRLF
     "Connection: Upgrade" WEB_HTTP_CRLF WEB_HTTP_CRLF;
@@ -114,61 +114,6 @@ const web_http_handler_t::content_type_t web_http_handler_t::CONTENT_TYPES[] =
 
 // Для хэширования WebSocket рукопожатий
 static sha1_t web_hhtp_sha1;
-
-// -- Файловое API TODO: перенести --- //
-
-static class fs_t: public romfs_t::reader_t
-{
-protected:
-    // Низкоуровневое чтение по указанному смещению
-    virtual bool read(void *dest, size_t size, size_t offset)
-    {
-        return false;
-    }
-} romfs;
-
-// Инициализация файлового дескриптора
-void file_init(FILE &file)
-{
-    file = romfs_t::reader_t::handle_t();
-}
-
-// Получает, открыт ли файл
-bool file_opened(const FILE &file)
-{
-    return file.opened();
-}
-
-// Открывает файл на чтение
-bool file_open(FILE &file, const char *path)
-{
-    file = romfs.open(path);
-    return file.opened();
-}
-
-// Получает размер файла в байтах
-size_t file_size(const FILE &file)
-{
-    return file.size();
-}
-
-// Чтение файла
-bool file_read(FILE &file, void *dest, size_t size)
-{
-    return file.read(dest, (romfs_t::size_t)size);
-}
-
-// Смещение чтения файла относительно начала
-bool file_seek(FILE &file, size_t offset)
-{
-    return file.seek((romfs_t::size_t)offset);
-}
-
-// Безопасное закрытие файла
-void file_close(FILE &file)
-{
-    file.close();
-}
 
 // --- Методы --- //
 
@@ -234,9 +179,9 @@ void web_http_handler_t::request_t::clear(void)
     WEB_HTTP_STR_CLR(headers.path);
     WEB_HTTP_STR_CLR(headers.method);
     WEB_HTTP_STR_CLR(headers.version);
+    headers.websocket.version = 0;
     headers.upgrade = HTTP_HEADER_UPGRADE_UNKNOWN;
     headers.connection = HTTP_HEADER_CONNECTION_UNKNOWN;
-    headers.websocket.version = 0;
     WEB_HTTP_STR_CLR(headers.websocket.key);
 }
 
@@ -387,7 +332,7 @@ void web_http_handler_t::response_t::clear(void)
 {
     total = 0;
     mime = NULL;
-    file_init(file);
+    file = fs_file_t();
     state = STATE_INITIAL;
     header.dynamic.name = NULL;
     header.dynamic.value = NULL;
@@ -446,7 +391,7 @@ size_t web_http_handler_t::response_t::process(web_slot_buffer_t dest)
 
             // --- Длинна контента --- //
             case STATE_CONTENT_LENGTH_HEAD:
-                if (!file_opened(file))
+                if (!file.opened())
                 {
                     state = STATE_DYNAMIC_HEADER_NAME;
                     continue;
@@ -455,7 +400,7 @@ size_t web_http_handler_t::response_t::process(web_slot_buffer_t dest)
             case STATE_CONTENT_LENGTH_BODY:
                 {
                     char buf[9]; // До 999999 байт
-                    auto size = file_size(file);
+                    auto size = file.size();
                     assert(size <= 9999999);
                     sprintf(buf, WEB_HTTP_STR_FRM_NUMBER_CRLF, size);
                     return send_str(dest, buf, strlen(buf));
@@ -483,14 +428,14 @@ size_t web_http_handler_t::response_t::process(web_slot_buffer_t dest)
             case STATE_CONTENT:
                 // Если смещения нет - указываем сколько данных всего
                 if (offset <= 0)
-                    total = file_size(file);
-                else if (!file_seek(file, offset))
+                    total = file.size();
+                else if (!file.seek(offset))
                     return 0;
                 // Определение количества передаваемых байт
                 {
                     auto size = MIN(sizeof(web_slot_buffer_t), total);
                     // Копирование части ответа
-                    return file_read(file, dest, size) ? size : 0;
+                    return file.read(dest, size) ? size : 0;
                 }
             default:
                 return 0;
@@ -509,7 +454,7 @@ void web_http_handler_t::free(web_slot_free_reason_t reason)
     // Базовый ментод
     web_slot_handler_t::free(reason);
     // Закрытие файла
-    file_close(response.file);
+    response.file.close();
     // Отчистка полей
     clear();
 }
@@ -578,10 +523,10 @@ void web_http_handler_t::process(web_slot_buffer_t buffer)
         socket->log("Unknown MIME type!");
         response.status = HTTP_STATUS_NOT_FOUND;
         return;
-    }    
-    socket->log("MIME is %s", response.mime);
+    }
     // ...Пробуем открыть файл
-    if (!file_open(response.file, request.headers.path))
+    response.file = fs_open(request.headers.path);
+    if (!response.file.opened())
     {
         socket->log("File not found!");
         response.status = HTTP_STATUS_NOT_FOUND;
@@ -589,27 +534,24 @@ void web_http_handler_t::process(web_slot_buffer_t buffer)
     }
 }
 
-bool web_http_handler_t::execute(web_slot_buffer_t buffer)
+void web_http_handler_t::execute(web_slot_buffer_t buffer)
 {
-    // Базовый ментод
-    if (!web_slot_handler_t::execute(buffer))
-        return false;
     // Чтение
     auto size = socket->read(buffer);
     // Если соединение закрыто
-    if (size == 0)
-        return false;
+    if (size < 0)
+        return;
     // Стадия запроса
     if (!responsing)
     {
-        if (size <= 0)
+        if (size == 0)
             // Ничего не получено
-            return true;
+            return;
         // Обработка заголовков запроса
         response.status = request.process(buffer, (size_t)size);
         if (response.status == HTTP_STATUS_NA)
             // Не весь запрос получен
-            return true;
+            return;
         // Обработка запроса
         responsing = true;
         // Если нет ошибки
@@ -634,24 +576,28 @@ bool web_http_handler_t::execute(web_slot_buffer_t buffer)
                 if (ws_slot != NULL)
                 {
                     socket->handler_change(ws_slot, WEB_SLOT_FREE_REASON_MIGRATION);
-                    return true;
+                    return;
                 }
             } while (false);
             socket->log("No free WebSocket slots!");
         }
         // Больше отправлять не нужно
         socket->free(WEB_SLOT_FREE_REASON_NORMAL);
-        return false;
+        return;
     }
     // Передача
     size = socket->write(buffer, size);
-    // Если не можем передать в данный момент
-    if (size < 0)
-        return true;
-    // Если соединение закрыто
-    if (size == 0)
-        return false;
+    // Если соединение закрыто или ничего не передали
+    if (size <= 0)
+        return;
     // Уведомление о количестве переданных байт
     response.process_feedback((size_t)size);
-    return true;
+}
+
+bool web_http_handler_t::allocate(web_slot_socket_t &socket)
+{
+    auto result = web_slot_handler_t::allocate(socket);
+    if (result)
+        socket.timeout_change(2000);
+    return result;
 }

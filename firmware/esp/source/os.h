@@ -16,8 +16,11 @@ typedef TickType_t os_tick_t;
 #define OS_TICK_MIN                 0
 // Максимальное количество тиков
 #define OS_TICK_MAX                 portMAX_DELAY
+// Минимальное количество мС
+#define OS_MS_MIN                   portTICK_PERIOD_MS
 // Перевод мС в тики FreeRTOS
 #define OS_MS_TO_TICKS(ms)          ((ms) / portTICK_PERIOD_MS)
+
 // Проверка хэндла на валидность
 #define OS_CHECK_HANDLE(handle)     ((handle) != NULL)
 
@@ -130,6 +133,9 @@ protected:
 
     // Обработчик задачи
     virtual void execute(void) = 0;
+
+    // Задержка на указанное количество тиков
+    void delay(os_tick_t ticks);
 public:
     // Мьютекс для синхронизации
     const os_mutex_t mutex;

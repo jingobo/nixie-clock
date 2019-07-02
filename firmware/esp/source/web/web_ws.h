@@ -181,7 +181,7 @@ protected:
     virtual void free(web_slot_free_reason_t reason);
 
     // Обработка данных
-    virtual bool execute(web_slot_buffer_t buffer);
+    virtual void execute(web_slot_buffer_t buffer);
 public:
     // Конструктор по умолчанию
     web_ws_handler_t(void)

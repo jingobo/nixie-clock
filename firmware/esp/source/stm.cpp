@@ -154,7 +154,9 @@ RAM void stm_link_t::transaction(void)
     for (auto i = 8; i < 16; i++)
         WRITE_PERI_REG(SPI_W0(STM_HSPI) + i * SYSTEM_REG_SIZE, buffer.raw[i]);
     // Ожидание транзакции
-    event_data_ready.wait();
+    taskEXIT_CRITICAL();
+        event_data_ready.wait();
+    taskENTER_CRITICAL();
     // Чтение из регистров
     for (auto i = 0; i < 8; i++)
         buffer.raw[i] = READ_PERI_REG(SPI_W0(STM_HSPI) + i * SYSTEM_REG_SIZE);
@@ -186,6 +188,8 @@ RAM void stm_task_t::execute(void)
     priority_set(OS_TASK_PRIORITY_CRITICAL);
     // SPI enable
     SET_PERI_REG_MASK(SPI_CMD(STM_HSPI), SPI_USR);
+    // Цико опроса
+    taskENTER_CRITICAL();
     for (;;)
         stm_link.transaction();
 }

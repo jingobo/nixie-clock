@@ -105,13 +105,15 @@ RAM ipc_processor_status_t core_processor_out_t::side_t::packet_process(const ip
                     io_led_yellow.flash();
                     // Лог
                     LOGI("%s request 0x%02x, %d bytes", CORE_SIDE_NAME[dest], packet.dll.opcode, args.size);
+                    // Помечаем с какой стороны пришел запрос
+                    core_route.map[opcode][side] = true;
                 }
                 // Передача
                 result = core_processor_in[dest]->packet_process(packet, args);
-                // Если результат ОК и это последний пакет...
-                if (result == IPC_PROCESSOR_STATUS_SUCCESS && last)
-                    // Помечаем с какой стороны пришел запрос
-                    core_route.map[opcode][side] = true;
+                // Если результат бедовый и это последний пакет...
+                if (last && result != IPC_PROCESSOR_STATUS_SUCCESS)
+                    // Сброс
+                    core_route.map[opcode][side] = false;
             }
             break;
         case IPC_DIR_RESPONSE:
@@ -130,7 +132,7 @@ RAM ipc_processor_status_t core_processor_out_t::side_t::packet_process(const ip
                     // Передача
                     auto status = core_processor_in[lside]->packet_process(packet, args);
                     // Если передать не удалось или это последний пакет...
-                    if (status != IPC_PROCESSOR_STATUS_SUCCESS || last)
+                    if (last || status != IPC_PROCESSOR_STATUS_SUCCESS)
                         // Снимаем метку
                         core_route.map[opcode][lside] = false;
                     // Готовим ответ
@@ -148,7 +150,7 @@ RAM ipc_processor_status_t core_processor_out_t::side_t::packet_process(const ip
     }
     // Лог
     if (result != IPC_PROCESSOR_STATUS_SUCCESS)
-        LOGW("Packet process failed! Code: %d.", result);
+        LOGW("Packet process failed! Result: %d, opcode: %d, direction: %d", result, opcode, packet.dll.dir);
     return result;
 }
 
@@ -199,7 +201,7 @@ extern "C" void app_main(void)
     fs_init();
     wifi_init();
     ntime_init();
-    //httpd_init();
+    httpd_init();
     // Инициализация связи с STM (последним)
     stm_init();
 }

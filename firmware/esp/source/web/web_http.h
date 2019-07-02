@@ -1,11 +1,9 @@
 #ifndef __WEB_HTTP_H
 #define __WEB_HTTP_H
 
+#include <os.h>
+#include <fs.h>
 #include "web_slot.h"
-#include <romfs.h>
-
-// Дескриптор файла TODO: перенести куда нить
-#define FILE                romfs_t::reader_t::handle_t
 
 // Обработчик HTTP запросов
 class web_http_handler_t : public web_slot_handler_t
@@ -80,7 +78,7 @@ class web_http_handler_t : public web_slot_handler_t
             // Метод
             char method[4];
             // Запрашиваемый путь
-            char path[16];
+            char path[32];
             // Версия HTTP потокола
             char version[10];
             // Значение заголовка нового протокола
@@ -114,8 +112,6 @@ class web_http_handler_t : public web_slot_handler_t
     // Данные ответа
     class response_t
     {
-        // Смещение и общий размер передаваемых данных
-        size_t offset, total;
         // Текущее состояние передачи
         enum state_t
         {
@@ -142,6 +138,8 @@ class web_http_handler_t : public web_slot_handler_t
             // Тело ответа
             STATE_CONTENT
         } state;
+        // Смещение и общий размер передаваемых данных
+        size_t offset, total;
 
         // Передача данных в буфер
         size_t send_str(web_slot_buffer_t dest, const char *source, size_t size);
@@ -149,7 +147,7 @@ class web_http_handler_t : public web_slot_handler_t
         // Текущий статус
         http_status_t status;
         // Передаваемый файл
-        FILE file;
+        fs_file_t file;
         // MIME тип открытого файла
         const char *mime;
         // Добавочные заголовки
@@ -223,7 +221,7 @@ protected:
     virtual void free(web_slot_free_reason_t reason);
 
     // Обработка данных
-    virtual bool execute(web_slot_buffer_t buffer);
+    virtual void execute(web_slot_buffer_t buffer);
 public:
     // Конструктор по умолчанию
     web_http_handler_t(void) : ws(NULL)
@@ -235,6 +233,9 @@ public:
     {
         clear();
     }
+
+    // Выделение обработчика
+    virtual bool allocate(web_slot_socket_t &socket);
 };
 
 // Шаблон аллокатора слотов HTTP обработчиков

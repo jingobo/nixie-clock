@@ -87,7 +87,7 @@ static void ntime_try_host(const char *host, datetime_t &dest)
             break;
         }
         // Конфигурация сокета
-        if (!lwip_socket_config(socket_fd))
+        if (!lwip_socket_bio(socket_fd))
             break;
         // Отправка запроса
         if (lwip_send(socket_fd, &packet, sizeof(packet), 0) != sizeof(packet))
@@ -136,7 +136,7 @@ static void ntime_try_hosts(void)
     }
     ntime_command_time_get.command.response.status = time_command_get_response_t::STATUS_FAILED;
     // Проверяем, есть ли какой либо сетевой интерфейс
-    if (!wifi_wait_interface())
+    if (!wifi_wait())
     {
         LOGW("Sync canceled, no network interfaces!");
         return;
@@ -182,7 +182,7 @@ void ntime_command_time_get_t::notify(ipc_dir_t dir)
     core_main_task.mutex.enter();
         if (working)
         {
-            LOGW("Already executing...");
+            LOGW("Already executing!");
             core_main_task.mutex.leave();
             return;
         }

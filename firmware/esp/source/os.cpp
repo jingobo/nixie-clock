@@ -17,7 +17,7 @@ os_mutex_t::~os_mutex_t(void)
         vSemaphoreDelete(mutex);
 }
 
-void os_mutex_t::enter(void) const
+RAM void os_mutex_t::enter(void) const
 {
     if (!xSemaphoreTakeRecursive(mutex, portMAX_DELAY))
         LOGE("Unable to enter mutex!");
@@ -29,7 +29,7 @@ RAM void os_mutex_t::enter_irq(void) const
         LOGE("Unable to enter mutex(from isr)!");
 }
 
-void os_mutex_t::leave(void) const
+RAM void os_mutex_t::leave(void) const
 {
     if (!xSemaphoreGiveRecursive(mutex))
         LOGE("Unable to leave mutex!");
@@ -57,13 +57,16 @@ os_event_base_t::~os_event_base_t(void)
 RAM void os_event_base_t::set(void)
 {
     queue_item_t item;
-    xQueueSend(queue, &item, 0);
+    xQueueSend(queue, &item, OS_TICK_MIN);
 }
 
 RAM void os_event_base_t::set_isr(void)
 {
     queue_item_t item;
-    xQueueSendFromISR(queue, &item, NULL);
+    BaseType_t switch_task;
+    xQueueSendFromISR(queue, &item, &switch_task);
+    if (switch_task)
+        taskYIELD();
 }
 
 RAM bool os_event_auto_t::wait(os_tick_t ticks)
@@ -81,13 +84,16 @@ RAM bool os_event_manual_t::wait(os_tick_t ticks)
 RAM void os_event_manual_t::reset(void)
 {
     queue_item_t item;
-    xQueueReceive(queue, &item, 0);
+    xQueueReceive(queue, &item, OS_TICK_MIN);
 }
 
 RAM void os_event_manual_t::reset_isr(void)
 {
     queue_item_t item;
-    xQueueReceiveFromISR(queue, &item, NULL);
+    BaseType_t switch_task;
+    xQueueReceiveFromISR(queue, &item, &switch_task);
+    if (switch_task)
+        taskYIELD();
 }
 
 os_event_group_t::os_event_group_t(void) : handle(xEventGroupCreate())
@@ -148,6 +154,11 @@ void os_task_base_t::execute_wrapper(void)
     // Если нужно задачу перезапустить
     if (rst && start())
         LOGI("Restarted \"%s\"...", name);
+}
+
+RAM void os_task_base_t::delay(os_tick_t ticks)
+{
+    vTaskDelay(ticks);
 }
 
 bool os_task_base_t::start(bool auto_restart)

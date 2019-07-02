@@ -1,5 +1,3 @@
-// TODO: убрать
-#define _CRT_SECURE_NO_WARNINGS
 #include "web_ws.h"
 
 void web_ws_handler_t::free(web_slot_free_reason_t reason)
@@ -111,34 +109,27 @@ bool web_ws_handler_t::transmit(uint8_t code, const void *source, size_t size)
     return true;
 }
 
-bool web_ws_handler_t::execute(web_slot_buffer_t buffer)
+void web_ws_handler_t::execute(web_slot_buffer_t buffer)
 {
-    if (!web_slot_handler_t::execute(buffer))
-        return false;
     // Обработка чтения
     auto transfered = socket->read(buffer);
-    // Если соединение закрыто
-    if (transfered == 0)
-        return false;
-    if (transfered > 0)
-        process_in(buffer, (size_t)transfered);
+    // Если соединение закрыто или ничего не получили
+    if (transfered <= 0)
+        return;
+    process_in(buffer, (size_t)transfered);
     // Возможно сокет был закрыт
     if (!busy())
-        return false;
+        return;
     // Обработка записи
     if (frame.out.remain > 0)
     {
         transfered = socket->write(frame.out.buffer + frame.out.offset, (int)frame.out.remain);
-        // Если соединение закрыто
-        if (transfered == 0)
-            return false;
+        // Если соединение закрыто или ничего не передали
+        if (transfered <= 0)
+            return;
         // Если что то передали
-        if (transfered > 0)
-        {
-            auto written = (size_t)transfered;
-            frame.out.remain -= written;
-            frame.out.offset += written;
-        }
+        auto written = (size_t)transfered;
+        frame.out.remain -= written;
+        frame.out.offset += written;
     }
-    return true;
 }

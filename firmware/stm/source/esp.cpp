@@ -12,7 +12,7 @@
 // Команда ESP8266 TX & RX подчиненного устройства
 #define ESP_SPI_CMD_RD_WR       0x06
 // Частота передачи пакетов IPC по SPI
-#define ESP_SPI_IPC_TX_HZ       100
+#define ESP_SPI_IPC_TX_HZ       75
 // Время ожидания после смены состояния выводов ESP8266
 #define ESP_PIN_SWUTCH_US       XK(50)
 // Время ожидания инициализации чипа ESP8266

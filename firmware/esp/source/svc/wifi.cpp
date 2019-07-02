@@ -36,8 +36,7 @@ public:
     void reset(void)
     {
         // Сброс в начальное состояние
-        if (state == STATE_RESPONSE)
-            state = STATE_REQUEST;
+        state = STATE_REQUEST;
     }
 
     // Обработчик события простоя
@@ -51,7 +50,7 @@ public:
                 break;
             case STATE_RESPONSE:
                 // Если прошло много времени с момента запроса
-                if (os_tick_get() - request_time < OS_MS_TO_TICKS(1000))
+                if (os_tick_get() - request_time < OS_MS_TO_TICKS(5000))
                     return;
                 break;
             default:
@@ -75,10 +74,12 @@ protected:
     {
         // Мы можем только обрабатывать запрос
         assert(dir == IPC_DIR_REQUEST);
-        // Отправляем ответ
-        transmit();
         // Перезапрашиваем настройки
         wifi_command_handler_settings_get.reset();
+        // Отправляем ответ
+        transmit();
+        // Лог
+        LOGW("Settings changed!");
     }
 
     // Обработчик передачи
@@ -171,7 +172,11 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
             break;
         case SYSTEM_EVENT_STA_DISCONNECTED:
             LOGI("[Station] disconnected, reason: %d", info->disconnected.reason);
-            ESP_ERROR_CHECK(esp_wifi_connect());
+            {
+                auto result = esp_wifi_connect();
+                if (result != ESP_ERR_WIFI_MODE)
+                    ESP_ERROR_CHECK(result);
+            }
             break;
 
         // --- Softap --- //
@@ -186,10 +191,10 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
             break;
 
         case SYSTEM_EVENT_AP_STACONNECTED:
-            LOGI("[Softap] Station: " MACSTR " join.", MAC2STR(event->event_info.sta_connected.mac));
+            LOGI("[Softap] Station: " MACSTR " join", MAC2STR(event->event_info.sta_connected.mac));
             break;
         case SYSTEM_EVENT_AP_STADISCONNECTED:
-            LOGI("[Softap] Station: " MACSTR "leave.", MAC2STR(event->event_info.sta_disconnected.mac));
+            LOGI("[Softap] Station: " MACSTR "leave", MAC2STR(event->event_info.sta_disconnected.mac));
             break;
         default:
             break;
@@ -303,9 +308,10 @@ void wifi_init(void)
 
     stm_add_event_handler(wifi_ipc_events);
     core_add_command_handler(wifi_command_handler_settings_get);
+    core_add_command_handler(wifi_command_handler_settings_changed);
 }
 
-bool wifi_wait_interface(os_tick_t ticks)
+bool wifi_wait(os_tick_t ticks)
 {
     return wifi_intf_event.wait(WIFI_INTF_EVENT_STATION | WIFI_INTF_EVENT_SOFTAP, false, ticks);
 }
