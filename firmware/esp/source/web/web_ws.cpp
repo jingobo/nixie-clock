@@ -8,8 +8,15 @@ void web_ws_handler_t::free(web_slot_free_reason_t reason)
     reset();
 }
 
-void web_ws_handler_t::process_in(web_slot_buffer_t buffer, size_t readed)
+void web_ws_handler_t::process_in(web_slot_buffer_t buffer)
 {
+    assert(busy());
+    // Обработка чтения
+    auto transfered = socket->read(buffer);
+    // Если соединение закрыто или ничего не получили
+    if (transfered <= 0)
+        return;
+    auto readed = (size_t)transfered;
     for (size_t offset = 0; readed > 0;)
     {
         // Определяем сколько нужно прочитать
@@ -37,7 +44,7 @@ void web_ws_handler_t::process_in(web_slot_buffer_t buffer, size_t readed)
                         break;
                     case 127:
                         // 64 бит
-                        socket->free(WEB_SLOT_FREE_REASON_NORMAL);
+                        socket->free(WEB_SLOT_FREE_REASON_INSIDE);
                         return;
                     default:
                         // 7 бит
@@ -62,22 +69,65 @@ void web_ws_handler_t::process_in(web_slot_buffer_t buffer, size_t readed)
                     frame.in.payload[r] ^= frame.in.header.extend[WEB_WS_HEADER_EXTEND_LENGTH_SIZE + r % WEB_WS_HEADER_EXTEND_MASK_SIZE];
                 // Сброс автомата
                 frame.in.state_set(STATE_CONTROL);
-                // Если фрейм последний
-                if (frame.in.header.control.fin)
+                // Если фрейм не последний
+                if (!frame.in.header.control.fin)
+                    break;
+                // Анализ опкода
+                switch (frame.in.header.control.code)
                 {
-                    transmit(frame.in.header.control.code, frame.in.payload, frame.in.offset.payload);
-                    // TODO: отправить полученные данные
-                    frame.in.offset.payload = 0;
+                    case WEB_WS_OPCODE_TEXT:
+                        // Текстовые фреймы не обрабатываем
+                        socket->log("Received text frame...skip");
+                        break;
+                    case WEB_WS_OPCODE_BINARY:
+                        receive_event(frame.in.payload, frame.in.offset.payload);
+                        break;
+                    case WEB_WS_OPCODE_CLOSE:
+                        // Нормальное закрытие
+                        socket->timeout_change(1000);
+                        socket->free(WEB_SLOT_FREE_REASON_OUTSIDE);
+                        return;
+                    case WEB_WS_OPCODE_PING:
+                        // Пинг, отправляем ответ
+                        transmit(WEB_WS_OPCODE_PONG, frame.in.payload, frame.in.offset.payload);
+                        socket->log("Received ping frame");
+                        break;
+                    default:
+                        socket->log("Received unknown frame opcode: %d!", frame.in.header.control.code);
+                        break;
                 }
+                frame.in.offset.payload = 0;
                 break;
         }
         // Проверка длинны полезных данных
         if (frame.in.offset.payload > WEB_WS_PAYLOAD_SIZE)
         {
-            socket->free(WEB_SLOT_FREE_REASON_NORMAL);
+            socket->free(WEB_SLOT_FREE_REASON_INSIDE);
             return;
         }
     }
+}
+
+void web_ws_handler_t::process_out(web_slot_buffer_t buffer)
+{
+    // Обработка записи
+    if (!busy())
+        return;
+    // Если все данные отправлены
+    if (frame.out.remain <= 0)
+    {
+        transmit_event();
+        if (frame.out.remain <= 0)
+            return;
+    }
+    auto transfered = socket->write(frame.out.buffer + frame.out.offset, (int)frame.out.remain);
+    // Если соединение закрыто или ничего не передали
+    if (transfered <= 0)
+        return;
+    // Если что то передали
+    auto written = (size_t)transfered;
+    frame.out.remain -= written;
+    frame.out.offset += written;
 }
 
 bool web_ws_handler_t::transmit(uint8_t code, const void *source, size_t size)
@@ -86,7 +136,10 @@ bool web_ws_handler_t::transmit(uint8_t code, const void *source, size_t size)
     assert(source != NULL && size <= WEB_WS_PAYLOAD_SIZE);
     // Если что то отправляем
     if (frame.out.remain > 0)
+    {
+        socket->log("Already transmitted!");
         return false;
+    }
     // Формирование фрейма
     auto dest = frame.out.buffer + WEB_WS_HEADER_CONTROL_SIZE;
     frame.out.header.control.code = code;
@@ -111,25 +164,14 @@ bool web_ws_handler_t::transmit(uint8_t code, const void *source, size_t size)
 
 void web_ws_handler_t::execute(web_slot_buffer_t buffer)
 {
-    // Обработка чтения
-    auto transfered = socket->read(buffer);
-    // Если соединение закрыто или ничего не получили
-    if (transfered <= 0)
-        return;
-    process_in(buffer, (size_t)transfered);
-    // Возможно сокет был закрыт
-    if (!busy())
-        return;
-    // Обработка записи
-    if (frame.out.remain > 0)
-    {
-        transfered = socket->write(frame.out.buffer + frame.out.offset, (int)frame.out.remain);
-        // Если соединение закрыто или ничего не передали
-        if (transfered <= 0)
-            return;
-        // Если что то передали
-        auto written = (size_t)transfered;
-        frame.out.remain -= written;
-        frame.out.offset += written;
-    }
+    process_in(buffer);
+    process_out(buffer);
+}
+
+bool web_ws_handler_t::allocate(web_slot_socket_t &socket)
+{
+    auto result = web_slot_handler_t::allocate(socket);
+    if (result)
+        socket.timeout_change(1000 * 60 * 60); // 1 час
+    return result;
 }

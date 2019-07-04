@@ -43,8 +43,8 @@ static ipc_processor_t * core_processor_in[CORE_LINK_SIDE_COUNT] =
     &esp_processor_in,
     // CORE_LINK_SIDE_STM
     &stm_processor_in,
-    // TODO: CORE_LINK_SIDE_WEB
-    NULL,
+    // CORE_LINK_SIDE_WEB
+    &httpd_processor_in,
 };
 
 // Имена сторон (для логов)

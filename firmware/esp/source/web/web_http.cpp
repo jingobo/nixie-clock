@@ -490,8 +490,8 @@ void web_http_handler_t::process(web_slot_buffer_t buffer)
         web_hhtp_sha1.update(WEB_HTTP_STR_WEBSOCKET_GUID, strlen(WEB_HTTP_STR_WEBSOCKET_GUID));
         // В base64
         base64_encode(request.headers.temp.value, web_hhtp_sha1.final(), SHA1_HASH_SIZE);
-        strcat(request.headers.temp.value, WEB_HTTP_STR_CRLF);
         socket->log("WebSocket handshake %s", request.headers.temp.value);
+        strcat(request.headers.temp.value, WEB_HTTP_STR_CRLF);
         return;
     }
     // Проверяем на индекс
@@ -582,7 +582,7 @@ void web_http_handler_t::execute(web_slot_buffer_t buffer)
             socket->log("No free WebSocket slots!");
         }
         // Больше отправлять не нужно
-        socket->free(WEB_SLOT_FREE_REASON_NORMAL);
+        socket->free(WEB_SLOT_FREE_REASON_OUTSIDE);
         return;
     }
     // Передача

@@ -199,7 +199,6 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         default:
             break;
     }
-    // TODO: тотальный выпил LOGI("Event code: %d", event->event_id);
     return ESP_OK;
 }
 

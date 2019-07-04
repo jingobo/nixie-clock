@@ -2,8 +2,6 @@
 #define __WEB_WS_H
 
 #include "web_slot.h"
-#include <stddef.h>
-#include <stdint.h>
 
 // Размер управляющего заголовка
 #define WEB_WS_HEADER_CONTROL_SIZE          2
@@ -14,7 +12,20 @@
 // Размер расширенного заголовка
 #define WEB_WS_HEADER_EXTEND_SIZE           (WEB_WS_HEADER_EXTEND_LENGTH_SIZE + WEB_WS_HEADER_EXTEND_MASK_SIZE)
 // Размер полезных данных
-#define WEB_WS_PAYLOAD_SIZE                 256
+#define WEB_WS_PAYLOAD_SIZE                 512
+
+// --- Поддерживаемые коды фреймов --- //
+
+// Текстовый фрейм
+#define WEB_WS_OPCODE_TEXT      0x01
+// Двоичный фрейм
+#define WEB_WS_OPCODE_BINARY    0x02
+// Закрытие соединения этим фреймом
+#define WEB_WS_OPCODE_CLOSE     0x08
+// Ping
+#define WEB_WS_OPCODE_PING      0x09
+// Pong
+#define WEB_WS_OPCODE_PONG      0x0A
 
 // Обработчик WebSocket
 class web_ws_handler_t : public web_slot_handler_t
@@ -173,15 +184,28 @@ class web_ws_handler_t : public web_slot_handler_t
     }
 
     // Обработка входящих данных
-    void process_in(web_slot_buffer_t buffer, size_t size);
-    // Передача данных
+    void process_in(web_slot_buffer_t buffer);
+    // Обработка исходящих данных
+    void process_out(web_slot_buffer_t buffer);
+
+    // Передача сырых данных
     bool transmit(uint8_t code, const void *source, size_t size);
 protected:
     // Освобождение обработчика
     virtual void free(web_slot_free_reason_t reason);
-
     // Обработка данных
     virtual void execute(web_slot_buffer_t buffer);
+
+    // Событие передачи данных (бинарных)
+    virtual void transmit_event(void) = 0;
+    // Событие приёма данных (бинарных)
+    virtual void receive_event(const uint8_t *data, size_t size) = 0;
+
+    // Передача бинарных данных
+    bool transmit(const void *source, size_t size)
+    {
+        return transmit(WEB_WS_OPCODE_BINARY, source, size);
+    }
 public:
     // Конструктор по умолчанию
     web_ws_handler_t(void)
@@ -189,11 +213,8 @@ public:
         reset();
     }
 
+    // Выделение обработчика
+    virtual bool allocate(web_slot_socket_t &socket);
 };
-
-// Шаблон аллокатора слотов WebSocket обработчиков
-template <int COUNT>
-class web_ws_handler_allocator_template_t : public web_slot_handler_allocator_template_t<web_ws_handler_t, COUNT>
-{ };
 
 #endif // __WEB_WS_H

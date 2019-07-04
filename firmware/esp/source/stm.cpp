@@ -150,16 +150,18 @@ RAM void stm_link_t::transaction(void)
 {
     // Вывод пакета
     packet_output(buffer.tx);
-    // В регистры
-    for (auto i = 8; i < 16; i++)
-        WRITE_PERI_REG(SPI_W0(STM_HSPI) + i * SYSTEM_REG_SIZE, buffer.raw[i]);
-    // Ожидание транзакции
-    taskEXIT_CRITICAL();
-        event_data_ready.wait();
+    // Запись в регистры
     taskENTER_CRITICAL();
+        for (auto i = 8; i < 16; i++)
+            WRITE_PERI_REG(SPI_W0(STM_HSPI) + i * SYSTEM_REG_SIZE, buffer.raw[i]);
+    taskEXIT_CRITICAL();
+    // Ожидание транзакции
+    event_data_ready.wait();
     // Чтение из регистров
-    for (auto i = 0; i < 8; i++)
-        buffer.raw[i] = READ_PERI_REG(SPI_W0(STM_HSPI) + i * SYSTEM_REG_SIZE);
+    taskENTER_CRITICAL();
+        for (auto i = 0; i < 8; i++)
+            buffer.raw[i] = READ_PERI_REG(SPI_W0(STM_HSPI) + i * SYSTEM_REG_SIZE);
+    taskEXIT_CRITICAL();
     // Ввод пакета
     packet_input(buffer.rx);
 }
@@ -189,16 +191,17 @@ RAM void stm_task_t::execute(void)
     // SPI enable
     SET_PERI_REG_MASK(SPI_CMD(STM_HSPI), SPI_USR);
     // Цико опроса
-    taskENTER_CRITICAL();
     for (;;)
         stm_link.transaction();
 }
 
-// Процессор входящих пактов для STM
-ipc_processor_ext_t stm_processor_in(IPC_PROCESSOR_EXT_LAMBDA(packet, args)
+RAM ipc_processor_status_t stm_processor_in_t::packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args)
 {
     return stm_link.packet_process(packet, args);
-});
+}
+
+// Процессор входящих пактов для STM
+stm_processor_in_t stm_processor_in;
 
 void stm_init(void)
 {

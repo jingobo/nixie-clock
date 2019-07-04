@@ -4,6 +4,7 @@
 #include <os.h>
 #include <log.h>
 #include <lwip.h>
+#include <core.h>
 
 #include <web/web_ws.h>
 #include <web/web_slot.h>
@@ -19,8 +20,62 @@ LOG_TAG_DECL("HTTPD");
 // Максимальное количество HTTO-сокетов
 #define HTTPD_MAX_HTTP_SOCKETS      (HTTPD_MAX_ALL_SOCKETS - HTTPD_MAX_WEB_SOCKETS)
 
-// Аллокатор слоток WS обработчиков
-static web_ws_handler_allocator_template_t<HTTPD_MAX_WEB_SOCKETS> httpd_ws_handlers;
+// Размер опкода IPC в потоке WS в байтах
+#define HTTPD_WS_IPC_OPCODE_SIZE    1
+
+// Данные между веб сокетом и системой IPC
+static struct
+{
+    // Промежуточный буфер
+    uint8_t buffer[WEB_WS_PAYLOAD_SIZE];
+    // Размер заполдненных данных в буфере
+    size_t size;
+    // Флаг, указывающий что данные валидны
+    bool ready = false;
+    // Мьютекс синхронизации
+    os_mutex_t mutex;
+} httpd_ipc_data;
+
+// Класс реализации обработчиков чтения/записи веб сокетов
+class httpd_ws_handler_t : public web_ws_handler_t
+{
+protected:
+    // Событие передачи данных (бинарных)
+    virtual void transmit_event(void)
+    {
+        httpd_ipc_data.mutex.enter();
+            if (httpd_ipc_data.ready)
+            {
+                assert(httpd_ipc_data.size > HTTPD_WS_IPC_OPCODE_SIZE);
+                httpd_ipc_data.ready = !transmit(httpd_ipc_data.buffer, httpd_ipc_data.size);
+            }
+        httpd_ipc_data.mutex.leave();
+    }
+
+    // Событие приёма данных (бинарных)
+    virtual void receive_event(const uint8_t *data, size_t size)
+    {
+        // Размер должен быть минимум 1 байт (опкод)
+        if (size < HTTPD_WS_IPC_OPCODE_SIZE)
+        {
+            socket->log("Short packet size: %d!", size);
+            return;
+        }
+        // Передача в IPC
+        // Проверка команды
+        auto opcode = (ipc_opcode_t)data[0];
+        if (opcode >= IPC_OPCODE_LIMIT)
+        {
+            socket->log("Invalid opcode: %d!", opcode);
+            return;
+        }
+        // Разбитие данных на пакеты IPC
+        core_processor_out.web.packet_split(opcode, IPC_DIR_REQUEST, data + HTTPD_WS_IPC_OPCODE_SIZE, size - HTTPD_WS_IPC_OPCODE_SIZE);
+    }
+};
+
+// Аллокатор слотов WS обработчиков
+static web_slot_handler_allocator_template_t<httpd_ws_handler_t, HTTPD_MAX_WEB_SOCKETS> httpd_ws_handlers;
 // Аллокатор слотов HTTP обработчиков
 static web_http_handler_allocator_template_t<HTTPD_MAX_HTTP_SOCKETS> httpd_web_handlers(httpd_ws_handlers);
 // Аллокатор слотов сокетов
@@ -61,6 +116,7 @@ protected:
             {
                 allocated_last = allocated;
                 LOGI("Slot count: %d", allocated);
+                LOGH();
             }
         }
     }
@@ -175,6 +231,45 @@ public:
     httpd_server_task_t(void) : os_task_base_t("httpd-server")
     { }
 } httpd_server_task;
+
+RAM ipc_processor_status_t httpd_processor_in_t::packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args)
+{
+    // Если первый пакет...
+    if (args.first)
+    {
+        // Проверяем, поместятся ли данные
+        if (args.size > WEB_WS_PAYLOAD_SIZE - HTTPD_WS_IPC_OPCODE_SIZE)
+            return IPC_PROCESSOR_STATUS_OVERLOOK;
+        // Сброс флага готовности
+        httpd_ipc_data.mutex.enter();
+            httpd_ipc_data.ready = false;
+        httpd_ipc_data.mutex.leave();
+        // Добавляем байт команды
+        httpd_ipc_data.size = HTTPD_WS_IPC_OPCODE_SIZE;
+        httpd_ipc_data.buffer[0] = (uint8_t)packet.dll.opcode;
+    }
+    // Проверяем условия
+    assert(!httpd_ipc_data.ready);
+    assert(packet.dll.opcode == httpd_ipc_data.buffer[0]);
+    // Добавялем данные
+    auto len = packet.dll.length;
+    memcpy(httpd_ipc_data.buffer + httpd_ipc_data.size, &packet.apl, len);
+    httpd_ipc_data.size += len;
+    // Если пакет последний
+    if (!packet.dll.more)
+    {
+        // Проверяем условия
+        assert(args.size == httpd_ipc_data.size - HTTPD_WS_IPC_OPCODE_SIZE);
+        // Установка флага готовности
+        httpd_ipc_data.mutex.enter();
+            httpd_ipc_data.ready = true;
+        httpd_ipc_data.mutex.leave();
+    }
+    return IPC_PROCESSOR_STATUS_SUCCESS;
+}
+
+// Процессор входящих пактов для Web
+httpd_processor_in_t httpd_processor_in;
 
 void httpd_init(void)
 {

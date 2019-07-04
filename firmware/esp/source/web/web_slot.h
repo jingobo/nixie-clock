@@ -11,7 +11,9 @@ typedef uint8_t web_slot_buffer_t[CONFIG_TCP_SND_BUF_DEFAULT];
 enum web_slot_free_reason_t
 {
     // Нормальное закрытие с нашей стороны
-    WEB_SLOT_FREE_REASON_NORMAL,
+    WEB_SLOT_FREE_REASON_INSIDE,
+    // Нормальное закрытие с чужой стороны
+    WEB_SLOT_FREE_REASON_OUTSIDE,
     // Закрытие по причине ошибки сети
     WEB_SLOT_FREE_REASON_NETWORK,
     // Переход на другой обработчик/протокол

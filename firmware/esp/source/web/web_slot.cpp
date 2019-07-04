@@ -45,7 +45,7 @@ bool web_slot_socket_t::allocate(web_slot_handler_allocator_t &initial_allocator
     if (handler == NULL)
     {
         log("Unable to allocate initial handler slot!");
-        free(WEB_SLOT_FREE_REASON_NORMAL);
+        free(WEB_SLOT_FREE_REASON_INSIDE);
     }
     return true;
 }
@@ -94,8 +94,12 @@ void web_slot_socket_t::free(web_slot_free_reason_t reason)
     // Вывод в лог
     switch (reason)
     {
-        case WEB_SLOT_FREE_REASON_NORMAL:
-            log("Closing...");
+        case WEB_SLOT_FREE_REASON_INSIDE:
+            log("Inside close");
+            close();
+            break;
+        case WEB_SLOT_FREE_REASON_OUTSIDE:
+            log("Outside closing...");
             closing = true;
             break;
         case WEB_SLOT_FREE_REASON_NETWORK:
@@ -125,7 +129,7 @@ void web_slot_socket_t::execute(web_slot_buffer_t buffer)
     if (timeout.period > 0 && os_tick_get() - timeout.start >= timeout.period)
     {
         log("Timeout!");
-        free(WEB_SLOT_FREE_REASON_NETWORK);
+        free(WEB_SLOT_FREE_REASON_INSIDE);
     }
 }
 

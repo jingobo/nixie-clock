@@ -158,7 +158,8 @@ app.session = new function ()
         // Инициализация WS
         try
         {
-            ws = new WebSocket("ws://" + window.location.hostname + ":7777");
+            // TODO: вернуть ws = new WebSocket("ws://" + window.location.hostname + ":7777");
+            ws = new WebSocket("ws://192.168.88.92:80");
         }
         catch (e)
         {
@@ -173,6 +174,12 @@ app.session = new function ()
         {
             // Показ приложения
             // TODO: вернууть app.overlay.asLoader(false);
+
+            var writer = new BinWriter();
+            writer.uint8(0x02);
+            writer.int8(0xAA);
+            
+            ws.send(writer.toArray());
         };
         
         // Обработчик закрытия

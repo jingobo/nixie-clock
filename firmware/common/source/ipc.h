@@ -189,31 +189,6 @@ public:
     virtual ipc_processor_status_t packet_split(ipc_opcode_t opcode, ipc_dir_t dir, const void *source, size_t size);
 };
 
-// TODO: возможно выилить Декларация лямбды для обработки пакетов
-#define IPC_PROCESSOR_EXT_LAMBDA(p, a)  [](const ipc_packet_t &p, const ipc_processor_args_t &a) -> ipc_processor_status_t
-
-// TODO: возможно выилить Класс реализации интерфейса процессора пакетов с колбеком
-class ipc_processor_ext_t : public ipc_processor_t
-{
-    // Прототип функции обработки пакета
-    typedef ipc_processor_status_t (* process_callback_ptr)(const ipc_packet_t &packet, const ipc_processor_args_t &args);
-
-    // Функция обработки пакетов
-    const process_callback_ptr callback;
-public:
-    // Конструктор по умолчанию
-    ipc_processor_ext_t(process_callback_ptr _callback) : callback(_callback)
-    {
-        assert(_callback != NULL);
-    }
-
-    // Обработка пакета
-    virtual ipc_processor_status_t packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args)
-    {
-        return callback(packet, args);
-    }
-};
-
 // Базовый класс обработчика событий
 class ipc_event_handler_t : list_item_t
 {

@@ -4,8 +4,16 @@
 #include <ipc.h>
 #include "system.h"
 
+// Класс процессора входящих пактов для STM
+class stm_processor_in_t : public ipc_processor_t
+{
+public:
+    // Обработка пакета
+    virtual ipc_processor_status_t packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args);
+};
+
 // Процессор входящих пактов для STM
-extern ipc_processor_ext_t stm_processor_in;
+extern stm_processor_in_t stm_processor_in;
 
 // Инициализация модуля
 void stm_init(void);
