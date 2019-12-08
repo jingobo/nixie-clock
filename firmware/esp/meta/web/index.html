@@ -14,6 +14,7 @@
         <link rel="stylesheet" href="css/main.css">
     </head>
     <body>
+        <!-- Оверлей окна -->
         <div class="center-panel" id="overlay">
             <div class="row justify-content-center justify-content-md-start  border rounded text-muted bg-light">
                 <div class="col-auto no-padding">
@@ -29,6 +30,23 @@
                 </div>
             </div>
         </div>
+        <!-- Модальное окно с ошибкой -->
+        <div class="modal fade" id="popup" tabindex="-1" role="dialog">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title text-danger">Ошибка обработки запроса</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                  <span>&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                <span>Возможно последние действия не были применены. Попробуйте повторить попытку.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Основной контейнер -->
         <div class="container" style="display: none">
             <!-- Дисплей часов -->
             <div class="row justify-content-center">

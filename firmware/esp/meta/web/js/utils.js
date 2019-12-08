@@ -1,12 +1,20 @@
 // Логирование
 var log =
-{    
+{
     // Вывод в консоль строки с ошибкой
     error: function (msg)
     {
         if (console === undefined || console.error === undefined)
             return;
         console.error(msg);
+    },
+
+    // Вывод в консоль строки с информацией
+    info: function (msg)
+    {
+        if (console === undefined || console.info === undefined)
+            return;
+        console.info(msg);
     },
     
     // Проверка условия
@@ -18,6 +26,46 @@ var log =
             msg = "Assertion error!";
         this.error(msg);
     }
+};
+
+// Утилиты по работе с DOM
+var utils = new function ()
+{
+    // Добавление значения к выпа
+    this.dropdownAdd = function (dropdown, value, text)
+    {
+        dropdown.append($("<option />").val(value).text(text));
+    };
+    
+    // Заполнение выпадающего списка числами
+    this.dropdownFillNumber = function (dropdown, from, to)
+    {
+        // Проверка аргументов
+        log.assert(from <= to);
+        // Отчистка списка
+        dropdown.empty();
+        // Заполнение числами
+        for (var i = from; i <= to; i++)
+            this.dropdownAdd(dropdown, i, i);
+    };
+    
+    // Заполнение выпадающего списка массивом
+    this.dropdownFillArray = function (dropdown, values, texts)
+    {
+        // Проверка аргументов
+        log.assert(values.length == texts.length);
+        // Отчистка списка
+        dropdown.empty();
+        // Заполнение числами
+        for (var i = 0; i < values.length; i++)
+            this.dropdownAdd(dropdown, values[i], texts[i]);
+    };
+    
+    // Получает значение выбранного элмента в виде числа
+    this.dropdownSelectedNumber = function (dropdown)
+    {
+        return Number(dropdown.val());
+    };
 };
 
 // Объект цвета
