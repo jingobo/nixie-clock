@@ -3,6 +3,7 @@
 
 #include <os.h>
 #include <log.h>
+#include <stm.h>
 #include <lwip.h>
 #include <core.h>
 
@@ -30,11 +31,30 @@ static struct
     uint8_t buffer[WEB_WS_PAYLOAD_SIZE];
     // Размер заполдненных данных в буфере
     size_t size;
-    // Флаг, указывающий что данные валидны
-    bool ready = false;
     // Мьютекс синхронизации
     os_mutex_t mutex;
+    // Флаг, указывающий что обычные данные валидны
+    bool ready = false;
+    // Флаг, указывающий что нужно отправить ошибку
+    ipc_processor_status_t error = IPC_PROCESSOR_STATUS_SUCCESS;
 } httpd_ipc_data;
+
+// Пакет ошибки, передаваемый по IPC
+ALIGN_FIELD_8
+struct httpd_ipc_error_t
+{
+    // Код команды
+    const ipc_opcode_t opcode : 8;
+    // Код ошибки
+    const ipc_processor_status_t error : 8;
+
+    // Конструктор по умолчанию
+    httpd_ipc_error_t(ipc_processor_status_t _error) : opcode(IPC_OPCODE_FLOW), error(_error)
+    {
+        assert(error != IPC_PROCESSOR_STATUS_SUCCESS);
+    }
+};
+ALIGN_FIELD_DEF
 
 // Класс реализации обработчиков чтения/записи веб сокетов
 class httpd_ws_handler_t : public web_ws_handler_t
@@ -43,8 +63,16 @@ protected:
     // Событие передачи данных (бинарных)
     virtual void transmit_event(void)
     {
+        // Синхронизация
         httpd_ipc_data.mutex.enter();
-            if (httpd_ipc_data.ready)
+            // Если нужно отправить ошибку
+            if (httpd_ipc_data.error != IPC_PROCESSOR_STATUS_SUCCESS)
+            {
+                httpd_ipc_error_t ipc_error(httpd_ipc_data.error);
+                httpd_ipc_data.error = transmit(&ipc_error, sizeof(ipc_error)) ? IPC_PROCESSOR_STATUS_SUCCESS : httpd_ipc_data.error;
+            }
+            // Если готовы обычные данные
+            else if (httpd_ipc_data.ready)
             {
                 assert(httpd_ipc_data.size > HTTPD_WS_IPC_OPCODE_SIZE);
                 httpd_ipc_data.ready = !transmit(httpd_ipc_data.buffer, httpd_ipc_data.size);
@@ -70,7 +98,22 @@ protected:
             return;
         }
         // Разбитие данных на пакеты IPC
-        core_processor_out.web.packet_split(opcode, IPC_DIR_REQUEST, data + HTTPD_WS_IPC_OPCODE_SIZE, size - HTTPD_WS_IPC_OPCODE_SIZE);
+        httpd_ipc_data.error = core_processor_out.web.packet_split(opcode, IPC_DIR_REQUEST, data + HTTPD_WS_IPC_OPCODE_SIZE, size - HTTPD_WS_IPC_OPCODE_SIZE);
+    }
+public:
+    // Выделение обработчика
+    virtual bool allocate(web_slot_socket_t &socket)
+    {
+        auto result = web_ws_handler_t::allocate(socket);
+        if (result)
+        {
+            // Сброс передаваемых данных
+            httpd_ipc_data.mutex.enter();
+                httpd_ipc_data.ready = false;
+                httpd_ipc_data.error = IPC_PROCESSOR_STATUS_SUCCESS;
+            httpd_ipc_data.mutex.leave();
+        }
+        return result;
     }
 };
 
@@ -98,7 +141,6 @@ protected:
         // Обработка
         for (;;)
         {
-
             // Пробуем достать нового клиента
             if (xQueueReceive(queue, &socket, OS_MS_TO_TICKS(20)) > 0)
                 if (httpd_socket_handlers.allocate(socket) == NULL)
@@ -268,6 +310,23 @@ RAM ipc_processor_status_t httpd_processor_in_t::packet_process(const ipc_packet
     return IPC_PROCESSOR_STATUS_SUCCESS;
 }
 
+// Базовый класс обработчика событий
+static class httpd_ipc_event_handler_t : public ipc_event_handler_t
+{
+    friend class ipc_link_t;
+protected:
+    // Событие сброса
+    virtual void reset(void)
+    {
+        // Базовый метод
+        ipc_event_handler_t::reset();
+        // Оповещение сокета
+        httpd_ipc_data.mutex.enter();
+            httpd_ipc_data.error = IPC_PROCESSOR_STATUS_CORRUPTION;
+        httpd_ipc_data.mutex.leave();
+    }
+} httpd_ipc_event_handler;
+
 // Процессор входящих пактов для Web
 httpd_processor_in_t httpd_processor_in;
 
@@ -279,4 +338,6 @@ void httpd_init(void)
     // Запуск серверной задачи
     httpd_server_task.start();
     assert(httpd_server_task.running());
+    // Установка обрабтчика IPC
+    stm_add_event_handler(httpd_ipc_event_handler);
 }
