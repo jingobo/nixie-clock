@@ -1,6 +1,6 @@
-﻿// Данные ответа запроса даты/времени
+﻿// Данные ответа запроса синхронизации даты/времени
 ALIGN_FIELD_8
-struct time_command_get_response_t
+struct time_command_sync_response_t
 {
     // Дата/время (возможно не валидная)
     datetime_t value;
@@ -25,12 +25,12 @@ struct time_command_get_response_t
 };
 ALIGN_FIELD_DEF
 
-// Команда запроса даты/времени
-class time_command_get_t : public ipc_command_getter_t<time_command_get_response_t>
+// Команда синхронизации даты/времени
+class time_command_sync_t : public ipc_command_getter_t<time_command_sync_response_t>
 {
 public:
     // Конструктор по умолчанию
-    time_command_get_t(void) : ipc_command_getter_t(IPC_OPCODE_ESP_TIME_GET)
+    time_command_sync_t(void) : ipc_command_getter_t(IPC_OPCODE_ESP_TIME_SYNC)
     { }
 };
 
@@ -122,8 +122,8 @@ public:
     { }
 };
 
-ALIGN_FIELD_8
 // Структура настроек даты/времени
+ALIGN_FIELD_8
 struct time_sync_settings_t
 {
     // Период синхронизации
@@ -155,5 +155,51 @@ struct time_sync_settings_t
     {
         return sync && !time_hosts_empty(hosts);
     }
+    
+    // Проверка полей
+    bool check(void) const
+    {
+        return sync <= IPC_BOOL_TRUE &&
+               timezone >= -24 && timezone <= 26 &&
+               offset >= -24 && offset <= 24 &&
+               period <= SYNC_PERIOD_MONTH &&
+               time_hosts_data_check(hosts);
+    }
 };
 ALIGN_FIELD_DEF
+
+// Команда получения текущей даты/времени
+class time_command_current_get_t : public ipc_command_getter_t<datetime_t>
+{
+public:
+    // Конструктор по умолчанию
+    time_command_current_get_t(void) : ipc_command_getter_t(IPC_OPCODE_STM_TIME_GET)
+    { }
+};
+
+// Команда установки текущей даты/времени
+class time_command_current_set_t : public ipc_command_setter_t<datetime_t>
+{
+public:
+    // Конструктор по умолчанию
+    time_command_current_set_t(void) : ipc_command_setter_t(IPC_OPCODE_STM_TIME_SET)
+    { }
+};
+
+// Команда получения настроек даты/времени
+class time_command_settings_get_t : public ipc_command_getter_t<time_sync_settings_t>
+{
+public:
+    // Конструктор по умолчанию
+    time_command_settings_get_t(void) : ipc_command_getter_t(IPC_OPCODE_STM_TIME_SETTINGS_GET)
+    { }
+};
+
+// Команда установки настроек даты/времени
+class time_command_settings_set_t : public ipc_command_setter_t<time_sync_settings_t>
+{
+public:
+    // Конструктор по умолчанию
+    time_command_settings_set_t(void) : ipc_command_setter_t(IPC_OPCODE_STM_TIME_SETTINGS_SET)
+    { }
+};

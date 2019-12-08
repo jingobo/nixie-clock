@@ -22,7 +22,7 @@ static wifi_settings_t wifi_settings @ STORAGE_SECTION =
 };
 
 // Обработчик команды запроса настроек WiFi
-static class wifi_handler_command_settings_get_t : public ipc_command_handler_template_sticky_t<wifi_command_settings_get_t>
+static class wifi_command_handler_settings_get_t : public ipc_command_handler_template_sticky_t<wifi_command_settings_get_t>
 {
 protected:
     // Оповещение о поступлении данных
@@ -41,10 +41,10 @@ protected:
     {
         return esp_transmit(IPC_DIR_RESPONSE, command);
     }
-} wifi_handler_command_settings_get;
+} wifi_command_handler_settings_get;
 
 // Обработчик команды оповещения о смене настроек WiFi
-static class wifi_handler_command_settings_changed_t : public ipc_command_handler_template_sticky_t<wifi_command_settings_changed_t>
+static class wifi_command_handler_settings_changed_t : public ipc_command_handler_template_sticky_t<wifi_command_settings_changed_t>
 {
 protected:
     // Оповещение о поступлении данных
@@ -60,25 +60,25 @@ protected:
     {
         return esp_transmit(IPC_DIR_REQUEST, command);
     }
-} wifi_handler_command_settings_changed;
+} wifi_command_handler_settings_changed;
 
 // Обработчик событий IPC
-static class wifi_handler_ipc_event_t : public ipc_event_handler_t
+static class wifi_ipc_event_handler_t : public ipc_event_handler_t
 {
     // Обработчик события сброса
     virtual void reset(void)
     {
-        wifi_handler_command_settings_get.reset();
-        wifi_handler_command_settings_changed.reset();
+        wifi_command_handler_settings_get.reset();
+        wifi_command_handler_settings_changed.reset();
     }
 
     // Обработчик события простоя
     virtual void idle(void)
     {
-        wifi_handler_command_settings_get.idle();
-        wifi_handler_command_settings_changed.idle();
+        wifi_command_handler_settings_get.idle();
+        wifi_command_handler_settings_changed.idle();
     }
-} wifi_handler_ipc_event;
+} wifi_ipc_event_handler;
 
 static uint8_t wifi_test_time = 0;
 
@@ -112,9 +112,9 @@ static callback_list_item_t wifi_second_event([](void)
 
 void wifi_init(void)
 {
-    esp_add_event_handler(wifi_handler_ipc_event);
-    esp_add_command_handler(wifi_handler_command_settings_get);
-    esp_add_command_handler(wifi_handler_command_settings_changed);
+    esp_add_event_handler(wifi_ipc_event_handler);
+    esp_add_command_handler(wifi_command_handler_settings_get);
+    esp_add_command_handler(wifi_command_handler_settings_changed);
     // Добавление обработчика секундного события
     rtc_second_event_add(wifi_second_event);
 }
@@ -126,5 +126,5 @@ bool wifi_has_internet_get(void)
 
 void wifi_settings_changed(void)
 {
-    wifi_handler_command_settings_changed.transmit();
+    wifi_command_handler_settings_changed.transmit();
 }

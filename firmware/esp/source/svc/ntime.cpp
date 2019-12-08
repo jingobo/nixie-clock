@@ -24,7 +24,7 @@ struct ntime_hosts_t
 } ntime_hosts;
 
 // Обработчик команды получения даты/времени
-static class ntime_command_time_get_t : public ipc_command_handler_template_sticky_t<time_command_get_t>
+static class ntime_command_time_sync_t : public ipc_command_handler_template_sticky_t<time_command_sync_t>
 {
     // Флаг состояния обработки
     bool working = false;
@@ -48,7 +48,7 @@ public:
             working = false;
         core_main_task.mutex.leave();
     }
-} ntime_command_time_get;
+} ntime_command_time_sync;
 
 // Попытка получения даты/времени с указанного сервера
 static void ntime_try_host(const char *host, datetime_t &dest)
@@ -121,7 +121,7 @@ static void ntime_try_host(const char *host, datetime_t &dest)
         return;
     // Вывод результата
     LOGI("Success. Time: %d/%d/%d %d:%d:%d (GMT 0)", dest.day, dest.month, dest.year, dest.hour, dest.minute, dest.second);
-    ntime_command_time_get.command.response.status = time_command_get_response_t::STATUS_SUCCESS;
+    ntime_command_time_sync.command.response.status = time_command_sync_response_t::STATUS_SUCCESS;
 }
 
 // Попытка получения даты/времени со всех хостов
@@ -131,10 +131,10 @@ static void ntime_try_hosts(void)
     if (ntime_hosts.empty)
     {
         LOGW("Sync canceled, hosts list is not fetched!");
-        ntime_command_time_get.command.response.status = time_command_get_response_t::STATUS_HOSTLIST;
+        ntime_command_time_sync.command.response.status = time_command_sync_response_t::STATUS_HOSTLIST;
         return;
     }
-    ntime_command_time_get.command.response.status = time_command_get_response_t::STATUS_FAILED;
+    ntime_command_time_sync.command.response.status = time_command_sync_response_t::STATUS_FAILED;
     // Проверяем, есть ли какой либо сетевой интерфейс
     if (!wifi_wait())
     {
@@ -152,9 +152,9 @@ static void ntime_try_hosts(void)
         {
             host[size] = '\0';
             // Попытка запроса по указанному хосту
-            ntime_try_host(host, ntime_command_time_get.command.response.value);
+            ntime_try_host(host, ntime_command_time_sync.command.response.value);
             // Если успех = выходим
-            if (ntime_command_time_get.command.response.status == time_command_get_response_t::STATUS_SUCCESS)
+            if (ntime_command_time_sync.command.response.status == time_command_sync_response_t::STATUS_SUCCESS)
                 break;
             // Переход к следующему хосту
             size = 0;
@@ -166,14 +166,14 @@ static void ntime_try_hosts(void)
             host[size] = '\0';
             // Если не первый символ...
             // Попытка запроса по указанному хосту
-            ntime_try_host(host, ntime_command_time_get.command.response.value);
+            ntime_try_host(host, ntime_command_time_sync.command.response.value);
             break;
         }
         host[size++] = c;
     }
 }
 
-void ntime_command_time_get_t::notify(ipc_dir_t dir)
+void ntime_command_time_sync_t::notify(ipc_dir_t dir)
 {
     // Мы можем только обрабатывать запрос
     assert(dir == IPC_DIR_REQUEST);
@@ -196,7 +196,7 @@ void ntime_command_time_get_t::notify(ipc_dir_t dir)
             ntime_try_hosts();
         ntime_hosts.mutex.leave();
         // Обратная связь
-        ntime_command_time_get.feedback();
+        ntime_command_time_sync.feedback();
     });
 }
 
@@ -236,7 +236,7 @@ protected:
         // Базовый метод
         ipc_event_handler_t::idle();
         // Команды
-        ntime_command_time_get.idle();
+        ntime_command_time_sync.idle();
         ntime_command_hostlist_set.idle();
     }
 
@@ -246,7 +246,7 @@ protected:
         // Базовый метод
         ipc_event_handler_t::reset();
         // Команды
-        ntime_command_time_get.reset();
+        ntime_command_time_sync.reset();
         ntime_command_hostlist_set.reset();
     }
 } ntime_ipc_handler;
@@ -254,6 +254,6 @@ protected:
 void ntime_init(void)
 {
     stm_add_event_handler(ntime_ipc_handler);
-    core_add_command_handler(ntime_command_time_get);
+    core_add_command_handler(ntime_command_time_sync);
     core_add_command_handler(ntime_command_hostlist_set);
 }

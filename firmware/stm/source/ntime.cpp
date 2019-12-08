@@ -25,7 +25,7 @@ static time_sync_settings_t ntime_sync_settings @ STORAGE_SECTION =
 /*__no_init*/ static datetime_t ntime_sync_time;
 
 // Обработчик команды получения даты/времени
-static class ntime_command_time_get_t : public ipc_command_handler_template_t<time_command_get_t>
+static class ntime_command_handler_time_sync_t : public ipc_command_handler_template_t<time_command_sync_t>
 {
     // Состояние синхронизации
     enum
@@ -52,15 +52,7 @@ public:
     // Сброс
     void reset(void)
     {
-        // Перезапрашиваем
-        state = STATE_REQUEST;
-    }
-
-    // Старт синхронизации
-    void sync(void)
-    {
-        // Перезапрашиваем если 
-        if (state <= STATE_SUCCESS && wifi_has_internet_get() && ntime_sync_settings.can_sync())
+        if (state == STATE_RESPONSE)
             state = STATE_REQUEST;
     }
     
@@ -71,7 +63,21 @@ public:
             // Ожидаем ответ
             state = STATE_RESPONSE;
     }
-        
+
+    // Старт синхронизации
+    void go(bool forced)
+    {
+        // При форсированном режиме синхронизация не замедлительно кроме - если уже запросили
+        if (forced && state == STATE_RESPONSE)
+            return;
+        // При обычном режиме синхронизация только если сейчас в простое
+        if (!forced && state > STATE_SUCCESS)
+            return;
+        // Проверяем, есть ли гепотетически интернет и можем ли синхронизировать
+        if (wifi_has_internet_get() && ntime_sync_settings.can_sync())
+            state = STATE_REQUEST;
+    }
+
     // Секундное событие
     void second(void)
     {
@@ -79,10 +85,10 @@ public:
         if (state > STATE_REQUEST)
             state = ENUM_VALUE_PREV(state);
     }
-} ntime_command_time_get;
+} ntime_command_handler_time_sync;
 
 // Обработчик команды запроса списка SNTP хостов
-static class ntime_command_hostlist_set_t : public ipc_command_handler_template_sticky_t<time_command_hostlist_set_t>
+static class ntime_command_handler_hostlist_set_t : public ipc_command_handler_template_sticky_t<time_command_hostlist_set_t>
 {
 protected:
     // Оповещение о поступлении данных
@@ -90,8 +96,8 @@ protected:
     {
         // Мы можем только обрабатывать ответ
         assert(dir == IPC_DIR_RESPONSE);
-        // Сброс
-        reset();
+        // Форсированный запуск синхронизации
+        ntime_command_handler_time_sync.go(true);
     }
     
     // Обработчик передачи
@@ -102,25 +108,16 @@ protected:
         // Передачем
         return esp_transmit(IPC_DIR_REQUEST, command);
     }
-public:
-    // Сброс
-    virtual void reset(void)
-    {
-        // Базовый метод
-        ipc_command_handler_template_sticky_t::reset();
-        // Заодно сброс команды получения времени
-        ntime_command_time_get.reset();
-    }
-} ntime_command_hostlist_set;
+} ntime_command_handler_hostlist_set;
 
-void ntime_command_time_get_t::notify(ipc_dir_t dir)
+void ntime_command_handler_time_sync_t::notify(ipc_dir_t dir)
 {
     // Мы можем только обрабатывать ответ
     assert(dir == IPC_DIR_RESPONSE);
     // Если ошибка, переспросим
     switch (command.response.status)
     {
-        case time_command_get_response_t::STATUS_SUCCESS:
+        case time_command_sync_response_t::STATUS_SUCCESS:
             // Получили дату
             state = STATE_SUCCESS;
             // Применение GMT
@@ -141,7 +138,7 @@ void ntime_command_time_get_t::notify(ipc_dir_t dir)
             if (ntime_sync_settings.can_sync())
                 rtc_datetime_set(command.response.value);
             break;
-        case time_command_get_response_t::STATUS_FAILED:
+        case time_command_sync_response_t::STATUS_FAILED:
             // Возможно ошибка сети
             if (!wifi_has_internet_get())
             {
@@ -151,14 +148,14 @@ void ntime_command_time_get_t::notify(ipc_dir_t dir)
             // Сетевая ошибка, перезапрос через задержку
             state = STATE_NEEDED_DELAY_2;
             break;
-        case time_command_get_response_t::STATUS_HOSTLIST:
+        case time_command_sync_response_t::STATUS_HOSTLIST:
             // Нет хостов, отаправляем
             if (time_hosts_empty(ntime_sync_settings.hosts))
             {
                 state = STATE_SUCCESS;
                 break;
             }
-            ntime_command_hostlist_set.transmit();
+            ntime_command_handler_hostlist_set.transmit();
             state = STATE_NEEDED_DELAY_4;
             break;
         default:
@@ -166,6 +163,99 @@ void ntime_command_time_get_t::notify(ipc_dir_t dir)
             break;
     }
 }
+
+// Обработчик команды запроса текущей даты/времени
+static class ntime_command_handler_current_get_t : public ipc_command_handler_template_sticky_t<time_command_current_get_t>
+{
+protected:
+    // Оповещение о поступлении данных
+    virtual void notify(ipc_dir_t dir)
+    {
+        // Мы можем только обрабатывать запрос
+        assert(dir == IPC_DIR_REQUEST);
+        // Передача
+        transmit();
+    }
+    
+    // Обработчик передачи
+    virtual bool transmit_internal(void)
+    {
+        // Заполняем ответ
+        rtc_datetime_get(command.response);
+        // Передачем
+        return esp_transmit(IPC_DIR_RESPONSE, command);
+    }
+} ntime_command_handler_current_get;
+
+// Обработчик команды установки текущей даты/времени
+static class ntime_command_handler_current_set_t : public ipc_command_handler_template_sticky_t<time_command_current_set_t>
+{
+protected:
+    // Оповещение о поступлении данных
+    virtual void notify(ipc_dir_t dir)
+    {
+        // Мы можем только обрабатывать запрос
+        assert(dir == IPC_DIR_REQUEST);
+        // Установка даты/времени
+        rtc_datetime_set(command.request);
+        // Передача
+        transmit();
+    }
+    
+    // Обработчик передачи
+    virtual bool transmit_internal(void)
+    {
+        // Передачем
+        return esp_transmit(IPC_DIR_RESPONSE, command);
+    }
+} ntime_command_handler_current_set;
+
+// Обработчик команды запроса настроек даты/времени
+static class ntime_command_handler_settings_get_t : public ipc_command_handler_template_sticky_t<time_command_settings_get_t>
+{
+protected:
+    // Оповещение о поступлении данных
+    virtual void notify(ipc_dir_t dir)
+    {
+        // Мы можем только обрабатывать запрос
+        assert(dir == IPC_DIR_REQUEST);
+        // Передача
+        transmit();
+    }
+    
+    // Обработчик передачи
+    virtual bool transmit_internal(void)
+    {
+        // Заполняем ответ
+        command.response = ntime_sync_settings;
+        // Передачем
+        return esp_transmit(IPC_DIR_RESPONSE, command);
+    }
+} ntime_command_handler_settings_get;
+
+// Обработчик команды установки настроек даты/времени
+static class ntime_command_handler_settings_set_t : public ipc_command_handler_template_sticky_t<time_command_settings_set_t>
+{
+protected:
+    // Оповещение о поступлении данных
+    virtual void notify(ipc_dir_t dir)
+    {
+        // Мы можем только обрабатывать запрос
+        assert(dir == IPC_DIR_REQUEST);
+        // Установка настроек
+        ntime_sync_settings = command.request;
+        storage_modified();
+        // Передача
+        transmit();
+    }
+    
+    // Обработчик передачи
+    virtual bool transmit_internal(void)
+    {
+        // Передачем
+        return esp_transmit(IPC_DIR_RESPONSE, command);
+    }
+} ntime_command_handler_settings_set;
 
 // Класс обработчика событий IPC
 static class ntime_ipc_handler_t : public ipc_event_handler_t
@@ -177,7 +267,11 @@ protected:
         // Базовый метод
         ipc_event_handler_t::idle();
         // Команды
-        ntime_command_time_get.idle();
+        ntime_command_handler_time_sync.idle();
+        ntime_command_handler_current_get.idle();
+        ntime_command_handler_current_set.idle();
+        ntime_command_handler_settings_get.idle();
+        ntime_command_handler_settings_set.idle();
     }
     
     // Событие сброса
@@ -186,7 +280,12 @@ protected:
         // Базовый метод
         ipc_event_handler_t::reset();
         // Команды
-        ntime_command_hostlist_set.reset();
+        ntime_command_handler_time_sync.reset();
+        ntime_command_handler_current_get.reset();
+        ntime_command_handler_current_set.reset();
+        ntime_command_handler_hostlist_set.reset();
+        ntime_command_handler_settings_get.reset();
+        ntime_command_handler_settings_set.reset();
     }
 } ntime_ipc_handler;
 
@@ -194,7 +293,7 @@ protected:
 static callback_list_item_t ntime_second_event([](void)
 {
     // Оповещение о секунде
-    ntime_command_time_get.second();
+    ntime_command_handler_time_sync.second();
 });
 
 void ntime_init(void)
@@ -203,13 +302,17 @@ void ntime_init(void)
     rtc_second_event_add(ntime_second_event);
     // Обработчики IPC
     esp_add_event_handler(ntime_ipc_handler);
-    esp_add_command_handler(ntime_command_time_get);
-    esp_add_command_handler(ntime_command_hostlist_set);
+    esp_add_command_handler(ntime_command_handler_time_sync);
+    esp_add_command_handler(ntime_command_handler_current_get);
+    esp_add_command_handler(ntime_command_handler_current_set);
+    esp_add_command_handler(ntime_command_handler_settings_get);
+    esp_add_command_handler(ntime_command_handler_settings_set);
+    esp_add_command_handler(ntime_command_handler_hostlist_set);
     // Запуск синхронизации
     ntime_sync();
 }
 
 void ntime_sync(void)
 {
-    ntime_command_time_get.sync();
+    ntime_command_handler_time_sync.go(false);
 }

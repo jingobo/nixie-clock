@@ -42,8 +42,20 @@ enum ipc_opcode_t
     
     // Не команда, база для команд, обрабатываемых ядром STM32
     IPC_OPCODE_STM_HANDLE_BASE = 1,
+        // Запрос текущей даты/времени
+        IPC_OPCODE_STM_TIME_GET,
+        // Установка текущей даты/времени
+        IPC_OPCODE_STM_TIME_SET,
+        
+        // Запрос настроек даты/времени
+        IPC_OPCODE_STM_TIME_SETTINGS_GET,
+        // Установка настроек даты/времени
+        IPC_OPCODE_STM_TIME_SETTINGS_SET,
+        
         // Запрос настроек WiFi
         IPC_OPCODE_STM_WIFI_SETTINGS_GET,
+        // Установка настроек WiFi
+        IPC_OPCODE_STM_WIFI_SETTINGS_SET,
 
     // Не команда, база для команд, обрабатываемых модулем ESP8266
     IPC_OPCODE_ESP_HANDLE_BASE = 100,
@@ -51,7 +63,7 @@ enum ipc_opcode_t
         IPC_OPCODE_ESP_WIFI_SETTINGS_CHANGED,
         
         // Запрос даты/времени из интернета
-        IPC_OPCODE_ESP_TIME_GET,
+        IPC_OPCODE_ESP_TIME_SYNC,
         // Передача списка хостов SNTP
         IPC_OPCODE_ESP_TIME_HOSTLIST_SET,
     // Не команда, определяет лимит количества команд

@@ -36,7 +36,8 @@ public:
     void reset(void)
     {
         // Сброс в начальное состояние
-        state = STATE_REQUEST;
+        if (state == STATE_RESPONSE)
+            state = STATE_REQUEST;
     }
 
     // Обработчик события простоя
