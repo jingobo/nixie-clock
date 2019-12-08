@@ -40,7 +40,7 @@ static void timer_ccr_inc(timer_period_t delta)
 {
     delta += (timer_period_t)TIM3->CNT;
     // Установка регистра CCR1
-    TIM3->CCR1 = delta;
+    TIM3->CCR1 = delta;                                                         // Update CC1 value
     // Сброс флага прерывания
     TIM3->SR &= ~TIM_SR_CC1IF;                                                  // Clear IRQ CC1 pending flag
 }
@@ -152,11 +152,9 @@ void timer_base_t::interrupt_htim(void)
                 else
                 {
                     // ...в основной нити
+                    event_raise = true;
                     if (timer.raised.unlinked())
-                    {
-                        event_raise = true;
                         timer.raised.link(timer_list.raised);
-                    }
                 }
                 if (timer.reload <= 0)
                 {
