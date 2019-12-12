@@ -1,27 +1,21 @@
 ﻿#include "ipc.h"
 
-// Заполнитель для отсутствущих данных
-#define IPC_FILLER      0xFF
-// Значение магическое числа начала пакета
-#define IPC_MAGIC       0xAA
-// Размер команды управления потоком в байтах
-#define IPC_FLOW_SIZE   0x01
-
-RAM void ipc_packet_t::clear(void)
+RAM uint16_t ipc_packet_t::checksum_get(void) const
 {
-    memset(this, IPC_FILLER, sizeof(ipc_packet_t));
-}
-
-RAM void ipc_packet_t::clear_apl()
-{
-    memset(&apl, IPC_FILLER, sizeof(apl));
+    uint16_t result = 0;
+    const uint16_t *data = &this->dll.checksum + 1;
+    for (auto i = 0; i < (IPC_PKT_SIZE / 2) - 1; i++, data++)
+    {
+        result += *data * 0xAC4F;
+        result ^= result >> 8;
+    }
+    return result;
 }
 
 RAM void ipc_packet_t::prepare(ipc_opcode_t opcode, ipc_dir_t dir)
 {
     dll.dir = dir;
     dll.opcode = opcode;
-    dll.magic = IPC_MAGIC;
 }
 
 ipc_slots_t::ipc_slots_t(void)
@@ -55,12 +49,12 @@ void ipc_slots_t::clear(void)
         free(*used.last());
 }
 
-ipc_processor_status_t ipc_processor_t::packet_split(ipc_opcode_t opcode, ipc_dir_t dir, const void *source, size_t size)
+bool ipc_processor_t::data_split(ipc_processor_t &processor, ipc_opcode_t opcode, ipc_dir_t dir, const void *source, size_t size)
 {
     // Проверка аргументов
     assert(source != NULL || size <= 0);
     // Подготовка аргументов
-    ipc_processor_args_t args(size);
+    args_t args(size);
     // Подготовка пакета
     ipc_packet_t packet;
     packet.prepare(opcode, dir);
@@ -78,36 +72,23 @@ ipc_processor_status_t ipc_processor_t::packet_split(ipc_opcode_t opcode, ipc_di
         size -= len;
         src += len;
         // Обработка
-        auto status = packet_process(packet, args);
-        if (status != IPC_PROCESSOR_STATUS_SUCCESS)
-            return status;
+        if (!processor.packet_process(packet, args))
+            return false;
         args.first = false;
     }
-    return IPC_PROCESSOR_STATUS_SUCCESS;
-}
-
-uint8_t ipc_link_t::checksum(const void *source, uint8_t size)
-{
-    auto result = size;
-    auto src = (const uint8_t *)source;
-    for (; size > 0; size--, src++)
-        result += *src;
-    return result;
+    return true;
 }
 
 RAM void ipc_link_t::transmit_flow(reset_reason_t reason)
 {
-    auto status = packet_split(IPC_OPCODE_FLOW, IPC_DIR_REQUEST, &reason, IPC_FLOW_SIZE);
-    assert(status == IPC_PROCESSOR_STATUS_SUCCESS);
-    UNUSED(status);
+    auto result = data_split(*this, IPC_OPCODE_FLOW, IPC_DIR_REQUEST, &reason, sizeof(reason));
+    assert(result);
+    UNUSED(result);
 }
 
 void ipc_link_t::reset_layer(reset_reason_t reason, bool internal)
 {
     assert(reason > RESET_REASON_NOP);
-    // Оповещение
-    for (auto i = event_handlers.head(); i != NULL; i = LIST_ITEM_NEXT(i))
-        i->reset();
     // Сброс слотов, полей
     reset();
     // Отправка команды
@@ -131,10 +112,16 @@ RAM bool ipc_link_t::check_phase(const ipc_packet_t &packet)
     return true;
 }
 
+void ipc_link_t::reset(void)
+{
+    reseting = false;
+    tx.clear();
+    rx.clear();
+}
+
 void ipc_link_t::packet_output(ipc_packet_t &packet)
 {
-    // Проверяем, есть ли данные
-    for (auto nop = false;;)
+    for (;;)
     {
         // Получаем первый слот
         auto head = tx.used.head();
@@ -145,35 +132,12 @@ void ipc_link_t::packet_output(ipc_packet_t &packet)
             packet = head->packet;
             break;
         }
-        if (nop)
-        {
-            // Бездействие
-            transmit_flow(RESET_REASON_NOP);
-            continue;
-        }
-        // Обход обработчиков простоя
-        for (auto i = event_handlers.head(); i != NULL;)
-        {
-            i->idle();
-            // Если ничего не записал...
-            if (tx.empty())
-            {
-                i = LIST_ITEM_NEXT(i);
-                continue;
-            }
-            // Что то было записано, этот обрабочтик в конец
-            i->unlink();
-            i->link(event_handlers);
-            break;
-        }
-        nop = true;
+        // Бездействие
+        transmit_flow(RESET_REASON_NOP);
     }
-    auto len = packet.dll.length;
     // Заполнение DLL полей
     packet.dll.phase = tx.phase_switch();
-    packet.dll.checksum = checksum(&packet.apl, len);
-    // Заполнение пустых данных
-    memset(packet.apl.u8 + len, IPC_FILLER, IPC_APL_SIZE - len);
+    packet.dll.checksum = packet.checksum_get();
 }
 
 void ipc_link_t::packet_input(const ipc_packet_t &packet)
@@ -197,9 +161,8 @@ void ipc_link_t::packet_input(const ipc_packet_t &packet)
     auto &slot = *pslot;
     // Валидация
     {
-        auto len = packet.dll.length;
-        if (packet.dll.magic != IPC_MAGIC || len > IPC_APL_SIZE ||  // Проверка магического поля и длинны
-            packet.dll.checksum != checksum(&packet.apl, len))      // Проверка контрольной суммы
+        if (packet.dll.length > IPC_APL_SIZE || 
+            packet.dll.checksum != packet.checksum_get())
         {
             reset_layer(RESET_REASON_CORRUPTION);
             return;
@@ -212,10 +175,10 @@ void ipc_link_t::packet_input(const ipc_packet_t &packet)
         auto reason = (reset_reason_t)packet.apl.u8[0];
         if (packet.dll.more != IPC_BOOL_FALSE ||
             packet.dll.dir != IPC_DIR_REQUEST ||
-            packet.dll.length != IPC_FLOW_SIZE ||
+            packet.dll.length != sizeof(reason) ||
             reason >= RESET_REASON_COUNT)
         {
-            reset_layer(RESET_REASON_BAD_CONTENT);
+            reset_layer(RESET_REASON_CORRUPTION);
             return;
         }
         // Обработка команды управления потоком
@@ -259,7 +222,7 @@ void ipc_link_t::process_incoming_packets(ipc_processor_t &receiver)
                 size += slot->packet.dll.length;
         // Сборка
         auto skip = false;
-        ipc_processor_args_t args(size);
+        args_t args(size);
         for (auto s = rx.used.head(); s != NULL;)
         {
             // Ссылка на слот и пакет
@@ -276,59 +239,33 @@ void ipc_link_t::process_incoming_packets(ipc_processor_t &receiver)
             if (skip)
                 continue;
             // Обработка
-            switch (receiver.packet_process(packet, args))
-            {
-                case IPC_PROCESSOR_STATUS_SUCCESS:
-                    // Ок
-                    break;
-                case IPC_PROCESSOR_STATUS_OVERLOOK:
-                    skip = true;
-                    break;
-                case IPC_PROCESSOR_STATUS_CORRUPTION:
-                    reset_layer(RESET_REASON_BAD_CONTENT);
-                    return;
-            }
+            if (!receiver.packet_process(packet, args))
+                skip = true;
             args.first = false;
         }
     }
 }
 
-ipc_processor_status_t ipc_link_t::packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args)
+bool ipc_link_t::packet_process(const ipc_packet_t &packet, const args_t &args)
 {
     if (args.first)
     {
         // Проверяем, вместятся ли все данные
         auto slot_count = (args.size <= 0) ? 1 : DIV_CEIL(args.size, IPC_APL_SIZE);
         if (tx.unused.count() < slot_count)
-            return IPC_PROCESSOR_STATUS_OVERLOOK;
+            return false;
         // Проверяем, есть ли такая команда с таким же направлением
         for (auto slot = tx.used.head(); slot != NULL; slot = LIST_ITEM_NEXT(slot))
             if (slot->packet.equals(packet))
-                return IPC_PROCESSOR_STATUS_OVERLOOK;
+                return false;
     }
-    else if (tx.unused.count() <= 0)
-        return IPC_PROCESSOR_STATUS_OVERLOOK;
+    assert(tx.unused.count() > 0);
     // Копирование пакета
     auto &slot = *tx.unused.head();
     slot.packet = packet;
     // Перенос в список используемых
     tx.use(slot);
-    return IPC_PROCESSOR_STATUS_SUCCESS;
-}
-
-void ipc_link_t::reset(void)
-{
-    reseting = false;
-    tx.clear();
-    rx.clear();
-}
-
-void ipc_link_t::add_event_handler(ipc_event_handler_t &handler)
-{
-    // Поиск обработчика с таким адресом
-    assert(!event_handlers.contains(handler));
-    // Добавление
-    handler.link(event_handlers);
+    return true;
 }
 
 RAM bool ipc_link_master_t::check_phase(const ipc_packet_t &packet)
@@ -372,18 +309,39 @@ void ipc_link_master_t::packet_input(const ipc_packet_t &packet)
         return;
     // Жопа
     corruption_count = 0;
-    reset_total();
+    reset_slave();
+}
+
+RAM size_t ipc_command_t::buffer_size(ipc_dir_t dir) const
+{
+    // По умолчанию у команды данных нет
+    return 0;
+}
+
+RAM const void * ipc_command_t::buffer_pointer(ipc_dir_t dir) const
+{
+    // По умолчанию у команды данных нет
+    return NULL;
+}
+
+RAM size_t ipc_command_t::encode(ipc_dir_t dir)
+{
+    // Получает размер буфера
+    return buffer_size(dir);
+}
+
+RAM bool ipc_command_t::decode(ipc_dir_t dir, size_t size)
+{
+    // По умолчанию размер полученных данных и буфер должены быть равены
+    return buffer_size(dir) == size;
 }
 
 RAM bool ipc_command_t::transmit(ipc_processor_t &processor, ipc_dir_t dir)
 {
-    return processor.packet_split(opcode,
-                                  dir,
-                                  buffer_pointer(dir),
-                                  encode(dir)) == IPC_PROCESSOR_STATUS_SUCCESS;
+    return ipc_processor_t::data_split(processor, opcode, dir, buffer_pointer(dir), encode(dir));
 }
 
-RAM ipc_command_handler_t * ipc_packet_glue_t::find_handler(ipc_opcode_t opcode) const
+RAM ipc_handler_t * ipc_handler_host_t::find_handler(ipc_opcode_t opcode) const
 {
     // Поиск обработчика с такой командой
     for (auto i = handlers.head(); i != NULL; i = LIST_ITEM_NEXT(i))
@@ -392,7 +350,13 @@ RAM ipc_command_handler_t * ipc_packet_glue_t::find_handler(ipc_opcode_t opcode)
     return NULL;
 }
 
-void ipc_packet_glue_t::add_command_handler(ipc_command_handler_t &handler)
+RAM void ipc_handler_host_t::pool(void)
+{
+    for (auto i = handlers.head(); i != NULL; i = LIST_ITEM_NEXT(i))
+        i->pool();
+}
+
+void ipc_handler_host_t::add_handler(ipc_handler_t &handler)
 {
     // Поиск обработчика с такой командой
     assert(find_handler(handler.command_get().opcode) == NULL);
@@ -400,7 +364,7 @@ void ipc_packet_glue_t::add_command_handler(ipc_command_handler_t &handler)
     handler.link(handlers);
 }
 
-ipc_processor_status_t ipc_packet_glue_t::packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args)
+bool ipc_handler_host_t::packet_process(const ipc_packet_t &packet, const args_t &args)
 {
     if (args.first)
     {
@@ -418,7 +382,7 @@ ipc_processor_status_t ipc_packet_glue_t::packet_process(const ipc_packet_t &pac
     assert(len <= args.size);
     // Вместятся ли данные
     if (args.first && command.buffer_size(dir) < args.size)
-        return IPC_PROCESSOR_STATUS_CORRUPTION;
+        return false;
     // Запись в буффер
     auto buffer = (uint8_t *)command.buffer_pointer(dir);
     assert(buffer != NULL || args.size <= 0);
@@ -426,21 +390,20 @@ ipc_processor_status_t ipc_packet_glue_t::packet_process(const ipc_packet_t &pac
     // Смещение указателей
     processing.offset += len;
     if (packet.dll.more)
-        return IPC_PROCESSOR_STATUS_SUCCESS;
-    // Декодирование данных
+        return true;
     assert(processing.offset == args.size);
-    if (!command.decode(dir, processing.offset))
-        return IPC_PROCESSOR_STATUS_CORRUPTION;
-    // Оповещение обработчика о поступлении команды
-    processing.handler->notify(dir);
-    return IPC_PROCESSOR_STATUS_SUCCESS;
+    // Декодирование данных, оповещение обработчика
+    if (command.decode(dir, processing.offset))
+        processing.handler->notify(dir);
+    // Успех
+    return true;
 }
 
-int ipc_string_length(const char *s, size_t size)
+int16_t ipc_string_length(const char *s, size_t size)
 {
     assert(s != NULL && size > 0);
     for (size_t i = 0; i < size; i++)
         if (s[i] == '\0')
-            return (int)i;
+            return (int16_t)i;
     return -1;
 }

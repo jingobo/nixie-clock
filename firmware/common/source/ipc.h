@@ -10,32 +10,13 @@
 #define IPC_APL_SIZE            28
 // Общий размер пакета
 #define IPC_PKT_SIZE            (IPC_DLL_SIZE + IPC_APL_SIZE)
-// Проверка размера пакета
-#define IPC_PKT_SIZE_CHECK()     assert(sizeof(ipc_packet_t) == IPC_PKT_SIZE)
 
 // Количество слотов пакетов в одну сторону
 #define IPC_SLOT_COUNT          10
 
-// Тип направления
-enum ipc_dir_t
-{
-    // Запрос
-    IPC_DIR_REQUEST = 0,
-    // Ответ
-    IPC_DIR_RESPONSE
-};
-
-// Тип для булевы
-enum ipc_bool_t
-{
-    // Ложь
-    IPC_BOOL_FALSE = 0,
-    // Истина
-    IPC_BOOL_TRUE
-};
-
+// TODO: конечная корректировка лимитов
 // Поддерживаемые коды команды
-enum ipc_opcode_t
+enum ipc_opcode_t : uint8_t
 {
     // Команда управления потоком
     IPC_OPCODE_FLOW = 0,
@@ -58,7 +39,7 @@ enum ipc_opcode_t
         IPC_OPCODE_STM_WIFI_SETTINGS_SET,
 
     // Не команда, база для команд, обрабатываемых модулем ESP8266
-    IPC_OPCODE_ESP_HANDLE_BASE = 100,
+    IPC_OPCODE_ESP_HANDLE_BASE = 50,
         // Оповещение, что настройки WiFi сменились
         IPC_OPCODE_ESP_WIFI_SETTINGS_CHANGED,
         
@@ -67,36 +48,52 @@ enum ipc_opcode_t
         // Передача списка хостов SNTP
         IPC_OPCODE_ESP_TIME_HOSTLIST_SET,
     // Не команда, определяет лимит количества команд
-    IPC_OPCODE_LIMIT = 200,
+    IPC_OPCODE_LIMIT = 100,
+};
+
+// Тип направления
+enum ipc_dir_t : uint8_t
+{
+    // Запрос
+    IPC_DIR_REQUEST = 0,
+    // Ответ
+    IPC_DIR_RESPONSE
+};
+
+// Тип для булевы
+enum ipc_bool_t : uint8_t
+{
+    // Ложь
+    IPC_BOOL_FALSE = 0,
+    // Истина
+    IPC_BOOL_TRUE
 };
 
 // Структура пакета [32 байта]
 struct ipc_packet_t
 {
     // Канальный слой
-    ALIGN_FIELD_8
     struct
     {
-        // Поле магического значения
-        uint8_t magic;
-        // Байт контрольной суммы
-        uint8_t checksum;
-        // Код команды
-        ipc_opcode_t opcode : 8;
+        // Контрольная сумма
+        uint16_t checksum;
         // Параметры передачи
         struct
         {
-            // Есть ли еще данные для этой команды
-            ipc_bool_t more : 1;
-            // Фаза передачи (для контроля пропущенного пакета)
-            ipc_bool_t phase : 1;
+            // Код команды
+            ipc_opcode_t opcode;
             // Указывает направление (запрос/ответ)
             ipc_dir_t dir : 1;
+            
+            // Есть ли еще данные для этой команды
+            ipc_bool_t more : 1;
             // Длинна текущих данных
             uint8_t length : 5;
+            
+            // Фаза передачи (для контроля пропущенного пакета)
+            ipc_bool_t phase : 1;
         };
     } dll;
-    ALIGN_FIELD_DEF
     
     // Прикладной слой
     union
@@ -106,10 +103,8 @@ struct ipc_packet_t
         uint32_t u32[IPC_APL_SIZE / sizeof(uint32_t)];
     } apl;
     
-    // Заполнение всех байт пакета байтом заполнения
-    void clear();
-    // Заполнение всех байт apl байтом заполнения
-    void clear_apl();
+    // Подсчет контрольной суммы
+    uint16_t checksum_get(void) const;
     // Начальная подготовка пакета перед заполнением
     void prepare(ipc_opcode_t opcode, ipc_dir_t dir);
     
@@ -125,6 +120,9 @@ struct ipc_packet_t
         return equals(other.dll.opcode, other.dll.dir);
     }
 };
+
+// Проверка размера пакета
+static_assert(sizeof(ipc_packet_t) == IPC_PKT_SIZE);
 
 // Класс списка пакетов
 class ipc_slots_t
@@ -166,52 +164,27 @@ public:
     }
 };
 
-// Статус обработки пакетов
-enum ipc_processor_status_t
-{
-    // Данные обработаны
-    IPC_PROCESSOR_STATUS_SUCCESS = 0,
-    // Данные пропущены
-    IPC_PROCESSOR_STATUS_OVERLOOK,
-    // Данные повреждены
-    IPC_PROCESSOR_STATUS_CORRUPTION,
-};
-
-// Аргументы обработки данных данных
-struct ipc_processor_args_t
-{
-    // Указывает, первый ли пакет
-    bool first = true;
-    // Размер полученных данных
-    const size_t size;
-
-    // Конструктор по умолчанию
-    ipc_processor_args_t(size_t _size) : size(_size)
-    { }
-};
-
 // Класс интерфейс процессора пакетов
 class ipc_processor_t
 {
+protected:
+    // Аргументы обработки данных данных
+    struct args_t
+    {
+        // Указывает, первый ли пакет
+        bool first = true;
+        // Размер полученных данных
+        const size_t size;
+
+        // Конструктор по умолчанию
+        args_t(size_t _size) : size(_size)
+        { }
+    };
 public:
     // Обработка пакета
-    virtual ipc_processor_status_t packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args) = 0;
-    
+    virtual bool packet_process(const ipc_packet_t &packet, const args_t &args) = 0;
     // Разбитие данных на пакеты
-    virtual ipc_processor_status_t packet_split(ipc_opcode_t opcode, ipc_dir_t dir, const void *source, size_t size);
-};
-
-// Базовый класс обработчика событий
-class ipc_event_handler_t : list_item_t
-{
-    friend class ipc_link_t;
-protected:
-    // Событие простоя
-    virtual void idle(void)
-    { }
-    // Событие сброса
-    virtual void reset(void)
-    { }
+    static bool data_split(ipc_processor_t &processor, ipc_opcode_t opcode, ipc_dir_t dir, const void *source, size_t size);
 };
 
 // Базовый контроллер пакетов
@@ -219,7 +192,7 @@ class ipc_link_t : public ipc_processor_t
 {
 protected:
     // Причина сброса
-    enum reset_reason_t
+    enum reset_reason_t : uint8_t
     {
         // Нет действий
         RESET_REASON_NOP = 0,
@@ -227,8 +200,6 @@ protected:
         RESET_REASON_OVERFLOW,
         // Искажение данных
         RESET_REASON_CORRUPTION,
-        // Неверные данные или длинна при разборе пакета
-        RESET_REASON_BAD_CONTENT,
         
         // Для определения количества значений
         RESET_REASON_COUNT
@@ -245,25 +216,18 @@ protected:
 private:
     // Флаг, указывающий, что происходит сброс инициированый нами
     bool reseting = false;
-    // Список обработчиков событий
-    list_template_t<ipc_event_handler_t> event_handlers;
     
     // Передача команды управления потоком
     void transmit_flow(reset_reason_t reason);
-    // Подсчет контрольной суммы
-    static uint8_t checksum(const void *source, uint8_t size);
 public:
+    // Сброс слотов, полей
+    void reset(void);
     // Получение пакета к выводу
     virtual void packet_output(ipc_packet_t &packet);
     // Ввод полученного пакета
     virtual void packet_input(const ipc_packet_t &packet);
     // Обработка пакета (перенос в передачу)
-    virtual ipc_processor_status_t packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args);
-    
-    // Сброс слотов, полей
-    void reset(void);
-    // Добавление обработчика событий
-    virtual void add_event_handler(ipc_event_handler_t &handler);
+    virtual bool packet_process(const ipc_packet_t &packet, const args_t &args);
 };
 
 // Контроллер пакетов (слейв)
@@ -288,7 +252,7 @@ class ipc_link_master_t : public ipc_link_t
     uint8_t corruption_count = 0;
 protected:
     // Событие массового сброса (другая сторона не отвечает)
-    virtual void reset_total(void) = 0;
+    virtual void reset_slave(void) = 0;
     
     // Проверка фазы полученного пакета
     virtual bool check_phase(const ipc_packet_t &packet);
@@ -304,106 +268,27 @@ public:
 // Базовый класс команды
 class ipc_command_t
 {
-public:
+    friend class ipc_handler_host_t;
+    
     // Код команды
     const ipc_opcode_t opcode;
-    
+protected:
     // Конструктор по умолчанию
     ipc_command_t(ipc_opcode_t _opcode) : opcode(_opcode)
     { }
 
     // Получает размер буфера
-    virtual size_t buffer_size(ipc_dir_t dir) const = 0;
+    virtual size_t buffer_size(ipc_dir_t dir) const;
     // Получает указатель буфера
-    virtual const void * buffer_pointer(ipc_dir_t dir) const = 0;
+    virtual const void * buffer_pointer(ipc_dir_t dir) const;
     
     // Кодирование данных, возвращает количество записанных данных
-    virtual size_t encode(ipc_dir_t dir) = 0;
+    virtual size_t encode(ipc_dir_t dir);
     // Декодирование данных
-    virtual bool decode(ipc_dir_t dir, size_t size) = 0;
-    
+    virtual bool decode(ipc_dir_t dir, size_t size);
+public:
     // Передача команды
     bool transmit(ipc_processor_t &processor, ipc_dir_t dir);
-};
-
-// Базовый класс обработчика команды
-class ipc_command_handler_t : list_item_t
-{
-    friend class ipc_packet_glue_t;
-protected:
-    // Получает ссылку на команду
-    virtual ipc_command_t &command_get(void) = 0;
-    // Оповещение о поступлении данных
-    virtual void notify(ipc_dir_t dir) = 0;
-};
-
-// Шаблон класса обработчика команды
-template <typename COMMAND>
-class ipc_command_handler_template_t : public ipc_command_handler_t
-{
-public:
-    // Комадна
-    COMMAND command;
-protected:
-    // Получает ссылку на команду
-    virtual ipc_command_t &command_get(void)
-    {
-        return command;
-    }
-};
-
-// Шаблон класса обработчика липкой команды
-template <typename COMMAND>
-class ipc_command_handler_template_sticky_t : public ipc_command_handler_template_t<COMMAND>
-{
-    bool transmit_needed = false;
-protected:
-    // Обработчик передачи
-    virtual bool transmit_internal(void) = 0;
-public:
-    // Передача данных
-    void transmit(void)
-    {
-        transmit_needed = !transmit_internal();
-    }
-
-    // Обработчик сброса
-    virtual void reset(void)
-    {
-        transmit_needed = false;
-    }
-
-    // Обработчик простоя
-    virtual void idle(void)
-    {
-        if (transmit_needed)
-            transmit();
-    }
-};
-
-// Класс сборщика команд из пакетов
-class ipc_packet_glue_t : public ipc_processor_t
-{
-private:
-    // Данные связанные с текущей сборкой
-    struct
-    {
-        // Смещение записи в байтах
-        size_t offset;
-        // Используемый обработчик
-        ipc_command_handler_t *handler;
-    } processing;
-    // Список обработчиков
-    list_template_t<ipc_command_handler_t> handlers;
-    
-    // Поиск обработчика по команде
-    ipc_command_handler_t * find_handler(ipc_opcode_t opcode) const;
-public:
-    // Добавление обработчика в хост
-    void add_command_handler(ipc_command_handler_t &handler);
-
-    // Обработка пакета (склеивание в команду)
-    virtual ipc_processor_status_t packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args);
 };
 
 // Шаблон команды с фиксированным размером запроса/ответа
@@ -415,7 +300,7 @@ public:
     REQUEST request;
     // Поля ответа
     RESPONSE response;
-
+protected:
     // Получает размер буфера
     virtual size_t buffer_size(ipc_dir_t dir) const
     {
@@ -426,7 +311,7 @@ public:
             case IPC_DIR_RESPONSE:
                 return sizeof(response);
             default:
-                return 0;
+                return ipc_command_t::buffer_size(dir);
         }
     }
     
@@ -440,7 +325,7 @@ public:
             case IPC_DIR_RESPONSE:
                 return &response;
             default:
-                return NULL;
+                return ipc_command_t::buffer_pointer(dir);
         }
     }
 
@@ -450,8 +335,8 @@ public:
         // Проверка данных
         assert(dir != IPC_DIR_RESPONSE || response.check());
         assert(dir != IPC_DIR_REQUEST || request.check());
-        // Возвращаем размер буфера
-        return buffer_size(dir);
+        // Возвращаем размер из базового метода
+        return ipc_command_t::encode(dir);
     }
     
     // Декодирование данных
@@ -468,120 +353,332 @@ public:
                 if (!response.check())
                     return false;
                 break;
-            default:
-                return false;
         }
-        // Проверка размер данных
-        return size == buffer_size(dir);
+        // Возвращаем результат из базового метода
+        return ipc_command_t::decode(dir, size);
     }
-protected:
+
     // Конструктор по умолчанию
     ipc_command_fixed_t(ipc_opcode_t opcode) : ipc_command_t(opcode)
     { }
 };
 
-// Шаблон команды оповещения (без ответа) с фиксированным размером запроса
-template <typename REQUEST>
-class ipc_command_notify_t : public ipc_command_t
+// Шаблон команды запроса данных (пустой запрос с фиксированным размером ответа)
+template <typename RESPONSE>
+class ipc_command_get_t : public ipc_command_t
 {
 public:
-    // Поля запроса
-    REQUEST request;
-
+    // Поля ответа
+    RESPONSE response;
+protected:
     // Получает размер буфера
     virtual size_t buffer_size(ipc_dir_t dir) const
     {
-        UNUSED(dir);
-        assert(dir == IPC_DIR_REQUEST);
-        return sizeof(request);
+        switch (dir)
+        {
+            case IPC_DIR_RESPONSE:
+                return sizeof(response);
+            default:
+                return ipc_command_t::buffer_size(dir);
+        }
     }
     
     // Получает указатель буфера
     virtual const void * buffer_pointer(ipc_dir_t dir) const
     {
-        UNUSED(dir);
-        assert(dir == IPC_DIR_REQUEST);
-        return &request;
+        switch (dir)
+        {
+            case IPC_DIR_RESPONSE:
+                return &response;
+            default:
+                return ipc_command_t::buffer_pointer(dir);
+        }
     }
 
     // Кодирование данных, возвращает количество записанных данных
     virtual size_t encode(ipc_dir_t dir)
     {
-        assert(dir == IPC_DIR_REQUEST);
-        assert(request.check());
-        // Возвращаем размер буфера
-        return buffer_size(dir);
+        // Проверка данных
+        assert(dir != IPC_DIR_RESPONSE || response.check());
+        // Возвращаем размер из базового метода
+        return ipc_command_t::encode(dir);
     }
     
     // Декодирование данных
     virtual bool decode(ipc_dir_t dir, size_t size)
     {
-        return
-            dir == IPC_DIR_REQUEST &&
-            size == sizeof(request) &&
-            request.check();
+        // Проверка данных
+        switch (dir)
+        {
+            case IPC_DIR_RESPONSE:
+                if (!response.check())
+                    return false;
+                break;
+        }
+        // Возвращаем результат из базового метода
+        return ipc_command_t::decode(dir, size);
     }
-protected:
-    // Конструктор по умолчанию
-    ipc_command_notify_t(ipc_opcode_t opcode) : ipc_command_t(opcode)
-    { }
-};
 
-// Блок для запроса/ответа нулевой длинны
-ALIGN_FIELD_8
-class ipc_dummy_block_t
-{
-    // Локальные костанты
-    enum
-    {
-        // Проверочный код
-        CHECK_CODE = 0xAA,
-    };
-    
-    // Проверочное поле
-    uint8_t dummy = CHECK_CODE;
-public:
-    // Проверка полей
-    bool check(void) const
-    {
-        return dummy == CHECK_CODE;
-    }
-};
-ALIGN_FIELD_DEF
-
-// Шаблон команды запроса данных (пустой запрос с фиксированным размером ответа)
-template <typename RESPONSE>
-class ipc_command_getter_t : public ipc_command_fixed_t<ipc_dummy_block_t, RESPONSE>
-{
-protected:
     // Конструктор по умолчанию
-    ipc_command_getter_t(ipc_opcode_t opcode)
-        : ipc_command_fixed_t<ipc_dummy_block_t, RESPONSE>(opcode)
+    ipc_command_get_t(ipc_opcode_t opcode) : ipc_command_t(opcode)
     { }
 };
 
 // Шаблон команды установки данных (пустой ответ с фиксированным запросом)
 template <typename REQUEST>
-class ipc_command_setter_t : public ipc_command_fixed_t<REQUEST, ipc_dummy_block_t>
+class ipc_command_set_t : public ipc_command_t
 {
+public:
+    // Поля запроса
+    REQUEST request;
 protected:
+    // Получает размер буфера
+    virtual size_t buffer_size(ipc_dir_t dir) const
+    {
+        switch (dir)
+        {
+            case IPC_DIR_REQUEST:
+                return sizeof(request);
+            default:
+                return ipc_command_t::buffer_size(dir);
+        }
+    }
+    
+    // Получает указатель буфера
+    virtual const void * buffer_pointer(ipc_dir_t dir) const
+    {
+        switch (dir)
+        {
+            case IPC_DIR_REQUEST:
+                return &request;
+            default:
+                return ipc_command_t::buffer_pointer(dir);
+        }
+    }
+
+    // Кодирование данных, возвращает количество записанных данных
+    virtual size_t encode(ipc_dir_t dir)
+    {
+        // Проверка данных
+        assert(dir != IPC_DIR_REQUEST || request.check());
+        // Возвращаем размер из базового метода
+        return ipc_command_t::encode(dir);
+    }
+    
+    // Декодирование данных
+    virtual bool decode(ipc_dir_t dir, size_t size)
+    {
+        // Проверка данных
+        switch (dir)
+        {
+            case IPC_DIR_REQUEST:
+                if (!request.check())
+                    return false;
+                break;
+        }
+        // Возвращаем результат из базового метода
+        return ipc_command_t::decode(dir, size);
+    }
+
     // Конструктор по умолчанию
-    ipc_command_setter_t(ipc_opcode_t opcode) 
-        : ipc_command_fixed_t<REQUEST, ipc_dummy_block_t>(opcode)
+    ipc_command_set_t(ipc_opcode_t opcode) : ipc_command_t(opcode)
     { }
 };
 
-// Шаблон команды c пустым запросом и пустым ответом
-class ipc_command_empty_t : public ipc_command_fixed_t<ipc_dummy_block_t, ipc_dummy_block_t>
+// Базовый класс обработчика команды
+class ipc_handler_t : list_item_t
 {
+    friend class ipc_handler_host_t;
 protected:
+    // Тип для хранения тиков в мС
+    typedef uint32_t tick_t;
+    
+    // Получает текущее значение тиков (реализуется платформой)
+    static tick_t tick_get(void);
+    // Получает процессор для передачи (реализуется платформой)
+    static ipc_processor_t & processor_get(void);
+    
+    // Получает ссылку на команду
+    virtual ipc_command_t & command_get(void) = 0;
+private:
+    // Внутреннее состяоние обработчика
+    enum
+    {
+        // Простой
+        INTERNAL_STATE_IDLE,
+        // Запрос
+        INTERNAL_STATE_REQUEST,
+        // Обработка запроса
+        INTERNAL_STATE_REQUEST_WAIT,
+        // Ответ
+        INTERNAL_STATE_RESPONSE,
+        // Ожидание ответа
+        INTERNAL_STATE_RESPONSE_WAIT,
+    } istate = INTERNAL_STATE_IDLE;
+    
+    // Время последней передачи
+    tick_t transmit_time;
+
+    // Таймуты
+    const struct timeouts_t
+    {
+        // Переотправка
+        tick_t retry;
+        // Обработка запроса
+        tick_t request;
+        
+        // Конструктор по умолчанию
+        timeouts_t(tick_t _retry, tick_t _request) :
+            retry(_retry), request(_request)
+        { }
+    } timeout;
+    
+    // Передача команды (внутренний метод)
+    bool transmit_internal(ipc_dir_t dir)
+    {
+        transmit_time = tick_get();
+        return command_get().transmit(processor_get(), dir);
+    }
+protected:
+    // Общее состояние обработчика
+    enum state_t
+    {
+        // Простой
+        STATE_IDLE,
+        // Ожидание обработки запроса
+        STATE_REQUEST_PENDING,
+        // Передача запроса/ответа
+        STATE_TRANSMIT_COMMAND,
+    };
+
+    // Получает общее состояние обработчика
+    state_t state_get(void) const
+    {
+        switch (istate)
+        {
+            case INTERNAL_STATE_IDLE:
+                return STATE_IDLE;
+            case INTERNAL_STATE_REQUEST_WAIT:
+                return STATE_REQUEST_PENDING;
+            default:
+                return STATE_TRANSMIT_COMMAND;
+        }
+    }
+    
+    // Оповещение о поступлении данных
+    void notify(ipc_dir_t dir)
+    {
+        switch (dir)
+        {
+            case IPC_DIR_REQUEST:
+                istate = INTERNAL_STATE_REQUEST_WAIT;
+                break;
+            case IPC_DIR_RESPONSE:
+                istate = INTERNAL_STATE_IDLE;
+                break;
+        }
+    }
+    
+    // Оповещение о обработке
+    virtual void pool(void)
+    {
+        switch (istate)
+        {
+            case INTERNAL_STATE_IDLE:
+            case INTERNAL_STATE_REQUEST_WAIT:
+                // Ничего не делаем
+                return;
+            case INTERNAL_STATE_REQUEST:
+            case INTERNAL_STATE_RESPONSE:
+                // Таймаут на переотправку
+                if (tick_get() - transmit_time > timeout.retry)
+                    transmit((istate != INTERNAL_STATE_RESPONSE) ?
+                        IPC_DIR_REQUEST :
+                        IPC_DIR_RESPONSE);
+                return;
+            case INTERNAL_STATE_RESPONSE_WAIT:
+                // Таймаут на перезапрос
+                if (tick_get() - transmit_time > timeout.request)
+                    transmit(IPC_DIR_REQUEST);
+                return;
+            default:
+                assert(false);
+        }
+    }
+
     // Конструктор по умолчанию
-    ipc_command_empty_t(ipc_opcode_t opcode)
-        : ipc_command_fixed_t<ipc_dummy_block_t, ipc_dummy_block_t>(opcode)
+    ipc_handler_t(tick_t timeout_retry, tick_t timeout_request) :
+        timeout(timeout_retry, timeout_request)
     { }
+public:
+    // Передача команды
+    void transmit(ipc_dir_t dir)
+    {
+        switch (dir)
+        {
+            case IPC_DIR_REQUEST:
+                if (transmit_internal(dir))
+                    // Запрос передан - ожидание ответа
+                    istate = INTERNAL_STATE_RESPONSE_WAIT;
+                else
+                    // Запрос не передан - переотправка запроса
+                    istate = INTERNAL_STATE_REQUEST;
+                return;
+            case IPC_DIR_RESPONSE:
+                if (transmit_internal(dir))
+                    // Ответ передан - переход к простою
+                    istate = INTERNAL_STATE_IDLE;
+                else
+                    // Ответ передан - переотправка ответа
+                    istate = INTERNAL_STATE_RESPONSE;
+                return;
+        }
+    }
+};
+
+// Шаблон класса обработчика команды
+template <typename COMMAND>
+class ipc_handler_template_t : public ipc_handler_t
+{
+public:
+    // Комадна
+    COMMAND command;
+protected:
+    // Получает ссылку на команду
+    virtual ipc_command_t &command_get(void)
+    {
+        return command;
+    }
+};
+
+// Класс хоста обработчиков команд
+class ipc_handler_host_t : public ipc_processor_t
+{
+private:
+    // Данные связанные с текущей сборкой
+    struct
+    {
+        // Смещение записи в байтах
+        size_t offset;
+        // Используемый обработчик
+        ipc_handler_t *handler;
+    } processing;
+    // Список обработчиков
+    list_template_t<ipc_handler_t> handlers;
+    
+    // Поиск обработчика по команде
+    ipc_handler_t * find_handler(ipc_opcode_t opcode) const;
+public:
+    // Оповещение о обработке
+    void pool(void);
+    // Добавление обработчика в хост
+    void add_handler(ipc_handler_t &handler);
+    
+    // Обработка пакета (склеивание в команду)
+    virtual bool packet_process(const ipc_packet_t &packet, const args_t &args);
 };
 
 // Возвращает количество символов
-int ipc_string_length(const char *s, size_t size);
+int16_t ipc_string_length(const char *s, size_t size);
 
 #endif // __IPC_H

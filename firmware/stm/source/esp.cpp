@@ -29,7 +29,7 @@ static class esp_link_t : public ipc_link_master_t
 {
 protected:
     // Массовый сброс (другая сторона не отвечает)
-    virtual void reset_total(void)
+    virtual void reset_slave(void)
     {
         // Сброс чипаа
         esp_reset_do();
@@ -86,7 +86,6 @@ static timer_callback_t esp_io_begin_timer([](void)
         return;
     esp_io.active = true;
     // Подготовка данных
-    esp_io.dma.rx.clear();
     esp_link.packet_output(esp_io.dma.tx);
     esp_io.dma.command = ESP_SPI_CMD_RD_WR;
     // Начало передачи
@@ -165,7 +164,6 @@ static void esp_reset_do(void)
 
 void esp_init(void)
 {
-    IPC_PKT_SIZE_CHECK();
     // Тактирование и сброс SPI
     RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;                                         // SPI1 clock enable
     RCC->APB2RSTR |= RCC_APB2RSTR_SPI1RST;                                      // SPI1 reset
