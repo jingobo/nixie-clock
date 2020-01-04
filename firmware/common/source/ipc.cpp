@@ -197,7 +197,7 @@ void ipc_link_t::packet_input(const ipc_packet_t &packet)
     slot.packet = packet;
 }
 
-void ipc_link_t::process_incoming_packets(ipc_processor_t &receiver)
+void ipc_link_t::flush_packets(ipc_processor_t &receiver)
 {
     // Цикл пока не закончатся конечные пакеты
     for (;;)
@@ -341,7 +341,81 @@ RAM bool ipc_command_t::transmit(ipc_processor_t &processor, ipc_dir_t dir)
     return ipc_processor_t::data_split(processor, opcode, dir, buffer_pointer(dir), encode(dir));
 }
 
-RAM ipc_handler_t * ipc_handler_host_t::find_handler(ipc_opcode_t opcode) const
+RAM void ipc_requester_t::pool(void)
+{
+    switch (state)
+    {
+        case HANDLER_STATE_IDLE:
+            work(true);
+            return;
+        case HANDLER_STATE_RESPONSE_PENDING:
+            work(false);
+            state = HANDLER_STATE_IDLE;
+            return;
+        case HANDLER_STATE_REQUEST:
+            // Таймаут на переотправку
+            if (tick_get() - transmit_time_get() > TIMEOUT_RETRY)
+                transmit();
+            return;
+        case HANDLER_STATE_RESPONSE_WAIT:
+            // Таймаут на перезапрос
+            if (tick_get() - transmit_time_get() > timeout_request)
+                transmit();
+            return;
+    }
+    assert(false);
+}
+
+RAM void ipc_requester_t::transmit(void)
+{
+    // Если уже ожидает ответ - выходим
+    if (state == HANDLER_STATE_RESPONSE_PENDING)
+        return;
+    
+    // Передача
+    if (transmit_internal(IPC_DIR_REQUEST))
+        // Запрос передан - ожидание ответа
+        state = HANDLER_STATE_RESPONSE_WAIT;
+    else
+        // Запрос не передан - переотправка запроса
+        state = HANDLER_STATE_REQUEST;
+}
+
+RAM void ipc_responder_t::pool(void)
+{
+    switch (state)
+    {
+        case HANDLER_STATE_IDLE:
+            work(true);
+            return;
+        case HANDLER_STATE_REQUEST_PENDING:
+            work(false);
+            return;
+        case HANDLER_STATE_RESPONSE:
+            // Таймаут на переотправку
+            if (tick_get() - transmit_time_get() > TIMEOUT_RETRY)
+                transmit();
+            return;
+    }
+    assert(false);
+}
+
+RAM void ipc_responder_t::transmit(void)
+{
+    // Если еще не было запроса - выходим
+    if (state == HANDLER_STATE_IDLE)
+        return;
+    
+    // Передача
+    if (transmit_internal(IPC_DIR_RESPONSE))
+        // Ответ передан - простой
+        state = HANDLER_STATE_IDLE;
+    else
+        // Ответ не передан - переотправка
+        state = HANDLER_STATE_RESPONSE;
+}
+
+RAM ipc_handler_t * ipc_handler_host_t::handler_find(ipc_opcode_t opcode) const
 {
     // Поиск обработчика с такой командой
     for (auto i = handlers.head(); i != NULL; i = LIST_ITEM_NEXT(i))
@@ -356,10 +430,10 @@ RAM void ipc_handler_host_t::pool(void)
         i->pool();
 }
 
-void ipc_handler_host_t::add_handler(ipc_handler_t &handler)
+void ipc_handler_host_t::handler_add(ipc_handler_t &handler)
 {
     // Поиск обработчика с такой командой
-    assert(find_handler(handler.command_get().opcode) == NULL);
+    assert(handler_find(handler.command_get().opcode) == NULL);
     // Добавление
     handler.link(handlers);
 }
@@ -369,7 +443,7 @@ bool ipc_handler_host_t::packet_process(const ipc_packet_t &packet, const args_t
     if (args.first)
     {
         // Поиск обработчика по команде
-        processing.handler = find_handler(packet.dll.opcode);
+        processing.handler = handler_find(packet.dll.opcode);
         // Сброс смещения записи
         processing.offset = 0;
     }

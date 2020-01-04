@@ -47,6 +47,8 @@ void clk_mco_output(mcu_mco_source_t source);
 // Обработчик аварийной остановки приложения
 __noreturn void mcu_halt(mcu_halt_reason_t reason);
 
+// Получает текущее значение тиков в мС
+uint32_t mcu_tick_get(void);
 // Задержка в мС, не вызывать из прерываний
 void mcu_delay_ms(uint32_t delay = 1);
 // Обработка функций опроса, таймут в мС, не вызывать из прерываний

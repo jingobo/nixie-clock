@@ -21,8 +21,8 @@
 // Предварительное объявление
 static void esp_reset_do(void);
 
-// Склеиватель входящих пакетов в команды команд
-static ipc_packet_glue_t esp_packet_glue;
+// Хост обработчиков команд
+static ipc_handler_host_t esp_handler_host;
 
 // Класс связи с ESP
 static class esp_link_t : public ipc_link_master_t
@@ -42,7 +42,7 @@ public:
         ipc_link_master_t::packet_input(packet);
         // Обработка
         if (!packet.dll.more)
-            process_incoming_packets(esp_packet_glue);
+            flush_packets(esp_handler_host);
     }
 } esp_link;
 
@@ -85,6 +85,8 @@ static timer_callback_t esp_io_begin_timer([](void)
     if (esp_io.active)
         return;
     esp_io.active = true;
+    // Опрос команд
+    esp_handler_host.pool();
     // Подготовка данных
     esp_link.packet_output(esp_io.dma.tx);
     esp_io.dma.command = ESP_SPI_CMD_RD_WR;
@@ -186,19 +188,21 @@ void esp_init(void)
     esp_reset_do();
 }
 
-void esp_add_command_handler(ipc_command_handler_t &handler)
+void esp_handler_add(ipc_handler_t &handler)
 {
-    esp_packet_glue.add_command_handler(handler);
+    esp_handler_host.handler_add(handler);
 }
 
-void esp_add_event_handler(ipc_event_handler_t &handler)
+// Получает текущее значение тиков (реализуется платформой)
+ipc_handler_t::tick_t ipc_handler_t::tick_get(void)
 {
-    esp_link.add_event_handler(handler);
+    return mcu_tick_get();
 }
 
-bool esp_transmit(ipc_dir_t dir, ipc_command_t &command)
+// Получает процессор для передачи (реализуется платформой)
+ipc_processor_t & ipc_handler_t::transmitter_get(void)
 {
-    return command.transmit(esp_link, dir);
+    return esp_link;
 }
 
 IRQ_ROUTINE

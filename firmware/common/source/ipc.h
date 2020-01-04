@@ -212,7 +212,7 @@ protected:
     // Сброс прикладного уровня
     virtual void reset_layer(reset_reason_t reason, bool internal = true);
     // Обработка входящих пакетов
-    void process_incoming_packets(ipc_processor_t &receiver);
+    void flush_packets(ipc_processor_t &receiver);
 private:
     // Флаг, указывающий, что происходит сброс инициированый нами
     bool reseting = false;
@@ -485,6 +485,9 @@ protected:
     { }
 };
 
+// Класс хоста обработчиков команд (предварительное объявление)
+class ipc_handler_host_t;
+
 // Базовый класс обработчика команды
 class ipc_handler_t : list_item_t
 {
@@ -493,157 +496,183 @@ protected:
     // Тип для хранения тиков в мС
     typedef uint32_t tick_t;
     
+    // Локальные константы
+    enum
+    {
+        // Таймут в тика мС для переотправки
+        TIMEOUT_RETRY = 50,
+    };
+private:
+    // Время последней передачи
+    tick_t transmit_time;
+protected:
     // Получает текущее значение тиков (реализуется платформой)
     static tick_t tick_get(void);
     // Получает процессор для передачи (реализуется платформой)
-    static ipc_processor_t & processor_get(void);
+    static ipc_processor_t & transmitter_get(void);
     
+    // Класс счетчика времени
+    class timer_t
+    {
+        // Начало отсчета, задержка
+        tick_t time, delay;
+        // Активность
+        bool enabled = false;
+    public:
+        // Остановка таймера
+        void stop(void)
+        {
+            enabled = false;
+        }
+        
+        // Старт таймера
+        void start(tick_t ticks = 0)
+        {
+            time = tick_get();
+            enabled = true;
+            delay = ticks;
+        }
+        
+        // Истек ли таймер
+        bool elapsed(bool autostop = true)
+        {
+            if (!enabled || tick_get() - time < delay)
+                return false;
+            if (autostop)
+                stop();
+            return true;
+        }
+    };
+
+    // Получает количество тиков на момент последней передачи
+    tick_t transmit_time_get(void) const
+    {
+        return transmit_time;
+    }
+
+    // Оповещение о обработке
+    virtual void pool(void) = 0;
+    // Событие обработки данных
+    virtual void work(bool idle) = 0;
+    // Оповещение о поступлении данных
+    virtual void notify(ipc_dir_t dir) = 0;
     // Получает ссылку на команду
     virtual ipc_command_t & command_get(void) = 0;
-private:
-    // Внутреннее состяоние обработчика
-    enum
-    {
-        // Простой
-        INTERNAL_STATE_IDLE,
-        // Запрос
-        INTERNAL_STATE_REQUEST,
-        // Обработка запроса
-        INTERNAL_STATE_REQUEST_WAIT,
-        // Ответ
-        INTERNAL_STATE_RESPONSE,
-        // Ожидание ответа
-        INTERNAL_STATE_RESPONSE_WAIT,
-    } istate = INTERNAL_STATE_IDLE;
-    
-    // Время последней передачи
-    tick_t transmit_time;
-
-    // Таймуты
-    const struct timeouts_t
-    {
-        // Переотправка
-        tick_t retry;
-        // Обработка запроса
-        tick_t request;
-        
-        // Конструктор по умолчанию
-        timeouts_t(tick_t _retry, tick_t _request) :
-            retry(_retry), request(_request)
-        { }
-    } timeout;
     
     // Передача команды (внутренний метод)
     bool transmit_internal(ipc_dir_t dir)
     {
         transmit_time = tick_get();
-        return command_get().transmit(processor_get(), dir);
-    }
-protected:
-    // Общее состояние обработчика
-    enum state_t
-    {
-        // Простой
-        STATE_IDLE,
-        // Ожидание обработки запроса
-        STATE_REQUEST_PENDING,
-        // Передача запроса/ответа
-        STATE_TRANSMIT_COMMAND,
-    };
-
-    // Получает общее состояние обработчика
-    state_t state_get(void) const
-    {
-        switch (istate)
-        {
-            case INTERNAL_STATE_IDLE:
-                return STATE_IDLE;
-            case INTERNAL_STATE_REQUEST_WAIT:
-                return STATE_REQUEST_PENDING;
-            default:
-                return STATE_TRANSMIT_COMMAND;
-        }
-    }
-    
-    // Оповещение о поступлении данных
-    void notify(ipc_dir_t dir)
-    {
-        switch (dir)
-        {
-            case IPC_DIR_REQUEST:
-                istate = INTERNAL_STATE_REQUEST_WAIT;
-                break;
-            case IPC_DIR_RESPONSE:
-                istate = INTERNAL_STATE_IDLE;
-                break;
-        }
-    }
-    
-    // Оповещение о обработке
-    virtual void pool(void)
-    {
-        switch (istate)
-        {
-            case INTERNAL_STATE_IDLE:
-            case INTERNAL_STATE_REQUEST_WAIT:
-                // Ничего не делаем
-                return;
-            case INTERNAL_STATE_REQUEST:
-            case INTERNAL_STATE_RESPONSE:
-                // Таймаут на переотправку
-                if (tick_get() - transmit_time > timeout.retry)
-                    transmit((istate != INTERNAL_STATE_RESPONSE) ?
-                        IPC_DIR_REQUEST :
-                        IPC_DIR_RESPONSE);
-                return;
-            case INTERNAL_STATE_RESPONSE_WAIT:
-                // Таймаут на перезапрос
-                if (tick_get() - transmit_time > timeout.request)
-                    transmit(IPC_DIR_REQUEST);
-                return;
-            default:
-                assert(false);
-        }
-    }
-
-    // Конструктор по умолчанию
-    ipc_handler_t(tick_t timeout_retry, tick_t timeout_request) :
-        timeout(timeout_retry, timeout_request)
-    { }
-public:
-    // Передача команды
-    void transmit(ipc_dir_t dir)
-    {
-        switch (dir)
-        {
-            case IPC_DIR_REQUEST:
-                if (transmit_internal(dir))
-                    // Запрос передан - ожидание ответа
-                    istate = INTERNAL_STATE_RESPONSE_WAIT;
-                else
-                    // Запрос не передан - переотправка запроса
-                    istate = INTERNAL_STATE_REQUEST;
-                return;
-            case IPC_DIR_RESPONSE:
-                if (transmit_internal(dir))
-                    // Ответ передан - переход к простою
-                    istate = INTERNAL_STATE_IDLE;
-                else
-                    // Ответ передан - переотправка ответа
-                    istate = INTERNAL_STATE_RESPONSE;
-                return;
-        }
+        return command_get().transmit(transmitter_get(), dir);
     }
 };
 
-// Шаблон класса обработчика команды
+// Базовый класс обработчика команды (запроситель)
+class ipc_requester_t : public ipc_handler_t
+{
+    // Таймут на перезапрос
+    const tick_t timeout_request;
+
+    // Перечисление состяония обработчика
+    enum handler_state_t
+    {
+        // Простой
+        HANDLER_STATE_IDLE,
+        // Передача запроса
+        HANDLER_STATE_REQUEST,
+        // Ожидание ответа
+        HANDLER_STATE_RESPONSE_WAIT,
+        // Ожидание обрабоки ответа
+        HANDLER_STATE_RESPONSE_PENDING,
+    } state = HANDLER_STATE_IDLE;
+        
+    // Оповещение о обработке
+    virtual void pool(void);
+
+    // Оповещение о поступлении данных
+    virtual void notify(ipc_dir_t dir)
+    {
+        assert(dir == IPC_DIR_RESPONSE);
+        // Переход к ожиданию обработки только если ожидали ответ
+        if (state == HANDLER_STATE_RESPONSE_WAIT)
+            state = HANDLER_STATE_RESPONSE_PENDING;
+    }
+protected:
+    // Локальные константы
+    enum
+    {
+        // Таймут в тика мС для перезапроса по умолчанию
+        TIMEOUT_REPEAT_DEFAULT = 450,
+    };
+
+    // Передача
+    void transmit(void);
+        
+    // Конструктор по умолчанию
+    ipc_requester_t(tick_t timeout_request = TIMEOUT_REPEAT_DEFAULT) : 
+        timeout_request(timeout_request)
+    { }
+};
+
+// Шаблон класса обработчика команды (ответчик)
 template <typename COMMAND>
-class ipc_handler_template_t : public ipc_handler_t
+class ipc_requester_template_t : public ipc_requester_t
 {
 public:
     // Комадна
     COMMAND command;
+private:
+    // Получает ссылку на команду
+    virtual ipc_command_t &command_get(void)
+    {
+        return command;
+    }
 protected:
+    
+    // Конструктор по умолчанию
+    ipc_requester_template_t(tick_t timeout_request = TIMEOUT_REPEAT_DEFAULT) :
+        ipc_requester_t(timeout_request)
+    { }
+};
+
+// Базовый класс обработчика команды (ответчик)
+class ipc_responder_t : public ipc_handler_t
+{
+    // Перечисление состяония обработчика
+    enum handler_state_t
+    {
+        // Простой
+        HANDLER_STATE_IDLE,
+        // Ожидание обработки запроса
+        HANDLER_STATE_REQUEST_PENDING,
+        // Передача ответа
+        HANDLER_STATE_RESPONSE,
+    } state = HANDLER_STATE_IDLE;
+
+    // Оповещение о обработке
+    virtual void pool(void);
+
+    // Оповещение о поступлении данных
+    virtual void notify(ipc_dir_t dir)
+    {
+        assert(dir == IPC_DIR_REQUEST);
+        // Переход к ожиданию обработки только если были в простое
+        if (state == HANDLER_STATE_IDLE)
+            state = HANDLER_STATE_REQUEST_PENDING;
+    }
+protected:
+    // Передача
+    void transmit(void);
+};
+
+// Шаблон класса обработчика команды (запроситель)
+template <typename COMMAND>
+class ipc_responder_template_t : public ipc_responder_t
+{
+public:
+    // Комадна
+    COMMAND command;
+private:
     // Получает ссылку на команду
     virtual ipc_command_t &command_get(void)
     {
@@ -654,7 +683,6 @@ protected:
 // Класс хоста обработчиков команд
 class ipc_handler_host_t : public ipc_processor_t
 {
-private:
     // Данные связанные с текущей сборкой
     struct
     {
@@ -667,15 +695,15 @@ private:
     list_template_t<ipc_handler_t> handlers;
     
     // Поиск обработчика по команде
-    ipc_handler_t * find_handler(ipc_opcode_t opcode) const;
+    ipc_handler_t * handler_find(ipc_opcode_t opcode) const;
+    
+    // Обработка пакета (склеивание в команду)
+    virtual bool packet_process(const ipc_packet_t &packet, const args_t &args);
 public:
     // Оповещение о обработке
     void pool(void);
     // Добавление обработчика в хост
-    void add_handler(ipc_handler_t &handler);
-    
-    // Обработка пакета (склеивание в команду)
-    virtual bool packet_process(const ipc_packet_t &packet, const args_t &args);
+    void handler_add(ipc_handler_t &handler);
 };
 
 // Возвращает количество символов

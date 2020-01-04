@@ -114,19 +114,19 @@ struct wifi_command_settings_get_response_t
 };
 
 // Команда запроса настроек WiFi
-class wifi_command_settings_get_t : public ipc_command_getter_t<wifi_command_settings_get_response_t>
+class wifi_command_settings_get_t : public ipc_command_get_t<wifi_command_settings_get_response_t>
 {
 public:
     // Конструктор по умолчанию
-    wifi_command_settings_get_t(void) : ipc_command_getter_t(IPC_OPCODE_STM_WIFI_SETTINGS_GET)
+    wifi_command_settings_get_t(void) : ipc_command_get_t(IPC_OPCODE_STM_WIFI_SETTINGS_GET)
     { }
 };
 
 // Команда оповещения изменения настроек WiFi
-class wifi_command_settings_changed_t : public ipc_command_empty_t
+class wifi_command_settings_changed_t : public ipc_command_t
 {
 public:
     // Конструктор по умолчанию
-    wifi_command_settings_changed_t(void) : ipc_command_empty_t(IPC_OPCODE_ESP_WIFI_SETTINGS_CHANGED)
+    wifi_command_settings_changed_t(void) : ipc_command_t(IPC_OPCODE_ESP_WIFI_SETTINGS_CHANGED)
     { }
 };

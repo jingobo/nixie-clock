@@ -158,6 +158,11 @@ void mcu_mco_output(mcu_mco_source_t source)
         cur = mcu_systicks;                                 \
     } while (cur - old < delay)
 
+uint32_t mcu_tick_get(void)
+{
+    return mcu_systicks;
+}
+
 INLINE_NEVER
 OPTIMIZE_NONE
 void mcu_delay_ms(uint32_t delay)

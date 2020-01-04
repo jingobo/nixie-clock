@@ -26,11 +26,11 @@ struct time_command_sync_response_t
 ALIGN_FIELD_DEF
 
 // Команда синхронизации даты/времени
-class time_command_sync_t : public ipc_command_getter_t<time_command_sync_response_t>
+class time_command_sync_t : public ipc_command_get_t<time_command_sync_response_t>
 {
 public:
     // Конструктор по умолчанию
-    time_command_sync_t(void) : ipc_command_getter_t(IPC_OPCODE_ESP_TIME_SYNC)
+    time_command_sync_t(void) : ipc_command_get_t(IPC_OPCODE_ESP_TIME_SYNC)
     { }
 };
 
@@ -114,11 +114,11 @@ struct time_command_hostlist_set_request_t
 ALIGN_FIELD_DEF
 
 // Команда отправки списка серверов
-class time_command_hostlist_set_t : public ipc_command_setter_t<time_command_hostlist_set_request_t>
+class time_command_hostlist_set_t : public ipc_command_set_t<time_command_hostlist_set_request_t>
 {
 public:
     // Конструктор по умолчанию
-    time_command_hostlist_set_t(void) : ipc_command_setter_t(IPC_OPCODE_ESP_TIME_HOSTLIST_SET)
+    time_command_hostlist_set_t(void) : ipc_command_set_t(IPC_OPCODE_ESP_TIME_HOSTLIST_SET)
     { }
 };
 
@@ -169,37 +169,37 @@ struct time_sync_settings_t
 ALIGN_FIELD_DEF
 
 // Команда получения текущей даты/времени
-class time_command_current_get_t : public ipc_command_getter_t<datetime_t>
+class time_command_current_get_t : public ipc_command_get_t<datetime_t>
 {
 public:
     // Конструктор по умолчанию
-    time_command_current_get_t(void) : ipc_command_getter_t(IPC_OPCODE_STM_TIME_GET)
+    time_command_current_get_t(void) : ipc_command_get_t(IPC_OPCODE_STM_TIME_GET)
     { }
 };
 
 // Команда установки текущей даты/времени
-class time_command_current_set_t : public ipc_command_setter_t<datetime_t>
+class time_command_current_set_t : public ipc_command_set_t<datetime_t>
 {
 public:
     // Конструктор по умолчанию
-    time_command_current_set_t(void) : ipc_command_setter_t(IPC_OPCODE_STM_TIME_SET)
+    time_command_current_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_TIME_SET)
     { }
 };
 
 // Команда получения настроек даты/времени
-class time_command_settings_get_t : public ipc_command_getter_t<time_sync_settings_t>
+class time_command_settings_get_t : public ipc_command_get_t<time_sync_settings_t>
 {
 public:
     // Конструктор по умолчанию
-    time_command_settings_get_t(void) : ipc_command_getter_t(IPC_OPCODE_STM_TIME_SETTINGS_GET)
+    time_command_settings_get_t(void) : ipc_command_get_t(IPC_OPCODE_STM_TIME_SETTINGS_GET)
     { }
 };
 
 // Команда установки настроек даты/времени
-class time_command_settings_set_t : public ipc_command_setter_t<time_sync_settings_t>
+class time_command_settings_set_t : public ipc_command_set_t<time_sync_settings_t>
 {
 public:
     // Конструктор по умолчанию
-    time_command_settings_set_t(void) : ipc_command_setter_t(IPC_OPCODE_STM_TIME_SETTINGS_SET)
+    time_command_settings_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_TIME_SETTINGS_SET)
     { }
 };

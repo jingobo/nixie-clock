@@ -22,101 +22,42 @@ static wifi_settings_t wifi_settings @ STORAGE_SECTION =
 };
 
 // Обработчик команды запроса настроек WiFi
-static class wifi_command_handler_settings_get_t : public ipc_command_handler_template_sticky_t<wifi_command_settings_get_t>
+static class wifi_command_handler_settings_get_t : public ipc_responder_template_t<wifi_command_settings_get_t>
 {
 protected:
-    // Оповещение о поступлении данных
-    virtual void notify(ipc_dir_t dir)
+    // Событие обработки данных
+    virtual void work(bool idle)
     {
-        // Мы можем только обрабатывать запрос
-        assert(dir == IPC_DIR_REQUEST);
+        if (idle)
+            return;
         // Заполняем ответ
         command.response.settings = wifi_settings;
         // Передача ответа
         transmit();
     }
-
-    // Обработчик передачи
-    virtual bool transmit_internal(void)
-    {
-        return esp_transmit(IPC_DIR_RESPONSE, command);
-    }
 } wifi_command_handler_settings_get;
 
 // Обработчик команды оповещения о смене настроек WiFi
-static class wifi_command_handler_settings_changed_t : public ipc_command_handler_template_sticky_t<wifi_command_settings_changed_t>
+static class wifi_command_handler_settings_changed_t : public ipc_requester_template_t<wifi_command_settings_changed_t>
 {
 protected:
-    // Оповещение о поступлении данных
-    virtual void notify(ipc_dir_t dir)
+    // Событие обработки данных
+    virtual void work(bool idle)
     {
-        // Мы можем только обрабатывать ответ
-        assert(dir == IPC_DIR_RESPONSE);
-        __no_operation();
+        // Ничего не делаем
     }
-
-    // Обработчик передачи
-    virtual bool transmit_internal(void)
+public:
+    // Оповещение о смене настроек WiFi
+    void transmit(void)
     {
-        return esp_transmit(IPC_DIR_REQUEST, command);
+        ipc_requester_template_t::transmit();
     }
 } wifi_command_handler_settings_changed;
 
-// Обработчик событий IPC
-static class wifi_ipc_event_handler_t : public ipc_event_handler_t
-{
-    // Обработчик события сброса
-    virtual void reset(void)
-    {
-        wifi_command_handler_settings_get.reset();
-        wifi_command_handler_settings_changed.reset();
-    }
-
-    // Обработчик события простоя
-    virtual void idle(void)
-    {
-        wifi_command_handler_settings_get.idle();
-        wifi_command_handler_settings_changed.idle();
-    }
-} wifi_ipc_event_handler;
-
-static uint8_t wifi_test_time = 0;
-
-// Событие наступления секунды
-static callback_list_item_t wifi_second_event([](void)
-{
-    // TODO: выпилить
-    /*if (++wifi_test_time == 10)
-    {
-        strcpy(wifi_settings.station.ssid, "Vitaly");
-        strcpy(wifi_settings.station.password, "11111111");
-        wifi_settings_changed();
-        return;
-    }
-    if (wifi_test_time == 15)
-    {
-        wifi_settings.station.use = IPC_BOOL_FALSE;
-        wifi_settings_changed();
-        return;
-    }
-    if (wifi_test_time == 20)
-    {
-        wifi_settings.station.use = IPC_BOOL_TRUE;
-        strcpy(wifi_settings.station.ssid, "Holyday! [2.4 GHz]");
-        strcpy(wifi_settings.station.password, "02701890");
-        wifi_settings_changed();
-        return;
-    }*/
-});
-
-
 void wifi_init(void)
 {
-    esp_add_event_handler(wifi_ipc_event_handler);
-    esp_add_command_handler(wifi_command_handler_settings_get);
-    esp_add_command_handler(wifi_command_handler_settings_changed);
-    // Добавление обработчика секундного события
-    rtc_second_event_add(wifi_second_event);
+    esp_handler_add(wifi_command_handler_settings_get);
+    esp_handler_add(wifi_command_handler_settings_changed);
 }
 
 bool wifi_has_internet_get(void)
