@@ -126,7 +126,8 @@ RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet
                     if (!core_route_map[opcode][lside])
                         continue;
                     // Лог
-                    LOGI("%s response 0x%02x, %d bytes", CORE_LINK_SIDE[lside].name, packet.dll.opcode, args.size);
+                    if (last)
+                        LOGI("%s response 0x%02x, %d bytes", CORE_LINK_SIDE[lside].name, packet.dll.opcode, args.size);
                     // Передача
                     result = CORE_LINK_SIDE[lside].in->packet_process(packet, args);
                     // Если передать не удалось или это последний пакет...

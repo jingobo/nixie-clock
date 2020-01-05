@@ -160,7 +160,7 @@ void mcu_mco_output(mcu_mco_source_t source)
 
 uint32_t mcu_tick_get(void)
 {
-    return mcu_systicks;
+    return mcu_systicks / MCU_SYSTICK_DIVIDER;
 }
 
 INLINE_NEVER

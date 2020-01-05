@@ -59,7 +59,8 @@ bool ipc_processor_t::data_split(ipc_processor_t &processor, ipc_opcode_t opcode
     ipc_packet_t packet;
     packet.prepare(opcode, dir);
     // Рзбиваем на пакеты
-    for (auto src = (const uint8_t *)source; size > 0;)
+    auto src = (const uint8_t *)source;
+    do
     {
         auto more = size > IPC_APL_SIZE;
         auto len = more ? IPC_APL_SIZE : (uint8_t)size;
@@ -75,7 +76,7 @@ bool ipc_processor_t::data_split(ipc_processor_t &processor, ipc_opcode_t opcode
         if (!processor.packet_process(packet, args))
             return false;
         args.first = false;
-    }
+    } while (size > 0);
     return true;
 }
 
