@@ -3,8 +3,8 @@ var app = { };
 // Коды команд
 app.opcode =
 {
-    // Ошибка IPC
-    IPC_ERROR: 0x00,
+    // Код ошибки для переотправки
+    IPC_RETRY: 0x00,
     // Запрос текущей даты/времени
     STM_TIME_GET: 0x02,
     // Установка текущей даты/времени
@@ -30,23 +30,16 @@ app.opcode =
 };
 
 // Класс исходящего пакета
-function OutPacket(opcode)
+function OutPacket(opcode, name)
 {
     // Проверка аргументов
     log.assert(opcode > 0 && opcode < 256, "Wrong opcode");
     // Инициализация полей
     this.opcode = opcode;
     this.data = new BinWriter();
+    this.name = name;
     // Добавляем байт команды
     this.data.uint8(opcode);
-}
-
-// Класс исходящего пустого пакета
-function OutPacketDummy(opcode)
-{
-    var result = new OutPacket(opcode);
-    result.data.uint8(0xAA);
-    return result;
 }
 
 // Класс входящего пакета
@@ -56,10 +49,10 @@ function InPacket(buffer)
     this.data = new BinReader(buffer);
     // Чтение команды
     this.opcode = this.data.uint8();
-    // Является ли пакет данным о ошибке
-    this.isError = function ()
+    // Является ли пакет данным о переотправке
+    this.isRetry = function ()
     {
-        return this.opcode == app.opcode.IPC_ERROR;
+        return this.opcode == app.opcode.IPC_RETRY;
     };
 }
 
@@ -71,25 +64,25 @@ app.overlay = new function ()
     // Показывает/скрывает панель оверлея
     var toggle = function (show)
     {
-        app.dom.overlay.visible(show);
         app.dom.container.visible(!show);
+        app.dom.overlay.container.visible(show);
     };
     
     // Показать/скрыть как обычная загрузка
     this.asLoader = function (show)
     {
-        app.dom.overlay.removeClass(error);
+        app.dom.overlay.container.removeClass(error);
         toggle(show);
     };
     
     // Показать как фатальную ошибку
     this.asError = function (msg)
     {
-        app.dom.overlay.addClass(error);
+        app.dom.overlay.container.addClass(error);
         toggle(true);
         if (msg === undefined)
             return;
-        app.dom.overlay.find(".text-danger").text(msg);
+        app.dom.overlay.message.text(msg);
     };
 };
 
@@ -97,9 +90,12 @@ app.overlay = new function ()
 app.popup = new function ()
 {
     // Показ всплывающего окна
-    this.show = function ()
+    this.show = function (msg)
     {
-        app.dom.popup.modal();
+        if (msg === undefined)
+            return;
+        app.dom.popup.message.text(msg);
+        app.dom.popup.container.modal();
     };
 };
 
@@ -137,10 +133,19 @@ app.dom = new function ()
     // Карта селекторов
     var map = 
     {
-        popup: "#popup",
-        overlay: "#overlay",
+        overlay:
+        {
+            container: "#overlay",
+            message: "#overlay .text-danger",
+        },
         nixie: "#nixie-display",
         container: ".container",
+        
+        popup:
+        {
+            container: "#popup",
+            message: "#popup div.modal-body span",
+        },
         
         wifiAp:
         {
@@ -296,13 +301,13 @@ app.page =
         // Запрос текущей даты/времени
         var requestTime = function ()
         {
-            app.session.transmit(new OutPacketDummy(app.opcode.STM_TIME_GET), receiveDoneHandler);
+            app.session.transmit(new OutPacket(app.opcode.STM_TIME_GET, "запрос даты/времени"), receiveDoneHandler);
         };
 
         // Запрос текущей даты/времени
         var requestSettings = function ()
         {
-            app.session.transmit(new OutPacketDummy(app.opcode.STM_TIME_SETTINGS_GET), receiveDoneHandler);
+            app.session.transmit(new OutPacket(app.opcode.STM_TIME_SETTINGS_GET, "запрос настроек синхронизации"), receiveDoneHandler);
         };
         
         // Обновление текущего времени на дисплее
@@ -326,12 +331,10 @@ app.page =
             app.nixie.setNumber(2, ss);
             
             // Можем ли модифицировать поля ввода
-            var dx = Date.now() - modifyTime;
+            var dx = new Date() - modifyTime;
             if (dx < 5000)
-            {
-                log.info(dx);
                 return;
-            }
+            
             app.dom.time.second.val(ss);
             app.dom.time.minute.val(mm);
             app.dom.time.hour.val(hh);
@@ -363,7 +366,7 @@ app.page =
             {
                 modifyTime = new Date();
                 // Отправляем пакет с установкой даты/времени
-                var packet = new OutPacket(app.opcode.STM_TIME_SET);
+                var packet = new OutPacket(app.opcode.STM_TIME_SET, "применение даты/времени");
                 packet.data.uint8(utils.dropdownSelectedNumber(app.dom.time.year) - 2000);
                 packet.data.uint8(utils.dropdownSelectedNumber(app.dom.time.month) + 1);
                 packet.data.uint8(utils.dropdownSelectedNumber(app.dom.time.day));
@@ -397,7 +400,7 @@ app.page =
         // Получает текущую дату/время
         this.currentTime = function ()
         {
-            var dx = Date.now();
+            var dx = new Date();
             dx -= syncTime;
             return new Date(readedTime.getTime() + dx);
         };
@@ -455,6 +458,8 @@ app.session = new function ()
         var sended = null;
         // Таймаут на переотправку
         var resendHandle;
+        // Время начала передачи запроса
+        var resendTime = new Date(0);
         
         // Сброс очереди (внутренняя функция)
         var reset = function ()
@@ -478,6 +483,14 @@ app.session = new function ()
         {
             if (sended == null)
                 return;
+            // Проверка истечения времени
+            if (new Date() - resendTime > 3000)
+            {
+                receive();
+                return;
+            }
+            
+            // Передача
             try
             {
                 ws.send(sended.packet.data.toArray());
@@ -487,6 +500,7 @@ app.session = new function ()
                 app.session.restart();
                 return;
             }
+            
             // Установка таймаута
             setResendTimeout();
         }
@@ -505,6 +519,8 @@ app.session = new function ()
             }
             // Получаем первый элемент
             sended = queue.shift();
+            // Текущее время
+            resendTime = new Date();
             // Отправка
             resend();
         };
@@ -533,36 +549,38 @@ app.session = new function ()
         };
         
         // Получение пакета
-        this.receive = function(buffer)
+        var receive = function(buffer)
         {
             // Если ничего не отправлялось - выходим
             if (sended == null)
                 return;
+            
             // Парсинг пакета
-            var packet = new InPacket(buffer);
-            // Проверяем код команды
-            if (packet.isError())
+            var packet;
+            // Если данных нет - ответа не дождались
+            if (buffer != null)
             {
-                var error_code = packet.data.uint8();
-                switch (error_code)
+                packet = new InPacket(buffer);
+                // Проверяем на переотправку
+                if (packet.isRetry())
                 {
-                    // Переполнение
-                    case 0x01:
-                        // Повторяем побыстрее
-                        setResendTimeout(100);
-                        break;
-                    // Битые данные
-                    case 0x02:
-                        app.popup.show();
-                        break;
+                    // Повторяем побыстрее
+                    log.error("Received retry command!");
+                    setResendTimeout(100);
+                    resend();
+                    return;
                 }
-                log.error("Received IPC error " + error_code + "!");
-                packet = null;
+                else if (sended.packet.opcode != packet.opcode)
+                {
+                    log.error("Received not our packet " + packet.opcode + ", transmitted " + sended.packet.opcode);
+                    return;
+                }
             }
-            else if (sended.packet.opcode != packet.opcode)
+            else
             {
-                log.error("Received not our packet " + packet.opcode + ", transmitted " + sended.packet.opcode);
-                return;
+                packet = null;
+                // Вывод сообщения об ошибке
+                app.popup.show("Что то пошло не так с запросом: " + sended.packet.name + "!");
             }
             // Сброс интервала переотправки
             clearInterval(resendHandle);
@@ -574,10 +592,13 @@ app.session = new function ()
             sended = null;
             next();
         };
+        
+        // Получение пакета
+        this.receive = function (buffer) { receive(buffer) };
     };
     
     // Выгрузка сессии
-    function unload()
+    this.unload = function()
     {
         // Сброс интервала перезапуска
         clearInterval(restartHandle);
@@ -598,7 +619,7 @@ app.session = new function ()
         try
         {
             // TODO: вернуть ws = new WebSocket("ws://" + window.location.hostname + ":7777");
-            ws = new WebSocket("ws://192.168.88.92:80");
+            ws = new WebSocket("ws://192.168.88.81:80");
         }
         catch (e)
         {
@@ -643,7 +664,7 @@ app.session = new function ()
     // Перезапуск
     this.restart = function ()
     {
-        unload();
+        this.unload();
         restartHandle = setTimeout(restart, 500);
     };
     
@@ -672,6 +693,25 @@ $(function ()
         app.session.init();
     } catch (msg)
     {
-        app.overlay.asError(msg);
+        // Что то пошло не так
+        try
+        {
+            // Выгрузка
+            app.session.unload();
+        }
+        catch (e)
+        { }
+        
+        // Вывод ошибки инициализации
+        try
+        {
+            app.overlay.asError(msg);
+        }
+        catch (e)
+        {
+            // Что бы совсем не потерять лицо
+            document.getElementsByTagName("body")[0].style.display = "none";
+        }
+        throw msg;
     }
 });
