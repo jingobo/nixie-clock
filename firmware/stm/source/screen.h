@@ -81,7 +81,7 @@ public:
     }
     
     // Обновление сцены (повышение доступа)
-    virtual void refresh(void)
+    virtual void refresh(void) override final
     {
         // Базовый метод
         screen_model_t::refresh();
@@ -94,8 +94,8 @@ public:
             scene->refresh();
     }
     
-    // Секундное событие
-    virtual void second(void)
+    // Секундное событие (повышение доступа)
+    virtual void second(void) override final
     {
         // Базовый метод
         screen_model_t::second();

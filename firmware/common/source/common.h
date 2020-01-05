@@ -96,4 +96,14 @@ typedef float32_t float_t;
 #define ENUM_VALUE_NEXT(v)      ENUM_VALUE_SHIFT(v, 1)
 #define ENUM_VALUE_PREV(v)      ENUM_VALUE_SHIFT(v, -1)
 
+// --- Утверждения --- //
+
+#ifndef STATIC_ASSERT
+    #ifdef __GNUC__
+        #define STATIC_ASSERT(exp)  static_assert(exp, #exp)
+    #else
+        #define STATIC_ASSERT(exp)  static_assert(exp)
+    #endif
+#endif
+
 #endif // __TYPEDEFS_H

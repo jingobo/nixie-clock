@@ -86,7 +86,7 @@ class timer_callback_t : public timer_base_t
     callback_t callback;
 protected:
     // Обработка тика таймера
-    virtual void execute(void)
+    virtual void execute(void) override final
     {
         callback();
     }

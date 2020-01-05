@@ -108,16 +108,13 @@ struct sntp_packet_t
     // Конструктор по умолчанию
     sntp_packet_t()
     {
-        memset(this, 0, sizeof(*this));
+        memset(this, 0, sizeof(sntp_packet_t));
         mode = SNTP_MODE_CLIENT;
         version = 3;
     }
 
     // Подготавливает поля после записи
-    void ready(void);
-
-    // Проверка на валидность ответа
-    bool response_check(void) const;
+    bool ready(void);
 };
 ALIGN_FIELD_DEF
 

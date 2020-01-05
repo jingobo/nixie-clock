@@ -76,7 +76,7 @@ protected:
     HANDLER handlers[COUNT];
 public:
     // Выделение слота обработчика
-    virtual web_slot_handler_t * allocate(web_slot_socket_t &socket)
+    virtual web_slot_handler_t * allocate(web_slot_socket_t &socket) override final
     {
         for (int i = 0; i < COUNT; i++)
             if (handlers[i].allocate(socket))
@@ -170,7 +170,7 @@ public:
     { }
 
     // Выделение слота сокета
-    virtual web_slot_socket_t * allocate(lwip_socket_t socket)
+    virtual web_slot_socket_t * allocate(lwip_socket_t socket) override final
     {
         for (int i = 0; i < COUNT; i++)
             if (sockets[i].allocate(allocator, socket))
@@ -179,14 +179,14 @@ public:
     }
 
     // Обработка всех слотов
-    virtual void execute(web_slot_buffer_t buffer)
+    virtual void execute(web_slot_buffer_t buffer) override final
     {
         for (auto i = 0; i < COUNT; i++)
             sockets[i].execute(buffer);
     }
 
     // Получает количество выделенных слотов
-    virtual uint8_t allocated_count(void) const
+    virtual uint8_t allocated_count(void) const override final
     {
         uint8_t result = 0;
         for (auto i = 0; i < COUNT; i++)

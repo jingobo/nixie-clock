@@ -39,7 +39,7 @@ static class led_driver_t : public led_filter_t
     bool uploaded = false;
 protected:
     // Событие обработки новых данных
-    virtual void process(hmi_rank_t index, hmi_rgb_t &data)
+    virtual void process(hmi_rank_t index, hmi_rgb_t &data) override final
     {
         uploaded = false;
         // Базовый метод (не передаем далее, это дисплей)
@@ -48,7 +48,7 @@ protected:
     
     // Обновление состояния светодиодов (возможна задержка выполнения до 0.25 мС)
     OPTIMIZE_SPEED
-    virtual void refresh(void)
+    virtual void refresh(void) override final
     {
         // Базовый метод
         led_filter_t::refresh();

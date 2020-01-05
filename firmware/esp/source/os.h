@@ -71,7 +71,7 @@ class os_event_auto_t : public os_event_base_t
 {
 public:
     // Ожидание события
-    virtual bool wait(os_tick_t ticks = OS_TICK_MAX);
+    virtual bool wait(os_tick_t ticks = OS_TICK_MAX) override final;
 };
 
 // Событие с ручным сбросом
@@ -79,7 +79,7 @@ class os_event_manual_t : public os_event_base_t
 {
 public:
     // Ожидание события
-    virtual bool wait(os_tick_t ticks = OS_TICK_MAX);
+    virtual bool wait(os_tick_t ticks = OS_TICK_MAX) override final;
 
     // Сброс события
     void reset(void);
@@ -117,11 +117,13 @@ enum os_task_priority_t
 class os_task_base_t
 {
     // Флаг активности задачи
-    bool active;
+    bool active = false;
     // Флаг перезапуска задачи
-    bool restart;
+    bool restart = false;
     // Имя задачи
     const char * const name;
+    // Является ли задача критической
+    const bool critical;
 
     // Оболочка для метода выполнения задачи
     void execute_wrapper(void);
@@ -129,11 +131,10 @@ class os_task_base_t
     static void task_routine(void *arg);
 protected:
     // Конструктор по умолчанию
-    os_task_base_t(const char * _name);
+    os_task_base_t(const char * _name, bool _critical = false);
 
     // Обработчик задачи
     virtual void execute(void) = 0;
-
     // Задержка на указанное количество тиков
     void delay(os_tick_t ticks);
 public:

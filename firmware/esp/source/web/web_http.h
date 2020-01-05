@@ -218,10 +218,10 @@ class web_http_handler_t : public web_slot_handler_t
     static bool str_cat(char *dest, char c, size_t n);
 protected:
     // Освобождение обработчика
-    virtual void free(web_slot_free_reason_t reason);
+    virtual void free(web_slot_free_reason_t reason) override final;
 
     // Обработка данных
-    virtual void execute(web_slot_buffer_t buffer);
+    virtual void execute(web_slot_buffer_t buffer) override final;
 public:
     // Конструктор по умолчанию
     web_http_handler_t(void) : ws(NULL)
@@ -235,7 +235,7 @@ public:
     }
 
     // Выделение обработчика
-    virtual bool allocate(web_slot_socket_t &socket);
+    virtual bool allocate(web_slot_socket_t &socket) override final;
 };
 
 // Шаблон аллокатора слотов HTTP обработчиков

@@ -30,7 +30,7 @@ static class ntime_command_handler_time_sync_t : public ipc_requester_template_t
     timer_t request_timer;
     
     // Событие обработки данных
-    virtual void work(bool idle);
+    virtual void work(bool idle) override final;
 public:
     // Конструктор по умолчанию
     ntime_command_handler_time_sync_t(void) : ipc_requester_template_t(15000)
@@ -52,7 +52,7 @@ static class ntime_command_handler_hostlist_t : public ipc_requester_template_t<
 {
 protected:
     // Событие обработки данных
-    virtual void work(bool idle)
+    virtual void work(bool idle) override final
     {
         if (idle)
             return;
@@ -128,7 +128,7 @@ static class ntime_command_handler_current_get_t : public ipc_responder_template
 {
 protected:
     // Событие обработки данных
-    virtual void work(bool idle)
+    virtual void work(bool idle) override final
     {
         if (idle)
             return;
@@ -144,7 +144,7 @@ static class ntime_command_handler_current_set_t : public ipc_responder_template
 {
 protected:
     // Событие обработки данных
-    virtual void work(bool idle)
+    virtual void work(bool idle) override final
     {
         if (idle)
             return;
@@ -160,7 +160,7 @@ static class ntime_command_handler_settings_get_t : public ipc_responder_templat
 {
 protected:
     // Событие обработки данных
-    virtual void work(bool idle)
+    virtual void work(bool idle) override final
     {
         if (idle)
             return;
@@ -176,7 +176,7 @@ static class ntime_command_handler_settings_set_t : public ipc_responder_templat
 {
 protected:
     // Событие обработки данных
-    virtual void work(bool idle)
+    virtual void work(bool idle) override final
     {
         if (idle)
             return;

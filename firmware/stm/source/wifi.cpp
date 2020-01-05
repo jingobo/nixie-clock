@@ -26,7 +26,7 @@ static class wifi_command_handler_settings_get_t : public ipc_responder_template
 {
 protected:
     // Событие обработки данных
-    virtual void work(bool idle)
+    virtual void work(bool idle) override final
     {
         if (idle)
             return;
@@ -42,7 +42,7 @@ static class wifi_command_handler_settings_changed_t : public ipc_requester_temp
 {
 protected:
     // Событие обработки данных
-    virtual void work(bool idle)
+    virtual void work(bool idle) override final
     {
         // Ничего не делаем
     }

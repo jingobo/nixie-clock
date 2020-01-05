@@ -127,7 +127,8 @@ RAM bool os_event_group_t::wait(uint32_t bits, bool all, os_tick_t ticks)
 
 // --- Task --- //
 
-os_task_base_t::os_task_base_t(const char * _name) : active(false), restart(false), name(_name)
+os_task_base_t::os_task_base_t(const char * _name, bool _critical)
+    : name(_name), critical(_critical)
 {
     assert(name != NULL);
 }
@@ -180,6 +181,11 @@ bool os_task_base_t::start(bool auto_restart)
         }
         LOGH();
     mutex.leave();
+    if (critical && !result)
+    {
+        LOGE("Critical task \"%s\" run failed!", name);
+        abort();
+    }
     return result;
 }
 

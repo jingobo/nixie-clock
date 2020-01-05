@@ -33,7 +33,7 @@ class event_callback_t : public event_t
     callback_t callback;
 protected:
     // Обработка события
-    virtual void execute(void)
+    virtual void execute(void) override final
     {
         callback();
     }

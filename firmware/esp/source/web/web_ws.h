@@ -192,9 +192,9 @@ class web_ws_handler_t : public web_slot_handler_t
     bool transmit(uint8_t code, const void *source, size_t size);
 protected:
     // Освобождение обработчика
-    virtual void free(web_slot_free_reason_t reason);
+    virtual void free(web_slot_free_reason_t reason) override final;
     // Обработка данных
-    virtual void execute(web_slot_buffer_t buffer);
+    virtual void execute(web_slot_buffer_t buffer) override final;
 
     // Событие передачи данных (бинарных)
     virtual void transmit_event(void) = 0;
@@ -214,7 +214,7 @@ public:
     }
 
     // Выделение обработчика
-    virtual bool allocate(web_slot_socket_t &socket);
+    virtual bool allocate(web_slot_socket_t &socket) override;
 };
 
 #endif // __WEB_WS_H

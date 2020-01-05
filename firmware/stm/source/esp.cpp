@@ -21,31 +21,6 @@
 // Предварительное объявление
 static void esp_reset_do(void);
 
-// Хост обработчиков команд
-static ipc_handler_host_t esp_handler_host;
-
-// Класс связи с ESP
-static class esp_link_t : public ipc_link_master_t
-{
-protected:
-    // Массовый сброс (другая сторона не отвечает)
-    virtual void reset_slave(void)
-    {
-        // Сброс чипаа
-        esp_reset_do();
-    }
-public:
-    // Ввод полученного пакета
-    virtual void packet_input(const ipc_packet_t &packet)
-    {
-        // Базовый метод
-        ipc_link_master_t::packet_input(packet);
-        // Обработка
-        if (!packet.dll.more)
-            flush_packets(esp_handler_host);
-    }
-} esp_link;
-
 // Ввод/вывод
 static struct esp_io_t
 {
@@ -66,6 +41,32 @@ static struct esp_io_t
     esp_io_t(void) : active(false)
     { }
 } esp_io;
+
+// Хост обработчиков команд
+static ipc_handler_host_t esp_handler_host;
+
+// Класс связи с ESP
+static class esp_link_t : public ipc_link_master_t
+{
+protected:
+    // Массовый сброс (другая сторона не отвечает)
+    virtual void reset_slave(void) override final
+    {
+        // Сброс чипаа
+        esp_reset_do();
+    }
+public:
+    // Ввод полученного пакета
+    virtual bool packet_input(const ipc_packet_t &packet) override final
+    {
+        // Базовый метод
+        auto result = ipc_link_master_t::packet_input(packet);
+        // Обработка
+        if (result && !packet.dll.more)
+            flush_packets(esp_handler_host);
+        return true;
+    }
+} esp_link;
 
 // Инициализация канала DMA
 static void esp_dma_channel_init(DMA_Channel_TypeDef *channel, uint32_t flags)

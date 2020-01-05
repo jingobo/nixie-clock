@@ -89,7 +89,7 @@ static class nixie_driver_t : public nixie_filter_t
     uint8_t nmi;
 protected:
     // Событие обработки новых данных
-    virtual void process(hmi_rank_t index, nixie_data_t &data)
+    virtual void process(hmi_rank_t index, nixie_data_t &data) override final
     {
         // Установка данных
         out[index].data = data;
@@ -100,7 +100,7 @@ protected:
     
     // Обновление состояния ламп
     OPTIMIZE_SPEED
-    virtual void refresh(void)
+    virtual void refresh(void) override final
     {
         // Базовый метод
         nixie_filter_t::refresh();

@@ -6,12 +6,6 @@
 // Номера модуля SPI
 #define STM_SPI             0
 #define STM_HSPI            1
-// Адрес статусного регистра прерываний SPI (HSPI, I2S)
-#define STM_IRQ_SRC_REG     0x3ff00020
-// Источники прерывания
-#define STM_IRQ_SRC_SPI     BIT4
-#define STM_IRQ_SRC_HSPI    BIT7
-#define STM_IRQ_SRC_I2S     BIT9
 
 // Имя модуля для логирования
 LOG_TAG_DECL("STM");
@@ -54,7 +48,7 @@ protected:
     virtual void execute(void);
 public:
     // Конструктор по умолчанию
-    stm_task_t(void) : os_task_base_t("stm")
+    stm_task_t(void) : os_task_base_t("stm", true)
     { }
 } stm_task;
 
@@ -84,64 +78,30 @@ protected:
         LOGW("Layer reset, reason %d, internal %d", reason, internal);
     }
 public:
-    // Получение пакета к выводу
-    virtual void packet_output(ipc_packet_t &packet);
-    // Ввод полученного пакета
-    virtual void packet_input(const ipc_packet_t &packet);
+    // Событие простоя линии связи
+    os_event_auto_t event_spi_idle;
+
     // Обработка пакета (перенос в передачу)
-    virtual ipc_processor_status_t packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args);
-    // Разбитие данных на пакеты
-    virtual ipc_processor_status_t packet_split(ipc_opcode_t opcode, ipc_dir_t dir, const void *source, size_t size);
+    virtual bool packet_process(const ipc_packet_t &packet, const args_t &args) override final;
 
     // Выполнение транзакции
     void transaction(void);
     // Обработчик прерывания от HSPI
     static void spi_isr(void *dummy);
-
-    // Добавление обработчика событий
-    virtual void add_event_handler(ipc_event_handler_t &handler)
-    {
-        stm_task.mutex.enter();
-            ipc_link_slave_t::add_event_handler(handler);
-        stm_task.mutex.leave();
-    }
 } stm_link;
 
-RAM void stm_link_t::packet_output(ipc_packet_t &packet)
+RAM bool stm_link_t::packet_process(const ipc_packet_t &packet, const args_t &args)
 {
-    stm_task.mutex.enter();
-        ipc_link_slave_t::packet_output(packet);
-    stm_task.mutex.leave();
-}
+    // Начало ввода
+    if (args.first)
+        stm_task.mutex.enter();
 
-RAM void stm_link_t::packet_input(const ipc_packet_t &packet)
-{
     // Ввод
-    stm_task.mutex.enter();
-        ipc_link_slave_t::packet_input(packet);
-    stm_task.mutex.leave();
-    // Обработка
-    if (packet.dll.more)
-        return;
-    // Синхронизация на приватный мьютекс не требуется
-    core_processor_out.stm.packet_process_sync_accuire(true);
-        process_incoming_packets(core_processor_out.stm);
-    core_processor_out.stm.packet_process_sync_accuire(false);
-}
+    auto result = ipc_link_slave_t::packet_process(packet, args);
 
-RAM ipc_processor_status_t stm_link_t::packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args)
-{
-    stm_task.mutex.enter();
-        auto result = ipc_link_slave_t::packet_process(packet, args);
-    stm_task.mutex.leave();
-    return result;
-}
-
-RAM ipc_processor_status_t stm_link_t::packet_split(ipc_opcode_t opcode, ipc_dir_t dir, const void *source, size_t size)
-{
-    stm_task.mutex.enter();
-        auto result = ipc_link_slave_t::packet_split(opcode, dir, source, size);
-    stm_task.mutex.leave();
+    // Завершение ввода
+    if (!(result && packet.dll.more))
+        stm_task.mutex.leave();
     return result;
 }
 
@@ -149,22 +109,42 @@ RAM ipc_processor_status_t stm_link_t::packet_split(ipc_opcode_t opcode, ipc_dir
 RAM void stm_link_t::transaction(void)
 {
     // Вывод пакета
-    packet_output(buffer.tx);
+    stm_task.mutex.enter();
+        packet_output(buffer.tx);
+    stm_task.mutex.leave();
+
     // Запись в регистры
     taskENTER_CRITICAL();
         for (auto i = 8; i < 16; i++)
             WRITE_PERI_REG(SPI_W0(STM_HSPI) + i * SYSTEM_REG_SIZE, buffer.raw[i]);
     taskEXIT_CRITICAL();
+
     // Ожидание транзакции
+    event_spi_idle.set();
     event_data_ready.wait();
+
     // Чтение из регистров
     taskENTER_CRITICAL();
         for (auto i = 0; i < 8; i++)
             buffer.raw[i] = READ_PERI_REG(SPI_W0(STM_HSPI) + i * SYSTEM_REG_SIZE);
     taskEXIT_CRITICAL();
+
     // Ввод пакета
-    packet_input(buffer.rx);
+    stm_task.mutex.enter();
+        auto result = packet_input(buffer.rx);
+    stm_task.mutex.leave();
+
+    // Обработка
+    if (result && !buffer.rx.dll.more)
+        // Синхронизация на приватный мьютекс не требуется
+        flush_packets(core_processor_out.stm);
 }
+
+// Адрес статусного регистра прерываний SPI (HSPI, I2S)
+#define STM_IRQ_SRC_REG     0x3ff00020
+// Источники прерывания
+#define STM_IRQ_SRC_SPI     BIT4
+#define STM_IRQ_SRC_HSPI    BIT7
 
 RAM void stm_link_t::spi_isr(void *dummy)
 {
@@ -195,17 +175,14 @@ RAM void stm_task_t::execute(void)
         stm_link.transaction();
 }
 
-RAM ipc_processor_status_t stm_processor_in_t::packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args)
+// Процессор входящих пактов для STM
+ipc_processor_proxy_t stm_processor_in([](const ipc_packet_t &packet, const ipc_processor_t::args_t &args)
 {
     return stm_link.packet_process(packet, args);
-}
-
-// Процессор входящих пактов для STM
-stm_processor_in_t stm_processor_in;
+});
 
 void stm_init(void)
 {
-    assert(!stm_task.running());
     // HSPI GPIO
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTDI_U, FUNC_HSPIQ_MISO);
     PIN_FUNC_SELECT(PERIPHS_IO_MUX_MTCK_U, FUNC_HSPID_MOSI);
@@ -220,7 +197,6 @@ void stm_init(void)
     WRITE_PERI_REG(SPI_USER(STM_HSPI), SPI_CK_I_EDGE | SPI_USR_MISO_HIGHPART);
     // CLOCK (reset)
     WRITE_PERI_REG(SPI_CLOCK(STM_HSPI), 0);
-
     SET_PERI_REG_BITS(SPI_CTRL2(STM_HSPI), SPI_MISO_DELAY_MODE, 1, SPI_MISO_DELAY_MODE_S);
 
     // USER1 (8-bit address phase)
@@ -231,20 +207,19 @@ void stm_init(void)
     WRITE_PERI_REG(SPI_SLAVE1(STM_HSPI), ((32 * 8 - 1) << SPI_SLV_BUF_BITLEN_S));
     // PIN (CPOL low, CS)
     WRITE_PERI_REG(SPI_PIN(STM_HSPI), BIT19);
+
     // Отладочный вывод
     STM_SPI_DEBUG();
+
     // Настройка прерывание HSPI
     _xt_isr_attach(ETS_SPI_INUM, stm_link_t::spi_isr, NULL);
     _xt_isr_unmask(1 << ETS_SPI_INUM);
 
-    // Проверка размера пакета
-    IPC_PKT_SIZE_CHECK();
     // Запуск задачи обработки пакетов
     stm_task.start();
-    assert(stm_task.running());
 }
 
-void stm_add_event_handler(ipc_event_handler_t &handler)
+void stm_wait_idle(void)
 {
-    stm_link.add_event_handler(handler);
+    stm_link.event_spi_idle.wait();
 }

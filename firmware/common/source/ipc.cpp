@@ -140,7 +140,7 @@ void ipc_link_t::packet_output(ipc_packet_t &packet)
     packet.dll.checksum = packet.checksum_get();
 }
 
-void ipc_link_t::packet_input(const ipc_packet_t &packet)
+bool ipc_link_t::packet_input(const ipc_packet_t &packet)
 {
     // Если был отправлен сброс, "старый" пакет не обрабатываем
     if (reseting)
@@ -148,7 +148,7 @@ void ipc_link_t::packet_input(const ipc_packet_t &packet)
         reseting = false;
         // Для выравнивания с фазой передачи
         rx.phase_switch();
-        return;
+        return false;
     }
     // Извлекаем конечный пакет из очереди
     auto pslot = rx.unused.head();
@@ -156,7 +156,7 @@ void ipc_link_t::packet_input(const ipc_packet_t &packet)
     {
         // Если нет свободных
         reset_layer(RESET_REASON_OVERFLOW);
-        return;
+        return false;
     }
     auto &slot = *pslot;
     // Валидация
@@ -165,7 +165,7 @@ void ipc_link_t::packet_input(const ipc_packet_t &packet)
             packet.dll.checksum != packet.checksum_get())
         {
             reset_layer(RESET_REASON_CORRUPTION);
-            return;
+            return false;
         }
     }
     // Обработка команды управления потоком
@@ -179,7 +179,7 @@ void ipc_link_t::packet_input(const ipc_packet_t &packet)
             reason >= RESET_REASON_COUNT)
         {
             reset_layer(RESET_REASON_CORRUPTION);
-            return;
+            return false;
         }
         // Обработка команды управления потоком
         if (reason > RESET_REASON_NOP)
@@ -187,14 +187,15 @@ void ipc_link_t::packet_input(const ipc_packet_t &packet)
     }
     // Проверка фазы
     if (check_phase(packet))
-        return;
+        return false;
     // Команда управления потоком уже обработана
     if (packet.dll.opcode == IPC_OPCODE_FLOW)
-        return;
+        return false;
     // Используем
     rx.use(slot);
     // Копирование пакета
     slot.packet = packet;
+    return true;
 }
 
 void ipc_link_t::flush_packets(ipc_processor_t &receiver)
@@ -300,16 +301,17 @@ void ipc_link_master_t::packet_output(ipc_packet_t &packet)
     retry.packet[1] = packet;
 }
 
-void ipc_link_master_t::packet_input(const ipc_packet_t &packet)
+bool ipc_link_master_t::packet_input(const ipc_packet_t &packet)
 {
     // Базовый метод
-    ipc_link_t::packet_input(packet);
+    auto result = ipc_link_t::packet_input(packet);
     // Обработка счетчика ошибок передачи
     if (corruption_count <= 0 || --corruption_count < 10)
-        return;
+        return result;
     // Жопа
     corruption_count = 0;
     reset_slave();
+    return false;
 }
 
 RAM size_t ipc_command_t::buffer_size(ipc_dir_t dir) const

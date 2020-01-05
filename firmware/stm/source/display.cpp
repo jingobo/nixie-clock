@@ -167,7 +167,7 @@ class display_nixie_change_filter_t : public nixie_filter_t
     }
 protected:
     // Событие присоединения к цепочке
-    virtual void attached(void)
+    virtual void attached(void) override final
     {
         // Базовый метод
         nixie_filter_t::refresh();
@@ -177,7 +177,7 @@ protected:
     }
     
     // Обнвление данных
-    virtual void refresh(void)
+    virtual void refresh(void) override final
     {
         // Базовый метод
         nixie_filter_t::refresh();
@@ -202,7 +202,7 @@ protected:
     }
     
     // Событие обработки новых данных
-    virtual void process(hmi_rank_t index, nixie_data_t &data)
+    virtual void process(hmi_rank_t index, nixie_data_t &data) override final
     {
         auto &e = effect[index];
         // Проверка, изменилась ли цифра
@@ -306,7 +306,7 @@ class display_neon_change_filter_t : public neon_filter_t
     
 protected:
     // Событие присоединения к цепочке
-    virtual void attached(void)
+    virtual void attached(void) override final
     {
         // Базовый метод
         neon_filter_t::refresh();
@@ -316,7 +316,7 @@ protected:
     }
     
     // Обнвление данных
-    virtual void refresh(void)
+    virtual void refresh(void) override final
     {
         neon_data_t data;
         // Базовый метод
@@ -338,7 +338,7 @@ protected:
     }
     
     // Событие обработки новых данных
-    virtual void process(hmi_rank_t index, neon_data_t &data)
+    virtual void process(hmi_rank_t index, neon_data_t &data) override final
     {
         auto &e = effect[index];
         // Проверка, изменилась ли насыщенность
@@ -397,7 +397,7 @@ class display_led_change_filter_t : public led_filter_t
     
 protected:
     // Событие присоединения к цепочке
-    virtual void attached(void)
+    virtual void attached(void) override final
     {
         // Базовый метод
         led_filter_t::refresh();
@@ -407,7 +407,7 @@ protected:
     }
     
     // Обнвление данных
-    virtual void refresh(void)
+    virtual void refresh(void) override final
     {
         // Базовый метод
         led_filter_t::refresh();
@@ -431,7 +431,7 @@ protected:
     }
     
     // Событие обработки новых данных
-    virtual void process(hmi_rank_t index, hmi_rgb_t &data)
+    virtual void process(hmi_rank_t index, hmi_rgb_t &data) override final
     {
         auto &e = effect[index];
         // Проверка, изменился ли цвет
@@ -488,7 +488,7 @@ static class display_scene_test_t : public display_scene_t
         }
     protected:
         // Событие присоединения к цепочке
-        virtual void attached(void)
+        virtual void attached(void) override final
         {
             // Базовый метод
             nixie_filter_t::attached();
@@ -497,7 +497,7 @@ static class display_scene_test_t : public display_scene_t
         }
         
         // Обновление данных
-        virtual void refresh(void)
+        virtual void refresh(void) override final
         {
             // Базовый метод
             nixie_filter_t::refresh();
@@ -538,7 +538,7 @@ static class display_scene_test_t : public display_scene_t
         }
     protected:
         // Событие присоединения к цепочке
-        virtual void attached(void)
+        virtual void attached(void) override final
         {
             // Базовый метод
             neon_filter_t::attached();
@@ -547,7 +547,7 @@ static class display_scene_test_t : public display_scene_t
         }
         
         // Обновление данных
-        virtual void refresh(void)
+        virtual void refresh(void) override final
         {
             // Базовый метод
             neon_filter_t::refresh();
@@ -587,7 +587,7 @@ static class display_scene_test_t : public display_scene_t
         }
     protected:
         // Событие присоединения к цепочке
-        virtual void attached(void)
+        virtual void attached(void) override final
         {
             // Базовый метод
             led_filter_t::attached();
@@ -596,7 +596,7 @@ static class display_scene_test_t : public display_scene_t
         }
         
         // Обновление данных
-        virtual void refresh(void)
+        virtual void refresh(void) override final
         {
             // Базовый метод
             led_filter_t::refresh();
@@ -700,13 +700,13 @@ static class display_scene_test_t : public display_scene_t
     display_nixie_change_filter_t nixie_start_change;
 protected:
     // Получает, нужно ли отобразить сцену
-    virtual bool show_required(void)
+    virtual bool show_required(void) override final
     {
         return !shown;
     }
     
     // Событие установки сцены на дисплей
-    virtual void activated(void)
+    virtual void activated(void) override final
     {
         // Базовый метод
         screen_scene_t::activated();
@@ -719,7 +719,7 @@ protected:
     }
     
     // Обновление сцены
-    virtual void refresh(void)
+    virtual void refresh(void) override final
     {
         // Базовый метод
         screen_scene_t::refresh();
@@ -786,7 +786,7 @@ public:
         }
     protected:
         // Событие присоединения к цепочке
-        virtual void attached(void)
+        virtual void attached(void) override final
         { 
             // Базовый метод
             nixie_filter_t::attached();
@@ -795,7 +795,7 @@ public:
         }
         
         // Обновление данных
-        virtual void refresh(void)
+        virtual void refresh(void) override final
         {
             // Базовый метод
             nixie_filter_t::refresh();
@@ -869,7 +869,7 @@ public:
         }
     protected:
         // Событие присоединения к цепочке
-        virtual void attached(void)
+        virtual void attached(void) override final
         {
             // Базовый метод
             neon_filter_t::attached();
@@ -880,7 +880,7 @@ public:
         }
         
         // Обновление данных
-        virtual void refresh(void)
+        virtual void refresh(void) override final
         {
             // Базовый метод
             neon_filter_t::refresh();
@@ -997,14 +997,14 @@ public:
     }
 protected:
     // Получает, нужно ли отобразить сцену
-    virtual bool show_required(void)
+    virtual bool show_required(void) override final
     {
         // Всегда нужно показывать
         return true;
     }
     
     // Секундное событие
-    virtual void second(void)
+    virtual void second(void) override final
     {
         // Базовый метод
         screen_scene_t::second();
@@ -1022,7 +1022,7 @@ static class display_led_rainbow_source_t : public led_model_t::filter_t
     uint8_t time_prescaller, hue;
 protected:
     // Обнвление данных
-    virtual void refresh(void)
+    virtual void refresh(void) override final
     { 
         if (++time_prescaller < HMI_FRAME_RATE / 20)
             return;
@@ -1052,13 +1052,13 @@ static class display_nixie_source_test_t : public nixie_filter_t
     uint8_t frame = 0;
 protected:
     // Событие присоединения к цепочке
-    virtual void attached(void)
+    virtual void attached(void) override final
     {
         frame = 0;
     }
     
     // Обнвление данных
-    virtual void refresh()
+    virtual void refresh() override final
     {
         if (frame > 0)
         {

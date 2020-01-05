@@ -16,7 +16,7 @@ static class fs_impl_t : public romfs_t::reader_t
     os_mutex_t fs_sync;
 protected:
     // Низкоуровневое чтение по указанному смещению
-    virtual bool read(void *dest, size_t size, size_t offset)
+    virtual bool read(void *dest, size_t size, size_t offset) override final
     {
         if (fs_partition == NULL)
             return false;

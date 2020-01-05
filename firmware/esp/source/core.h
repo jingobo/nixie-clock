@@ -30,12 +30,8 @@ class core_processor_out_t
         side_t(core_link_side_t _side) : side(_side)
         { }
 
-        // Захват/освобождение синхронизации обработчика пакетов
-        void packet_process_sync_accuire(bool get);
         // Обработка пакета
-        virtual ipc_processor_status_t packet_process(const ipc_packet_t &packet, const ipc_processor_args_t &args);
-        // Разбитие данных на пакеты
-        virtual ipc_processor_status_t packet_split(ipc_opcode_t opcode, ipc_dir_t dir, const void *source, size_t size);
+        virtual bool packet_process(const ipc_packet_t &packet, const args_t &args) override final;
     };
 public:
     side_t esp;
@@ -46,34 +42,10 @@ public:
     { }
 };
 
-// Класс основной задачи ядра
-class core_main_task_t : public os_task_base_t
-{
-    // Очередь для для отложенных вызовов
-    const xQueueHandle deffered_call_queue;
-protected:
-    // Обработчик задачи
-    virtual void execute(void);
-public:
-    // Конструктор по умолчанию
-    core_main_task_t(void);
-
-    // Отложенный вызов
-    void deffered_call(callback_t callback);
-
-    // Отложенный вызов (для лямбд)
-    void deffered_call(callback_proc_ptr lambda)
-    {
-        deffered_call(callback_t(lambda));
-    }
-};
-
-// Основная задача ядра
-extern core_main_task_t core_main_task;
 // Процессор исходящих пакетов
 extern core_processor_out_t core_processor_out;
 
 // Добавление обработчика команды в хост
-void core_add_command_handler(ipc_command_handler_t &handler);
+void core_handler_add(ipc_handler_t &handler);
 
 #endif // __CORE_H

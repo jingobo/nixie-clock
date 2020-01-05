@@ -85,21 +85,17 @@ bool sntp_time_t::datetime_get(datetime_t &dest) const
 }
 
 // Подготавливает поля после записи
-void sntp_packet_t::ready(void)
+bool sntp_packet_t::ready(void)
 {
+    // Подготовка
     time.ready();
     SNTP_MEMSWP(delay);
     SNTP_MEMSWP(dispersion);
     SNTP_MEMSWP(reference_id);
+    
+    // Проверка
+    return (mode == SNTP_MODE_SERVER) &&
+           (version > 2) &&
+           (status != SNTP_STATUS_ALARM) &&
+           (SNTP_STRATUM_PRIMARY(stratum) || SNTP_STRATUM_PRIMARY(stratum) || SNTP_STRATUM_SECONDARY(stratum));
 }
-
-// Проверка на валидность ответа
-bool sntp_packet_t::response_check(void) const
-{
-    return
-        (mode == SNTP_MODE_SERVER) &&
-        (version > 2) &&
-        (status != SNTP_STATUS_ALARM) &&
-        (SNTP_STRATUM_PRIMARY(stratum) || SNTP_STRATUM_PRIMARY(stratum) || SNTP_STRATUM_SECONDARY(stratum));
-}
-
