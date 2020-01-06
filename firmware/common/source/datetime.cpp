@@ -20,6 +20,12 @@ bool datetime_t::check(void) const
            /*second >= DATETIME_SECOND_MIN &&*/ second <= DATETIME_SECOND_MAX;
 }
 
+bool datetime_t::empty(void) const
+{
+    return year == 0 && month == 0 && day == 0 &&
+           hour == 0 && minute == 0 && second == 0;
+}
+
 uint8_t datetime_t::month_day_count(uint8_t month, bool leap)
 {
     // Количество дней в месяцах

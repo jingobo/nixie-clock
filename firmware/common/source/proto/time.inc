@@ -152,8 +152,26 @@ struct time_sync_settings_t
 };
 ALIGN_FIELD_DEF
 
+// Структура ответа команды получения текущей даты/времени
+ALIGN_FIELD_8
+struct time_command_current_get_response_t
+{
+    // Текущее время синхронизации
+    datetime_t current;
+    // Последнее время синхронизации
+    datetime_t sync;
+
+    // Проверка полей
+    bool check(void) const
+    {
+        return current.check() &&
+               (sync.check() || sync.empty());
+    }
+};
+ALIGN_FIELD_DEF
+
 // Команда получения текущей даты/времени
-class time_command_current_get_t : public ipc_command_get_t<datetime_t>
+class time_command_current_get_t : public ipc_command_get_t<time_command_current_get_response_t>
 {
 public:
     // Конструктор по умолчанию

@@ -38,7 +38,7 @@ var utils = new function ()
     };
     
     // Заполнение выпадающего списка числами
-    this.dropdownFillNumber = function (dropdown, from, to)
+    this.dropdownFillNumber = function (dropdown, from, to, ranks)
     {
         // Проверка аргументов
         log.assert(from <= to);
@@ -46,7 +46,12 @@ var utils = new function ()
         dropdown.empty();
         // Заполнение числами
         for (var i = from; i <= to; i++)
-            this.dropdownAdd(dropdown, i, i);
+        {
+            var text = i;
+            if (ranks)
+                text = this.leadingZeros(text, ranks);
+            this.dropdownAdd(dropdown, i, text);
+        }
     };
     
     // Заполнение выпадающего списка массивом
@@ -66,6 +71,21 @@ var utils = new function ()
     {
         return Number(dropdown.val());
     };
+    
+    // Приводит символы CR LF к одиночному LF
+    this.lf = function (input)
+    {
+        return input.replace('\r', "");
+    };
+    
+    // Добавление лидирующих нулей в числе
+    this.leadingZeros = function (value, count)
+    {
+        value = value.toString();
+        while (value.length < count)
+            value = "0" + value;
+        return value;
+    }
 };
 
 // Объект цвета

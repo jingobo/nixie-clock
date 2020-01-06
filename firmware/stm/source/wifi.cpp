@@ -1,5 +1,4 @@
 ﻿#include "esp.h"
-#include "rtc.h" // TODO: выпил
 #include "wifi.h"
 #include "storage.h"
 #include <proto/wifi.inc>

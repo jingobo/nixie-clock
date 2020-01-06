@@ -72,9 +72,15 @@ textarea
 }
 
 .tab-pane .row,
-.tab-pane .list-group
+.tab-pane .list-group,
+.tab-pane .alert
 {
     margin-bottom: 0.5rem;
+}
+
+.tab-pane .alert
+{
+    padding: .45rem 0.9rem;
 }
 
 .form-break

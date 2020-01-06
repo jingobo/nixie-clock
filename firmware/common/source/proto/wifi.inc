@@ -1,22 +1,4 @@
-﻿// Структура IPv4 адреса
-ALIGN_FIELD_8
-union wifi_ip_t
-{
-    // По октетам
-    uint8_t octets[4];
-
-    // Конструктор с указанием октетов
-    wifi_ip_t(uint8_t o1 = 0, uint8_t o2 = 0, uint8_t o3 = 0, uint8_t o4 = 0)
-    {
-        octets[0] = o1;
-        octets[1] = o2;
-        octets[2] = o3;
-        octets[3] = o4;
-    }
-};
-ALIGN_FIELD_DEF
-
-// Тип данных для имени точки доступа
+﻿// Тип данных для имени точки доступа
 typedef char wifi_ssid_t[21];
 // Тип данных для пароля точки доступа
 typedef char wifi_password_t[13];

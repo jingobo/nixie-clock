@@ -49,6 +49,8 @@ struct datetime_t
     
     // Проверка на валидность
     bool check(void) const;
+    // Проверка на пустое значение
+    bool empty(void) const;
     
     // Инкремент секунды
     void inc_second(void);

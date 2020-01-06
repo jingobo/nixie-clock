@@ -19,7 +19,13 @@ static time_sync_settings_t ntime_sync_settings @ STORAGE_SECTION =
 };
 
 // Хранит время последней синхронизации
-/*__no_init*/ static datetime_t ntime_sync_time;
+__no_init static datetime_t ntime_sync_time;
+
+// Отчистка даты последней синхронизации
+static void ntime_sync_time_clear(void)
+{
+    memset(&ntime_sync_time, 0, sizeof(ntime_sync_time));
+}
 
 // Обработчик команды получения даты/времени
 static class ntime_command_handler_time_sync_t : public ipc_requester_template_t<time_command_sync_t>
@@ -201,7 +207,8 @@ protected:
         if (idle)
             return;
         // Заполняем ответ
-        rtc_datetime_get(command.response);
+        command.response.sync = ntime_sync_time;
+        rtc_datetime_get(command.response.current);
         // Передача ответа
         transmit();
     }
@@ -255,6 +262,9 @@ protected:
         transmit();
         // Передача списка хостов
         ntime_command_handler_hostlist.upload();
+        // Коррекция даты синхронизации
+        if (!ntime_sync_settings.can_sync())
+            ntime_sync_time_clear();
     }
 } ntime_command_handler_settings_set;
 
@@ -274,5 +284,6 @@ void ntime_init(void)
 
 void ntime_sync(void)
 {
+    ntime_sync_time_clear();
     ntime_command_handler_time_sync.go();
 }

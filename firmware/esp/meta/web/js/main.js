@@ -130,11 +130,6 @@ app.dom = new function ()
     // Карта селекторов
     var map = 
     {
-        overlay:
-        {
-            container: "#overlay",
-            message: "#overlay .text-danger",
-        },
         nixie: "#nixie-display",
         container: ".container",
         
@@ -142,6 +137,12 @@ app.dom = new function ()
         {
             container: "#popup",
             message: "#popup div.modal-body span",
+        },
+
+        overlay:
+        {
+            container: "#overlay",
+            message: "#overlay .text-danger",
         },
         
         wifiAp:
@@ -168,6 +169,12 @@ app.dom = new function ()
                 list: "#date-ntp-list",
                 apply: "#date-ntp-apply",
                 sync: "#date-ntp-sync",
+                
+                notice:
+                {
+                    container: "#date-ntp-notice",
+                    message: "#date-ntp-notice-text",
+                },
             },
         },
     };
@@ -272,15 +279,38 @@ app.page =
                     syncTime = new Date();
                     // Декодирование
                     {
+                        // Текущая дата
                         var year = data.uint8();
                         var month = data.uint8();
                         var day = data.uint8();
-                        
                         var hour = data.uint8();
                         var minute = data.uint8();
                         var second = data.uint8();
-                        
                         readedTime = new Date(year + 2000, month - 1, day, hour, minute, second);
+                        
+                        // Дата синхронизации
+                        year = data.uint8();
+                        month = data.uint8();
+                        day = data.uint8();
+                        hour = data.uint8();
+                        minute = data.uint8();
+                        second = data.uint8();
+                        
+                        // Вывод времени синхронизации
+                        var notice = app.dom.time.ntp.notice;
+                        if (month != 0)
+                        {
+                            notice.message.text(
+                                utils.leadingZeros(day, 2) + "." +
+                                utils.leadingZeros(month, 2) + "." +
+                                utils.leadingZeros(year, 2) + " в " +
+                                utils.leadingZeros(hour, 2) + ":" +
+                                utils.leadingZeros(minute, 2) + ":" +
+                                utils.leadingZeros(second, 2));
+                            notice.container.visible(true);
+                        }
+                        else
+                            notice.container.visible(false);
                     }
                     log.info("Received current datetime: " + readedTime + "...");
                     updateTimeOnDom();
@@ -307,7 +337,8 @@ app.page =
                     break;
                 
                 case app.opcode.STM_TIME_SETTINGS_SET:
-                    // Перезапрашивает текущие настройки
+                    // Перезапрашивает текущие настройки и дату/время
+                    requestTime();
                     requestSettings();
                     break;
                     
@@ -436,9 +467,9 @@ app.page =
         this.init = function ()
         {
             // Заполнение полей даты/времени
-            utils.dropdownFillNumber(app.dom.time.hour, 0, 23);
-            utils.dropdownFillNumber(app.dom.time.minute, 0, 59);
-            utils.dropdownFillNumber(app.dom.time.second, 0, 59);
+            utils.dropdownFillNumber(app.dom.time.hour, 0, 23, 2);
+            utils.dropdownFillNumber(app.dom.time.minute, 0, 59, 2);
+            utils.dropdownFillNumber(app.dom.time.second, 0, 59, 2);
             utils.dropdownFillNumber(app.dom.time.day, 1, 31);
             utils.dropdownFillArray(app.dom.time.month, 
                 [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 
@@ -476,7 +507,7 @@ app.page =
                 packet.data.bool(app.dom.time.ntp.enable.checked());
                 packet.data.int8(app.dom.time.ntp.timezone.val());
                 packet.data.int8(app.dom.time.ntp.offset.val());
-                packet.data.cstr(app.dom.time.ntp.list.val(), 260);
+                packet.data.cstr(utils.lf(app.dom.time.ntp.list.val().trim()), 260);
                 app.session.transmit(packet, receiveHandler);
             });
             
@@ -537,7 +568,7 @@ app.page =
         this.ready = function ()
         {
             // Нужно 1 (только настройки)
-            return loadedCount >= 1;
+            return loadedCount >= 0;
         };
     },
 };
