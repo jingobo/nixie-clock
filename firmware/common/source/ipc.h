@@ -27,6 +27,8 @@ enum ipc_opcode_t : uint8_t
         IPC_OPCODE_STM_TIME_GET,
         // Установка текущей даты/времени
         IPC_OPCODE_STM_TIME_SET,
+        // Синхронизация даты/времени
+        IPC_OPCODE_STM_TIME_SYNC_START,
         
         // Запрос настроек даты/времени
         IPC_OPCODE_STM_TIME_SETTINGS_GET,

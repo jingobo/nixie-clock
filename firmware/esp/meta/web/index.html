@@ -129,21 +129,53 @@
                             </div>
                         </div>
                     </div>
-                    <!-- Действия -->
+                    <!-- Часовой пояс -->
                     <div class="row">
-                        <label class="col-md-2 col-form-label">Действия</label>
+                        <label for="date-ntp-timezone" class="col-md-2 col-form-label">Пояс</label>
                         <div class="col-md-10">
-                            <button type="button" class="btn btn-single btn-success">Синхронизировать сейчас</button>
+                            <select class="custom-select" id="date-ntp-timezone">
+                                <option value="-24">(UTC-12:00) Линия перемены дат</option>
+                                <option value="-22">(UTC-11:00) Самоа</option>
+                                <option value="-20">(UTC-10:00) Гавайи</option>
+                                <option value="-18">(UTC-09:00) Аляска</option>
+                                <option value="-16">(UTC-08:00) Нижняя Калифорния, Тихоокеанское время (США и Канада)</option>
+                                <option value="-14">(UTC-07:00) Аризона, Горное время (США и Канада), Ла-Пас</option>
+                                <option value="-12">(UTC-06:00) Центральное время (США и Канада), Центральная Америка</option>
+                                <option value="-10">(UTC-05:00) Восточное время (США и Канада), Богота, Кито</option>
+                                <option value="-9">(UTC-04:30) Каракас</option>
+                                <option value="-8">(UTC-04:00) Атлантическое время (Канада), Асунсьон, Куяба</option>
+                                <option value="-7">(UTC-03:30) Ньюфаундленд</option>
+                                <option value="-6">(UTC-03:00) Бразилия, Буэнос-Айрес, Гренландия, Кайенна</option>
+                                <option value="-4">(UTC-02:00) Среднеатлантическое время</option>
+                                <option value="-2">(UTC-01:00) Азорские острова, Острова Зеленого Мыса</option>
+                                <option value="0">(UTC+00:00) Дублин, Лиссабон, Лондон, Эдинбург, Рейкьявик</option>
+                                <option value="2">(UTC+01:00) Амстердам, Берлин, Вена, Рим, Стокгольм, Париж</option>
+                                <option value="4">(UTC+02:00) Вильнюс, Киев, Рига, Афины, Бухарест, Стамбул</option>
+                                <option value="6" selected>(UTC+03:00) Волгоград, Москва, Санкт-Петербург, Багдад, Кувейт</option>
+                                <option value="7">(UTC+03:30) Тегеран</option>
+                                <option value="8">(UTC+04:00) Абу-Даби, Мускат, Баку, Ереван, Порт-Луи, Тбилиси</option>
+                                <option value="9">(UTC+04:30) Кабул</option>
+                                <option value="10">(UTC+05:00) Екатеринбург, Исламабад, Карачи, Ташкент</option>
+                                <option value="11">(UTC+05:30) Колката, Мумбаи, Нью-Дели, Ченнай</option>
+                                <option value="12">(UTC+06:00) Новосибирск, Астана, Дакка</option>
+                                <option value="13">(UTC+06:30) Янгон</option>
+                                <option value="14">(UTC+07:00) Красноярск, Бангкок, Джакарта, Ханой</option>
+                                <option value="16">(UTC+08:00) Иркутск, Сингапур, Гонконг, Пекин, Урумчи, Чунцин</option>
+                                <option value="18">(UTC+09:00) Якутск, Осака, Саппоро, Токио, Сеул</option>
+                                <option value="19">(UTC+09:30) Дарвин, Аделаида</option>
+                                <option value="20">(UTC+10:00) Владивосток, Брисбен, Гуам, Порт-Морсби, Канберра</option>
+                                <option value="22">(UTC+11:00) Магадан, Соломоновы о-ва, Нов. Каледония</option>
+                                <option value="24">(UTC+12:00) Веллингтон, Окленд, Фиджи</option>
+                                <option value="26">(UTC+13:00) Нукуалофа</option>
+                            </select>
                         </div>
                     </div>
-                    <!-- Период синхронизации -->
                     <div class="row">
-                        <label for="date-ntp-period" class="col-md-2 col-form-label">Период</label>
+                        <label for="date-ntp-offset" class="col-md-2 col-form-label">Смещение</label>
                         <div class="col-md-10">
-                            <select class="custom-select" id="date-ntp-period">
-                              <option selected>Раз в час</option>
-                              <option selected>Раз в сутки</option>
-                              <option selected>Раз в месяц</option>
+                            <select class="custom-select" id="date-ntp-offset">
+                              <option value="0" selected>+00:00 (стандартное время)</option>
+                              <option value="1">+01:00 (летнее время)</option>
                             </select>
                         </div>
                     </div>
@@ -167,6 +199,20 @@
                             <small class="form-text text-muted">
                                 Один сервер на строку, максимум 10 серверов.
                             </small>
+                        </div>
+                    </div>
+                    <!-- Действия -->
+                    <div class="row">
+                        <label class="col-md-2 col-form-label">Действия</label>
+                        <div class="btn-group col-md-10">
+                            <button type="button" class="btn btn-success" id="date-ntp-apply">
+                                <div class="spinner-border spinner-inline align-middle"></div>
+                                <span>Применить настройки</span>
+                            </button>
+                            <button type="button" class="btn btn-primary" id="date-ntp-sync">
+                                <div class="spinner-border spinner-inline align-middle"></div>
+                                <span>Синхронизировать сейчас</span>
+                            </button>
                         </div>
                     </div>
                 </div>

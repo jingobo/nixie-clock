@@ -201,6 +201,8 @@ function BinReader(buffer)
     this.int8 = function () { return conv(1, dview.getInt8) };
     // Чтение UInt8
     this.uint8 = function () { return conv(1, dview.getUint8) };
+    // Чтение булевы
+    this.bool = function () { return this.uint8() > 0; };
     
     // Чтение Int16
     this.int16 = function () { return conv(2, dview.getInt16) };
@@ -258,6 +260,8 @@ function BinWriter()
     this.int8 = function (x) { conv(1, dview.setInt8, x) };
     // Запись UInt8
     this.uint8 = function (x) { conv(1, dview.setUint8, x) };
+    // Запись булевы
+    this.bool = function (x) { this.uint8(x ? 1 : 0); };
     
     // Запись Int16
     this.int16 = function (x) { conv(2, dview.setInt16, x) };
@@ -302,5 +306,20 @@ jQuery.fn.extend(
             this.show();
         else
             this.hide();
-    }
+    },
+    
+    // Установка/снятие/получение состояния чекбокса
+    checked: function (state)
+    {
+        if (state === undefined)
+            return this.is(':checked');
+        this.prop('checked', state);
+    },
+    
+    // Показывает/скрывает спинер на кнопке
+    spinner: function (state)
+    {
+        this.children("span").css("opacity", state ? 0 : 1);
+        this.children("div.spinner-border").visible(state);
+    },
 });

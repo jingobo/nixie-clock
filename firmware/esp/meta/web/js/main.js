@@ -9,16 +9,18 @@ app.opcode =
     STM_TIME_GET: 0x02,
     // Установка текущей даты/времени
     STM_TIME_SET: 0x03,
+    // Синхронизация даты/времени
+    STM_TIME_SYNC_START: 0x04,
     
     // Запрос настроек даты/времени
-    STM_TIME_SETTINGS_GET: 0x04,
+    STM_TIME_SETTINGS_GET: 0x05,
     // Установка настроек даты/времени
-    STM_TIME_SETTINGS_SET: 0x05,
+    STM_TIME_SETTINGS_SET: 0x06,
     
     // Запрос настроек WiFi
-    STM_WIFI_SETTINGS_GET: 0x06,
+    STM_WIFI_SETTINGS_GET: 0x07,
     // Установка настроек WiFi
-    STM_WIFI_SETTINGS_SET: 0x07,
+    STM_WIFI_SETTINGS_SET: 0x08,
 
     // Оповещение, что настройки WiFi сменились
     ESP_WIFI_SETTINGS_CHANGED: 0x65,
@@ -49,11 +51,6 @@ function InPacket(buffer)
     this.data = new BinReader(buffer);
     // Чтение команды
     this.opcode = this.data.uint8();
-    // Является ли пакет данным о переотправке
-    this.isRetry = function ()
-    {
-        return this.opcode == app.opcode.IPC_RETRY;
-    };
 }
 
 // Оверлей
@@ -162,6 +159,16 @@ app.dom = new function ()
             day: "#date-manual-dt > select:eq(0)",
             month: "#date-manual-dt > select:eq(1)",
             year: "#date-manual-dt > select:eq(2)",
+            
+            ntp:
+            {
+                enable: "#date-ntp-enable",
+                timezone: "#date-ntp-timezone",
+                offset: "#date-ntp-offset",
+                list: "#date-ntp-list",
+                apply: "#date-ntp-apply",
+                sync: "#date-ntp-sync",
+            },
         },
     };
     
@@ -202,7 +209,7 @@ app.nixie = new function ()
     };
 
     // Установка цифры на определнном разряде [0..2]
-    this.setNumber = function(rank, value)
+    this.setNumber = function (rank, value)
     {
         // Проверка аргументов
         log.assert(rank >= 0 && rank <= 2);
@@ -236,7 +243,7 @@ app.nixie = new function ()
 app.page = 
 {
     // Страница даты/времени
-    time: new function()
+    time: new function ()
     {
         // Счетчик загруженных пакетов
         var loadedCount = 0;
@@ -247,37 +254,23 @@ app.page =
         // Время с завершения изменения даты/времени
         var modifyTime = new Date(0);
         
-        // Обработчик входящих пакетов с ошимбкой
-        var receiveErrorHandler = function (transmited)
+        // Обработчик входящих пакетов
+        var receiveHandler = function (transmited, received)
         {
+            var data;
+            var fail = received == null;
+            if (!fail)
+            {
+                loadedCount++;
+                var data = received.data;
+            }
             switch (transmited.opcode)
             {
-                case app.opcode.STM_TIME_SET:
-                    modifyTime = new Date(0);
-                    requestTime();
-                    break;
-                case app.opcode.STM_TIME_SETTINGS_SET:
-                    requestSettings();
-                    break;
-            }
-        };
-        
-        // Обработчик входящих пакетов
-        var receiveDoneHandler = function (transmited, received)
-        {
-            // Если ошибка
-            if (received == null)
-            {
-                receiveErrorHandler(transmited);
-                return;
-            }
-            loadedCount++;
-            var data = received.data;
-            switch (received.opcode)
-            {
                 case app.opcode.STM_TIME_GET:
+                    if (fail)
+                        break;
                     syncTime = new Date();
-                    // Декодирование даты
+                    // Декодирование
                     {
                         var year = data.uint8();
                         var month = data.uint8();
@@ -292,8 +285,39 @@ app.page =
                     log.info("Received current datetime: " + readedTime + "...");
                     updateTimeOnDom();
                     break;
+                    
+                case app.opcode.STM_TIME_SET:
+                    if (fail)
+                        modifyTime = new Date(0);
+                    // Перезапрашивает текущую дату/время
+                    requestTime();
+                    break;
+                    
                 case app.opcode.STM_TIME_SETTINGS_GET:
+                    if (fail)
+                        break;
+                    // Декодирование
+                    {
+                        app.dom.time.ntp.enable.checked(data.bool());
+                        app.dom.time.ntp.timezone.val(data.int8());
+                        app.dom.time.ntp.offset.val(data.int8());
+                        app.dom.time.ntp.list.val(data.cstr(260));
+                    }
                     log.info("Received datetime sync settings...");
+                    break;
+                
+                case app.opcode.STM_TIME_SETTINGS_SET:
+                    // Перезапрашивает текущие настройки
+                    requestSettings();
+                    break;
+                    
+                case app.opcode.STM_TIME_SYNC_START:
+                    if (fail)
+                    {
+                        synchronizer.feedback(-1);
+                        break;
+                    }
+                    synchronizer.feedback(data.uint8());
                     break;
             }
         };
@@ -301,13 +325,14 @@ app.page =
         // Запрос текущей даты/времени
         var requestTime = function ()
         {
-            app.session.transmit(new OutPacket(app.opcode.STM_TIME_GET, "запрос даты/времени"), receiveDoneHandler);
+            app.session.transmit(new OutPacket(app.opcode.STM_TIME_GET, "запрос даты/времени"), receiveHandler);
         };
 
         // Запрос текущей даты/времени
         var requestSettings = function ()
         {
-            app.session.transmit(new OutPacket(app.opcode.STM_TIME_SETTINGS_GET, "запрос настроек синхронизации"), receiveDoneHandler);
+            app.dom.time.ntp.apply.spinner(false);
+            app.session.transmit(new OutPacket(app.opcode.STM_TIME_SETTINGS_GET, "запрос настроек синхронизации"), receiveHandler);
         };
         
         // Обновление текущего времени на дисплее
@@ -343,6 +368,70 @@ app.page =
             app.dom.time.year.val(yy);
         };
 
+        // Класс автомата синхронизации
+        var synchronizer = new function ()
+        {
+            // Флаг состояния работы
+            var running = false;
+            
+            // Передача запроса
+            var transmit = function (check)
+            {
+                log.assert(running);
+                // Отправляем пакет с установкой даты/времени
+                var packet = new OutPacket(app.opcode.STM_TIME_SYNC_START, "синхронизация даты/времени");
+                packet.data.bool(check);
+                app.session.transmit(packet, receiveHandler);
+            };
+            
+            // Запуск автомата
+            this.run = function ()
+            {
+                if (running)
+                    return;
+                running = true;
+                transmit();
+                app.dom.time.ntp.sync.spinner(true);
+                log.info("Start date/time syncronization...");
+            };
+            
+            // Сброс автомата
+            this.reset = function ()
+            {
+                running = false;
+                app.dom.time.ntp.sync.spinner(false);
+            };
+            
+            // Обратная связь с полученного ответа
+            this.feedback = function (status)
+            {
+                if (!running)
+                    return;
+                switch (status)
+                {
+                    // Ошибка сети
+                    case -1:
+                        break;
+                    // Успех
+                    case 0:
+                        requestTime();
+                        log.info("Date/time syncronization success.");
+                        break;
+                    // Ошибка
+                    case 1:
+                        app.popup.show("Не возможно выполнить синхронизацию!");
+                        log.info("Date/time syncronization fail!");
+                        break;
+                    // Обработка
+                    case 2:
+                        transmit(true);
+                        log.info("Date/time syncronization pending...");
+                        return;
+                }
+                this.reset();
+            };
+        };
+
         // Инициализация страницы
         this.init = function ()
         {
@@ -357,12 +446,12 @@ app.page =
             utils.dropdownFillNumber(app.dom.time.year, 2000, 2099);
             
             // Обработчик событий полей текущей даты/времени
-            $(app.dom.time.hour)
+            app.dom.time.hour
                 .add(app.dom.time.minute)
                 .add(app.dom.time.second)
                 .add(app.dom.time.day)
                 .add(app.dom.time.month)
-                .add(app.dom.time.year).on('change', function()
+                .add(app.dom.time.year).on('change', function ()
             {
                 modifyTime = new Date();
                 // Отправляем пакет с установкой даты/времени
@@ -373,12 +462,29 @@ app.page =
                 packet.data.uint8(utils.dropdownSelectedNumber(app.dom.time.hour));
                 packet.data.uint8(utils.dropdownSelectedNumber(app.dom.time.minute));
                 packet.data.uint8(utils.dropdownSelectedNumber(app.dom.time.second));
-                app.session.transmit(packet, receiveDoneHandler);
-                // Перезапрашивает текущую дату/время
-                requestTime();
+                app.session.transmit(packet, receiveHandler);
             });
             // Обновление времени на дисплее
             setInterval(updateTimeOnDom, 500);
+
+            // Обработчик клика по кнопке применения настроек
+            app.dom.time.ntp.apply.click(function () 
+            {
+                app.dom.time.ntp.apply.spinner(true);
+                // Отправляем пакет с установкой даты/времени
+                var packet = new OutPacket(app.opcode.STM_TIME_SETTINGS_SET, "применение настроек синхронизации");
+                packet.data.bool(app.dom.time.ntp.enable.checked());
+                packet.data.int8(app.dom.time.ntp.timezone.val());
+                packet.data.int8(app.dom.time.ntp.offset.val());
+                packet.data.cstr(app.dom.time.ntp.list.val(), 260);
+                app.session.transmit(packet, receiveHandler);
+            });
+            
+            // Обработчик клика по кнопке синхронизации даты/времени
+            app.dom.time.ntp.sync.click(function () 
+            {
+                synchronizer.run();
+            });
         };
         
         // Перезагрузка страницы
@@ -388,6 +494,8 @@ app.page =
             // Запрос даты/времени и настроек
             requestTime();
             requestSettings();
+            // Сброс автомата синхронизации
+            synchronizer.reset();
         };
         
         // Получает, готова ли страница к отображению
@@ -405,13 +513,44 @@ app.page =
             return new Date(readedTime.getTime() + dx);
         };
     },
+    
+    // Страница настроек WiFi
+    wifi: new function ()
+    {
+        // Счетчик загруженных пакетов
+        var loadedCount = 0;
+        
+        // Инициализация страницы
+        this.init = function ()
+        {
+            
+        };
+        
+        // Перезагрузка страницы
+        this.reload = function ()
+        {
+            loadedCount = 0;
+            
+        };
+        
+        // Получает, готова ли страница к отображению
+        this.ready = function ()
+        {
+            // Нужно 1 (только настройки)
+            return loadedCount >= 1;
+        };
+    },
 };
 
 // Страницы
 app.pages = new function ()
 {
     // Страницы списком
-    var items = [ app.page.time ];
+    var items = 
+    [ 
+        app.page.time,
+        app.page.wifi,
+    ];
     
     // Обход страниц
     this.forEach = function (fn)
@@ -479,7 +618,7 @@ app.session = new function ()
         };
         
         // Переотправка текущего пакета
-        var resend = function()
+        var resend = function ()
         {
             if (sended == null)
                 return;
@@ -549,7 +688,7 @@ app.session = new function ()
         };
         
         // Получение пакета
-        var receive = function(buffer)
+        var receive = function (buffer)
         {
             // Если ничего не отправлялось - выходим
             if (sended == null)
@@ -562,7 +701,7 @@ app.session = new function ()
             {
                 packet = new InPacket(buffer);
                 // Проверяем на переотправку
-                if (packet.isRetry())
+                if (packet.opcode == app.opcode.IPC_RETRY)
                 {
                     // Повторяем побыстрее
                     log.error("Received retry command!");
@@ -598,7 +737,7 @@ app.session = new function ()
     };
     
     // Выгрузка сессии
-    this.unload = function()
+    this.unload = function ()
     {
         // Сброс интервала перезапуска
         clearInterval(restartHandle);
@@ -630,7 +769,7 @@ app.session = new function ()
         ws.binaryType = "arraybuffer";
 
         // Обработчик открытия
-        ws.onopen = function(event)
+        ws.onopen = function (event)
         {
             // Оповещение всех страниц
             app.pages.reload();

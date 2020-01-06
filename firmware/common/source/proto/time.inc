@@ -126,27 +126,12 @@ public:
 ALIGN_FIELD_8
 struct time_sync_settings_t
 {
-    // Период синхронизации
-    enum sync_period_t
-    {
-        // Раз в час
-        SYNC_PERIOD_HOUR,
-        // Раз в день
-        SYNC_PERIOD_DAY,
-        // Раз в неделю
-        SYNC_PERIOD_WEEK,
-        // Раз в месяц
-        SYNC_PERIOD_MONTH
-    };
-
     // Включена ли синхронизация
     ipc_bool_t sync : 8;
     // Часовой пояс
     int8_t timezone;
     // Смещение часа
     int8_t offset;
-    // Период
-    sync_period_t period : 8;
     // Список серверов
     time_hosts_data_t hosts;
     
@@ -162,7 +147,6 @@ struct time_sync_settings_t
         return sync <= IPC_BOOL_TRUE &&
                timezone >= -24 && timezone <= 26 &&
                offset >= -24 && offset <= 24 &&
-               period <= SYNC_PERIOD_MONTH &&
                time_hosts_data_check(hosts);
     }
 };
@@ -201,5 +185,58 @@ class time_command_settings_set_t : public ipc_command_set_t<time_sync_settings_
 public:
     // Конструктор по умолчанию
     time_command_settings_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_TIME_SETTINGS_SET)
+    { }
+};
+
+// Данные запроса команды запуска синхронизации даты/времени
+ALIGN_FIELD_8
+struct time_command_sync_start_request_t
+{
+    // Действие
+    enum
+    {
+        // Запуск
+        ACTION_START = 0,
+        // Проверка результата
+        ACTION_CHECK,
+    } action : 8;
+    
+    // Провера полей
+    bool check(void) const
+    {
+        return action <= ACTION_CHECK;
+    }
+};
+ALIGN_FIELD_DEF
+
+// Данные ответа команды запуска синхронизации даты/времени
+ALIGN_FIELD_8
+struct time_command_sync_start_response_t
+{
+    // Статус обработки
+    enum
+    {
+        // Синхронизация выполнена
+        STATUS_SUCCESS = 0,
+        // Синхронизация не может быть выполнена
+        STATUS_FAILED,
+        // Синхронизация в обработке
+        STATUS_PENDING,
+    } status : 8;
+    
+    // Провера полей
+    bool check(void) const
+    {
+        return status <= STATUS_PENDING;
+    }
+};
+ALIGN_FIELD_DEF
+
+// Команда запуска синхронизации даты/времени
+class time_command_sync_start_t : public ipc_command_fixed_t<time_command_sync_start_request_t, time_command_sync_start_response_t>
+{
+public:
+    // Конструктор по умолчанию
+    time_command_sync_start_t(void) : ipc_command_fixed_t(IPC_OPCODE_STM_TIME_SYNC_START)
     { }
 };
