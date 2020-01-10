@@ -1,12 +1,13 @@
 ﻿#include <stm.h>
 #include <log.h>
 #include <core.h>
-#include <tool.h>
 #include "wifi.h"
+#include <tool.h>
+#include <mdns.h>
 #include <system.h>
 #include <esp_wifi.h>
-#include <esp_event_loop.h>
 #include <tcpip_adapter.h>
+#include <esp_event_loop.h>
 
 #include <proto/wifi.inc>
 
@@ -71,7 +72,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         default:
             break;
     }
-    return ESP_OK;
+    return mdns_handle_system_event(ctx, event);
 }
 
 // Промежуточный буфер для настроек
@@ -230,10 +231,9 @@ static void wifi_log_country_info(void)
 
 void wifi_init(void)
 {
+    tcpip_adapter_init();
     // Отчистка промежуточного буфера настроек
     wifi_settings.clear();
-
-    tcpip_adapter_init();
     // Обработчик событий ядра WiFi
     ESP_ERROR_CHECK(esp_event_loop_init(wifi_event_handler, NULL));
     // Инициализация подсистемы WiFi
@@ -255,6 +255,24 @@ void wifi_init(void)
     // Добавление обработчиков IPC
     core_handler_add(wifi_command_handler_settings_get);
     core_handler_add(wifi_command_handler_settings_changed);
+
+    // --- mDNS --- //
+
+    // Имя хоста для mDNS
+    static const char HOST_NAME[] = "nclock";
+    // Имя инстанса для mDNS
+    static const char INSTANCE_NAME[] = "Nixie Clock";
+    // Текстовая информация о сервисе
+    static const mdns_txt_item_t INSTANCE_INFO[] =
+    {
+        { "author", "JingoBo" },
+    };
+
+    ESP_ERROR_CHECK(mdns_init());
+    ESP_ERROR_CHECK(mdns_hostname_set(HOST_NAME));
+    ESP_ERROR_CHECK(mdns_instance_name_set(INSTANCE_NAME));
+    // Регистрация сервисов в mDNS
+    ESP_ERROR_CHECK(mdns_service_add(INSTANCE_NAME, "_http", "_tcp", 80, INSTANCE_INFO, 1));
 }
 
 bool wifi_wait(os_tick_t ticks)
