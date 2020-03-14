@@ -295,6 +295,8 @@ app.page =
                         hour = data.uint8();
                         minute = data.uint8();
                         second = data.uint8();
+                        // Возможность синхронизации
+                        app.dom.time.ntp.sync.disabled(!data.bool());
                         
                         // Вывод времени синхронизации
                         var notice = app.dom.time.ntp.notice;

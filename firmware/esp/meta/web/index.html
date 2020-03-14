@@ -82,7 +82,7 @@
             <!-- Контент вкладок -->
             <div class="tab-content">
                 <!-- Вкладка даты и времени -->
-                <div class="tab-pane fade show active" id="tab-date">
+                <div class="tab-pane fade" id="tab-date">
                     <!-- Ручная настройка -->
                     <div class="row form-part">Ручная настройка</div>
                     <div class="row">
@@ -222,7 +222,7 @@
                     </div>
                 </div>
                 <!-- Вкладка WiFi -->
-                <div class="tab-pane fade" id="tab-wifi">
+                <div class="tab-pane fade show active" id="tab-wifi">
                     <!-- Своя сеть -->
                     <div class="row form-part">
                         <label for="wifi-ap-enable" class="col-auto mr-auto">Создать новую сеть</label>
@@ -245,7 +245,38 @@
                             <input type="password" class="form-control" id="wifi-ap-pass" placeholder="Пароль доступа к сети">
                         </div>
                     </div>
-                    
+                    <!-- Канал -->
+                    <div class="row">
+                        <label for="wifi-ap-channel" class="col-md-2 col-form-label">Канал</label>
+                        <div class="col-md-10">
+                            <select class="custom-select" id="wifi-ap-channel">
+                                <option value="0">Автоматически</option>
+                                <option value="1">#1 [2.412 МГц]</option>
+                                <option value="2">#2 [2.417 МГц]</option>
+                                <option value="3">#3 [2.422 МГц]</option>
+                                <option value="4">#4 [2.427 МГц]</option>
+                                <option value="5">#5 [2.432 МГц]</option>
+                                <option value="6">#6 [2.437 МГц]</option>
+                                <option value="7">#7 [2.442 МГц]</option>
+                                <option value="8">#8 [2.447 МГц]</option>
+                                <option value="9">#9 [2.452 МГц]</option>
+                                <option value="10">#10 [2.457 МГц]</option>
+                                <option value="11">#11 [2.462 МГц]</option>
+                                <option value="12">#12 [2.467 МГц]</option>
+                                <option value="13">#13 [2.472 МГц]</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Действия -->
+                    <div class="row">
+                        <label class="col-md-2 col-form-label">Действия</label>
+                        <div class="btn-group col-md-10">
+                            <button type="button" class="btn btn-success" id="wifi-ap-apply">
+                                <div class="spinner-border spinner-inline align-middle"></div>
+                                <span>Применить настройки новой сети</span>
+                            </button>
+                        </div>
+                    </div>
                     <!-- Подключиться к чужой сети -->
                     <div class="row form-part">
                         <div class="col-auto mr-auto">Подключение к сети</div>
@@ -253,6 +284,7 @@
                             <span class="sr-only">Загрузка...</span>
                         </div>
                     </div>
+
                     <!-- Список доступных сетей -->
                     <div class="list-group">
                         <a href="#" class="list-group-item list-group-item-action active">

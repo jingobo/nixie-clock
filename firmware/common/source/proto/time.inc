@@ -136,7 +136,7 @@ struct time_sync_settings_t
     time_hosts_data_t hosts;
     
     // Получает, можно ли производить синхронизацию
-    bool can_sync(void) const
+    bool sync_allow(void) const
     {
         return sync && !time_hosts_empty(hosts);
     }
@@ -156,16 +156,22 @@ ALIGN_FIELD_DEF
 ALIGN_FIELD_8
 struct time_command_current_get_response_t
 {
-    // Текущее время синхронизации
-    datetime_t current;
-    // Последнее время синхронизации
-    datetime_t sync;
+    struct
+    {
+        // Текущее время синхронизации
+        datetime_t current;
+        // Последнее время синхронизации
+        datetime_t sync;
+    } time;
+    // Можно ли запустить синхронизацию
+    ipc_bool_t sync_allow : 8;
 
     // Проверка полей
     bool check(void) const
     {
-        return current.check() &&
-               (sync.check() || sync.empty());
+        return sync_allow <= IPC_BOOL_TRUE &&
+               time.current.check() &&
+               (time.sync.check() || time.sync.empty());
     }
 };
 ALIGN_FIELD_DEF

@@ -332,8 +332,19 @@ jQuery.fn.extend(
     checked: function (state)
     {
         if (state === undefined)
-            return this.is(':checked');
-        this.prop('checked', state);
+            return this.is(":checked");
+        this.prop("checked", state);
+    },
+
+    // Установка/снятие/получение разрешения клика по кнопке
+    disabled: function (state)
+    {
+        if (state === undefined)
+            return this.prop("disabled");
+        if (state)
+            this.prop("disabled", true);
+        else
+            this.removeAttr("disabled");
     },
     
     // Показывает/скрывает спинер на кнопке

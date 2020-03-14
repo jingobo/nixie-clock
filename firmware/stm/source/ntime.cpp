@@ -27,6 +27,13 @@ static void ntime_sync_time_clear(void)
     memset(&ntime_sync_time, 0, sizeof(ntime_sync_time));
 }
 
+// Получает, можно ли запустить процедуру синхронизации
+static bool ntime_sync_allow(void)
+{
+    // Есть ли гепотетически интернет и можем ли синхронизировать
+    return wifi_has_internet_get() && ntime_sync_settings.sync_allow();
+}
+
 // Обработчик команды получения даты/времени
 static class ntime_command_handler_time_sync_t : public ipc_requester_template_t<time_command_sync_t>
 {
@@ -45,8 +52,8 @@ public:
     // Старт синхронизации
     bool go(void)
     {
-        // Проверяем, есть ли гепотетически интернет и можем ли синхронизировать
-        if (wifi_has_internet_get() && ntime_sync_settings.can_sync())
+        // Проверяем возможно сть синхронизации
+        if (ntime_sync_allow())
         {
             request_timer.start();
             try_count = 0;
@@ -166,7 +173,7 @@ void ntime_command_handler_time_sync_t::work(bool idle)
             // Сохраняем время последней синхронизации
             ntime_sync_time = command.response.value;
             // Устанавилваем новое время
-            if (ntime_sync_settings.can_sync())
+            if (ntime_sync_settings.sync_allow())
                 rtc_datetime_set(command.response.value);
             // Рапортирование автомату синхронизации
             ntime_command_handler_time_sync_start.report(true);
@@ -207,8 +214,11 @@ protected:
         if (idle)
             return;
         // Заполняем ответ
-        command.response.sync = ntime_sync_time;
-        rtc_datetime_get(command.response.current);
+        command.response.time.sync = ntime_sync_time;
+        rtc_datetime_get(command.response.time.current);
+        command.response.sync_allow = ntime_sync_allow() ? 
+            IPC_BOOL_TRUE : 
+            IPC_BOOL_FALSE;
         // Передача ответа
         transmit();
     }
@@ -225,6 +235,8 @@ protected:
             return;
         // Установка даты/времени
         rtc_datetime_set(command.request);
+        // Сброс даты синхронизации
+        ntime_sync_time_clear();
         // Передача подтверждения
         transmit();
     }
@@ -262,9 +274,6 @@ protected:
         transmit();
         // Передача списка хостов
         ntime_command_handler_hostlist.upload();
-        // Коррекция даты синхронизации
-        if (!ntime_sync_settings.can_sync())
-            ntime_sync_time_clear();
     }
 } ntime_command_handler_settings_set;
 
