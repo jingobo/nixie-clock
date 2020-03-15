@@ -133,61 +133,61 @@ void timer_base_t::call_event_cb(void)
 IRQ_ROUTINE
 void timer_base_t::interrupt_htim(void)
 {
-        bool event_raise = false;
-        timer_period_t dx, dt, ccr = TIMER_PERIOD_MAX;
-        // Опрделеение разницы времени в тиках
-        dx = (timer_period_t)TIM3->CNT;
-        dx -= timer_ccr;
-        timer_ccr += dx;
-        // Обработка таймеров
-        for (auto wrap = timer_list.active.head(); wrap != NULL;)
+    bool event_raise = false;
+    timer_period_t dx, dt, ccr = TIMER_PERIOD_MAX;
+    // Опрделеение разницы времени в тиках
+    dx = (timer_period_t)TIM3->CNT;
+    dx -= timer_ccr;
+    timer_ccr += dx;
+    // Обработка таймеров
+    for (auto wrap = timer_list.active.head(); wrap != NULL;)
+    {
+        auto &timer = wrap->timer;
+        if (timer.current <= dx)
         {
-            auto &timer = wrap->timer;
-            if (timer.current <= dx)
-            {
-                // Генерирование события
-                if (timer.call_from_irq)
-                    // ...прямо из прерывания
-                    timer.execute();
-                else
-                {
-                    // ...в основной нити
-                    event_raise = true;
-                    if (timer.raised.unlinked())
-                        timer.raised.link(timer_list.raised);
-                }
-                if (timer.reload <= 0)
-                {
-                    // Отключение
-                    wrap = (timer_wrap_t *)wrap->unlink();
-                    continue;
-                }
-                // Определяем сколько времени прошляпили
-                dt = dx - timer.current;
-                // Нормализация пропавшего времени до значения перезагрузки
-                while (dt >= timer.reload)
-                    dt -= timer.reload;
-                // Обновление интервала значением перезагрузки
-                timer.current = timer.reload;
-                // Вычитаем нормализированное потерянное время
-                timer.current -= dt;
-            }
+            // Генерирование события
+            if (timer.call_from_irq)
+                // ...прямо из прерывания
+                timer.execute();
             else
-                timer.current -= dx;
-            // Определение времени следующего срабатывания аппаратного таймера
-            if (ccr > timer.current)
-                ccr = timer.current;
-            // Переход к следующему таймеру
-            wrap = LIST_ITEM_NEXT(wrap);
+            {
+                // ...в основной нити
+                event_raise = true;
+                if (timer.raised.unlinked())
+                    timer.raised.link(timer_list.raised);
+            }
+            if (timer.reload <= 0)
+            {
+                // Отключение
+                wrap = (timer_wrap_t *)wrap->unlink();
+                continue;
+            }
+            // Определяем сколько времени прошляпили
+            dt = dx - timer.current;
+            // Нормализация пропавшего времени до значения перезагрузки
+            while (dt >= timer.reload)
+                dt -= timer.reload;
+            // Обновление интервала значением перезагрузки
+            timer.current = timer.reload;
+            // Вычитаем нормализированное потерянное время
+            timer.current -= dt;
         }
-        // Рассчет времени следующего срабатывания
-        if (ccr < TIMER_PERIOD_MIN)
-            ccr = TIMER_PERIOD_MIN;
-        // Установка регистра CCR1
-        timer_ccr_inc(ccr);
-        // Генерация события
-        if (event_raise)
-            call_event.raise();
+        else
+            timer.current -= dx;
+        // Определение времени следующего срабатывания аппаратного таймера
+        if (ccr > timer.current)
+            ccr = timer.current;
+        // Переход к следующему таймеру
+        wrap = LIST_ITEM_NEXT(wrap);
+    }
+    // Рассчет времени следующего срабатывания
+    if (ccr < TIMER_PERIOD_MIN)
+        ccr = TIMER_PERIOD_MIN;
+    // Установка регистра CCR1
+    timer_ccr_inc(ccr);
+    // Генерация события
+    if (event_raise)
+        call_event.raise();
 }
 
 void timer_init(void)

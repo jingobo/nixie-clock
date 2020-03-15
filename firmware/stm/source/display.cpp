@@ -1017,6 +1017,7 @@ protected:
 } display_scene_clock;
 
 /*// Тестовый источник для LED эффекта радуги
+TODO:
 static class display_led_rainbow_source_t : public led_model_t::filter_t
 {
     uint8_t time_prescaller, hue;
