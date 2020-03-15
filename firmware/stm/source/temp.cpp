@@ -63,6 +63,23 @@ static const uint8_t TEMP_MEASURE_REQUEST_READ[] =
     TEMP_BYTE_ARRAY_GEN(0xFF),
 };
 
+// Точка для линеаризации (взято из графика в даташите)
+static struct
+{
+    // Точка линеаризации
+    float32_t x, y;
+} TEMP_LINEARIZATION_POINTS[] =
+{
+    { 0.0f,     0.15f },
+    { 10.0f,    0.18f },
+    { 20.0f,    0.20f },
+    { 30.0f,    0.18f },
+    { 40.0f,    0.14f },
+    { 50.0f,    0.07f },
+    { 60.0f,    -0.01f },
+    { 70.0f,    -0.14f },
+};
+
 // Текущее состояние автомата
 static __no_init enum
 {
@@ -182,6 +199,40 @@ static void temp_timeout_timer_cb(void)
         temp_chip_reset();
 }
 
+// Линеаризация текущей температуры
+static void temp_current_linearization(void)
+{
+    assert(temp_current != TEMP_VALUE_EMPTY);
+    // Границы таблицы
+    static const auto TOP = 0;
+    static const auto BOTTOM = ARRAY_SIZE(TEMP_LINEARIZATION_POINTS) - 1;
+    // Определение смещения
+    float32_t correction;
+    if (temp_current <= TEMP_LINEARIZATION_POINTS[TOP].x)
+        correction = TEMP_LINEARIZATION_POINTS[TOP].y;
+    else if (temp_current >= TEMP_LINEARIZATION_POINTS[BOTTOM].x)
+        correction = TEMP_LINEARIZATION_POINTS[BOTTOM].y;
+    else
+        // Поиск соседних точек
+        for (int8_t i = BOTTOM; i >= TOP; i--)
+            if (temp_current >= TEMP_LINEARIZATION_POINTS[i].x)
+            {
+                auto j = i + 1;
+                // Линейная апроксимация
+                auto y = TEMP_LINEARIZATION_POINTS[i].y;
+                auto dy = TEMP_LINEARIZATION_POINTS[j].y - y;
+                
+                auto x = TEMP_LINEARIZATION_POINTS[i].x;
+                auto dx = TEMP_LINEARIZATION_POINTS[j].x - x;
+                
+                auto k = (temp_current - x) / dx;
+                correction = y + dy * k;
+                break;
+            }
+    // Применение смещения
+    temp_current += correction;
+}
+
 // Обработчик события завершения передачи по DMA
 static void temp_dma_event_cb(void)
 {
@@ -247,6 +298,8 @@ static void temp_dma_event_cb(void)
             // Учет знака
             if (temp_dma.rx[28] == 0xFF)
                 temp_current = -temp_current;
+            // Линеаризация
+            temp_current_linearization();
             // Готово
             temp_state = TEMP_STATE_IDLE;
             break;
