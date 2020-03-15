@@ -1246,6 +1246,9 @@
             <name>$PROJ_DIR$\source\rtc.cpp</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\source\temp.cpp</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\source\wdt.cpp</name>
         </file>
     </group>

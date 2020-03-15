@@ -52,7 +52,7 @@ void io_init(void)
         IO_INIT(IO_ESP_CLK,     IO_MODE_OUTPUT_APP);
         IO_INIT(IO_ESP_MISO,    IO_MODE_INPUT_PULL);    IO_HIGH(IO_ESP_MISO);
         IO_INIT(IO_ESP_MOSI,    IO_MODE_OUTPUT_APP);    IO_HIGH(IO_ESP_MOSI);
-        IO_INIT(IO_DS_WIRE,     IO_MODE_OUTPUT_APP);
+        IO_INIT(IO_DS_WIRE,     IO_MODE_OUTPUT_AOD);
         IO_INIT(IO_TPWM,        IO_MODE_OUTPUT_APP);
         IO_INIT(IO_LS_SCL,      IO_MODE_OUTPUT_AOD);
         IO_INIT(IO_LS_SDA,      IO_MODE_OUTPUT_AOD);
@@ -79,5 +79,6 @@ void io_init(void)
     RCC->APB2ENR |= RCC_APB2ENR_AFIOEN;                                         // AFIO clock enable
     AFIO->MAPR = AFIO_MAPR_TIM2_REMAP_PARTIALREMAP2 |                           // TIM2 partial remap (CH1/ETR/PA0, CH2/PA1, CH3/PB10, CH4/PB11)
                  AFIO_MAPR_SPI1_REMAP |                                         // SPI1 remap (NSS/PA15, SCK/PB3, MISO/PB4, MOSI/PB5)
+                 AFIO_MAPR_USART1_REMAP |                                       // USART1 remap (TX/PB6, RX/PB7)
                  AFIO_MAPR_SWJ_CFG_1;                                           // Only SWD w/o SWO
 }

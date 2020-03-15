@@ -1005,7 +1005,7 @@
                 </option>
                 <option>
                     <name>IlinkTrustzoneImportLibraryOut</name>
-                    <state>###Unitialized###</state>
+                    <state>ncc_import_lib.o</state>
                 </option>
                 <option>
                     <name>OILinkExtraOption</name>
@@ -1114,6 +1114,9 @@
         </file>
         <file>
             <name>$PROJ_DIR$\source\rtc.cpp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\source\temp.cpp</name>
         </file>
         <file>
             <name>$PROJ_DIR$\source\wdt.cpp</name>

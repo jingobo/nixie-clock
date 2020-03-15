@@ -108,6 +108,7 @@ extern "C" void __iar_program_start(void);
 #include "mcu.h"
 #include "rtc.h"
 #include "led.h"
+#include "temp.h"
 #include "timer.h"
 #include "storage.h"
 
@@ -152,7 +153,7 @@ extern "C" __root const nvic_vtbl_t __vector_table @ NVIC_SECTION_VTBL =
         esp_interrupt_dma,                      // DMA1 Channel 2
         nvic_interrupt_dummy,                   // DMA1 Channel 3
         nvic_interrupt_dummy,                   // DMA1 Channel 4
-        nvic_interrupt_dummy,                   // DMA1 Channel 5
+        temp_interrupt_dma,                     // DMA1 Channel 5
         led_interrupt_dma,                      // DMA1 Channel 6
         nvic_interrupt_dummy,                   // DMA1 Channel 7
         nvic_interrupt_dummy,                   // ADC1 & ADC2

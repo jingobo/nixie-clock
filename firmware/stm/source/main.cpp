@@ -6,6 +6,7 @@
 #include "esp.h"
 #include "nvic.h"
 #include "wifi.h"
+#include "temp.h"
 #include "neon.h"
 #include "ntime.h"
 #include "nixie.h"
@@ -31,6 +32,7 @@ __task __noreturn void main(void)
         esp_init();
         led_init();
         neon_init();
+        temp_init();
         nixie_init();
         screen_init();
         display_init();
