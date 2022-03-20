@@ -13,7 +13,8 @@
    neon - TIM2 (CH3)
    nixie - TIM4 (CH2)
    esp - SPI1 (master), DMA1 (CH2, CH3)
-   ambient - USART1 (TX), DMA1 (CH4, CH5)
+   temp - USART1 (TX), DMA1 (CH4, CH5)
+   light - I2C1
 */
 
 // Частота ядра при старте

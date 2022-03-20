@@ -6,6 +6,18 @@
 
 #include "event.h"
 
+// Количество микросекунд на тик
+#define TIMER_US_PER_TICK       4
+// Аппаратная частота таймера событий
+#define TIMER_FREQUENCY_HZ      (XM(1) / TIMER_US_PER_TICK)
+
+// Предел интервала в [мкС]
+#define TIMER_US_MIN            TIMER_US_PER_TICK
+#define TIMER_US_MAX            UINT32_MAX
+// Предел частоты в [Гц]
+#define TIMER_HZ_MIN            1
+#define TIMER_HZ_MAX            TIMER_FREQUENCY_HZ
+
 // Флаги для создания таймера
 typedef uint8_t timer_flag_t;
 

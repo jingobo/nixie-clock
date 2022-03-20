@@ -2,11 +2,6 @@
 #include "timer.h"
 #include "system.h"
 
-// Количество микросекунд на тик
-#define TIMER_US_PER_TICK       4
-// Аппаратная частота таймера событий
-#define TIMER_FREQUENCY_HZ      (XM(1) / TIMER_US_PER_TICK)
-
 // Тип данных для хранения пероида в тиках
 typedef uint16_t timer_period_t;
 
@@ -20,7 +15,7 @@ typedef uint16_t timer_period_t;
 #define TIMER_PERIOD_MAX            (TIMER_PERIOD_RAW - TIMER_PERIOD_MIN)
 
 // Списки таймеров
-static struct timer_list_t
+static struct
 {
     // Запущенные
     list_template_t<timer_wrap_t> active;
@@ -69,13 +64,15 @@ void timer_base_t::start(uint32_t interval, timer_flag_t flags)
 
 void timer_base_t::start_hz(float_t hz, timer_flag_t flags)
 {
-    assert(hz > 0);
-    assert(hz <= TIMER_FREQUENCY_HZ);
+    assert(hz >= TIMER_HZ_MIN);
+    assert(hz <= TIMER_HZ_MAX);
     start((uint32_t)(TIMER_FREQUENCY_HZ / hz), flags);
 }
 
 void timer_base_t::start_us(uint32_t us, timer_flag_t flags)
 {
+    assert(us >= TIMER_US_MIN);
+    // assert(us <= TIMER_US_MAX);
     start(us / TIMER_US_PER_TICK, flags);
 }
 
@@ -119,12 +116,13 @@ void timer_base_t::call_event_cb(void)
         IRQ_CTX_DISABLE();
         for (auto wrap = timer_list.raised.head(); wrap != NULL;)
         {
-            // Обработка тика таймера
-            IRQ_CTX_RESTORE();
-                wrap->timer.execute();
-            IRQ_CTX_DISABLE();
+            auto &timer = wrap->timer;
             // Переход к следующему элементу
             wrap = (timer_wrap_t *)wrap->unlink();
+            // Обработка тика таймера
+            IRQ_CTX_RESTORE();
+                timer.execute();
+            IRQ_CTX_DISABLE();
         }
     // Восстановление прерываний
     IRQ_CTX_RESTORE();
@@ -134,9 +132,9 @@ IRQ_ROUTINE
 void timer_base_t::interrupt_htim(void)
 {
     bool event_raise = false;
-    timer_period_t dx, dt, ccr = TIMER_PERIOD_MAX;
+    auto ccr = TIMER_PERIOD_MAX;
     // Опрделеение разницы времени в тиках
-    dx = (timer_period_t)TIM3->CNT;
+    auto dx = (timer_period_t)TIM3->CNT;
     dx -= timer_ccr;
     timer_ccr += dx;
     // Обработка таймеров
@@ -163,7 +161,7 @@ void timer_base_t::interrupt_htim(void)
                 continue;
             }
             // Определяем сколько времени прошляпили
-            dt = dx - timer.current;
+            auto dt = dx - timer.current;
             // Нормализация пропавшего времени до значения перезагрузки
             while (dt >= timer.reload)
                 dt -= timer.reload;

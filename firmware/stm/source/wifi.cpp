@@ -15,8 +15,8 @@ static wifi_settings_t wifi_settings @ STORAGE_SECTION =
     .station =
     {
         .use = IPC_BOOL_TRUE,
-        .ssid = "Holyday! [2.4 GHz]",
-        .password = "02701890"
+        .ssid = "Vidikon45",
+        .password = "89156137267"
     }
 };
 

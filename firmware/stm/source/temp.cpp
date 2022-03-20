@@ -85,8 +85,6 @@ static __no_init enum
 {
     // Простой
     TEMP_STATE_IDLE,
-    // Что то с чипом
-    TEMP_STATE_ERROR,
     // Старт измерения
     TEMP_STATE_MEASURE_START,
     // Ожидание измерения
@@ -108,13 +106,10 @@ static __no_init struct
 static __no_init bool temp_reseting;
 
 // Текущее покзаание температуры
-static __no_init float32_t temp_current;
+static __no_init sensor_value_t temp_current;
 
 // Обработчик таймера таймаута операций ввода вывода (предварительное объявление)
 static void temp_timeout_timer_cb(void);
-
-// Таймер периодичного измерения температуры
-static timer_callback_t temp_measure_timer(temp_measure);
 
 // Таймер таймаута операций ввода вывода
 static timer_callback_t temp_timeout_timer(temp_timeout_timer_cb);
@@ -124,6 +119,15 @@ static void temp_timeout_timer_restart(void)
 {
     // Всегда до 1 секунды
     temp_timeout_timer.start_hz(1);
+}
+
+// Переход в состояние простоя
+static void temp_idle_state(uint32_t measure_timeout = XM(60))
+{
+    // Переход в начальное состояние
+    temp_state = TEMP_STATE_IDLE;
+    // Запуск таймера таумаута измерения
+    temp_timeout_timer.start_us(measure_timeout);
 }
 
 // Инициализация канала DMA для датчика температуры
@@ -168,12 +172,10 @@ static void temp_chip_error(void)
 {
     // Аварийный стоп DMA
     temp_dma_stop();
-    // Стоп периодичного измерения
-    temp_measure_timer.stop();
-    // Переход в состояние ошибки
-    temp_state = TEMP_STATE_ERROR;
+    // Переход в начальное состояние
+    temp_idle_state();
     // Сброс покзаания
-    temp_current = TEMP_VALUE_EMPTY;
+    temp_current = SENSOR_VALUE_EMPTY;
 }
 
 // Запуск процедуры сброса чипа
@@ -192,17 +194,31 @@ static void temp_chip_reset(void)
 // Обработчик таймера таймаута операций ввода вывода
 static void temp_timeout_timer_cb(void)
 {
-    // Исключение - ожидание измерения, тут таймаут используется для паузы
-    if (temp_state != TEMP_STATE_MEASURE_READING)
-        temp_chip_error();
-    else
-        temp_chip_reset();
+    switch (temp_state)
+    {
+        case TEMP_STATE_IDLE:
+            // Подготовка следующего состояния
+            temp_state = TEMP_STATE_MEASURE_START;
+            // Сброс
+            temp_chip_reset();
+            break;
+            
+        case TEMP_STATE_MEASURE_READING:
+            // Ожидание измерения, тут таймаут используется для паузы
+            temp_chip_reset();
+            break;
+            
+        default:
+            // Истек таймаут операции DMA
+            temp_chip_error();
+            break;
+    }
 }
 
 // Линеаризация текущей температуры
 static void temp_current_linearization(void)
 {
-    assert(temp_current != TEMP_VALUE_EMPTY);
+    assert(temp_current != SENSOR_VALUE_EMPTY);
     // Границы таблицы
     static const auto TOP = 0;
     static const auto BOTTOM = ARRAY_SIZE(TEMP_LINEARIZATION_POINTS) - 1;
@@ -250,15 +266,20 @@ static void temp_dma_event_cb(void)
         // Переход на высокую скорость
         USART1->BRR = TEMP_UART_BRR_BY_BAUD(115200);                            // Baudrate 115200
     }
+    
     // Далее по состояниям
     switch (temp_state)
     {
+        case TEMP_STATE_IDLE:
+            // Пропуск
+            break;
+            
         case TEMP_STATE_MEASURE_START:
             // Запрос
             memcpy(temp_dma.tx, TEMP_MEASURE_REQUEST_START, sizeof(TEMP_MEASURE_REQUEST_START));
             temp_dma_start(sizeof(TEMP_MEASURE_REQUEST_START));
             // Далее ожидание результатов измерения
-             temp_state = TEMP_STATE_MEASURE_WAIT;
+            temp_state = TEMP_STATE_MEASURE_WAIT;
             break;
             
         case TEMP_STATE_MEASURE_WAIT:
@@ -300,8 +321,8 @@ static void temp_dma_event_cb(void)
                 temp_current = -temp_current;
             // Линеаризация
             temp_current_linearization();
-            // Готово
-            temp_state = TEMP_STATE_IDLE;
+            // В начальное состояние
+            temp_idle_state();
             break;
     }
 }
@@ -311,12 +332,11 @@ static event_callback_t temp_dma_event(temp_dma_event_cb);
 
 void temp_init(void)
 {
-    temp_state = TEMP_STATE_IDLE;
-    temp_current = TEMP_VALUE_EMPTY;
     // Тактирование и сброс USART1
     RCC->APB2ENR |= RCC_APB2ENR_USART1EN;                                       // USART1 clock enable
     RCC->APB2RSTR |= RCC_APB2RSTR_USART1RST;                                    // USART1 reset
     RCC->APB2RSTR &= ~RCC_APB2RSTR_USART1RST;                                   // USART1 unreset
+    
     // Конфигурирование UART
     USART1->CR1 = USART_CR1_UE;                                                 // UART enable, Parity off, 8-bit, Wakeup idle line, IRQ off, RX off, TX off
     USART1->CR2 = 0;                                                            // 1 stop bit, Clock off
@@ -332,24 +352,13 @@ void temp_init(void)
     // Канал 5 (RX)
     temp_dma_channel_init(DMA1_C5, temp_dma.rx, DMA_CCR_TCIE);                  // Transfer complete IRQ enable
     
-    // Старт периодичного измерения (раз в минуту)
-    temp_measure_timer.start_us(XM(60), TIMER_FLAG_LOOP);
+    // Начальное состояние
+    temp_current = SENSOR_VALUE_EMPTY;
     // Форсирование первого измерения
-    temp_measure();
+    temp_idle_state(TIMER_US_MIN);
 }
 
-void temp_measure(void)
-{
-    // Проверка если иизмерение уже запущено
-    if (temp_state != TEMP_STATE_IDLE)
-        return;
-    // Подготовка следующего состояния
-    temp_state = TEMP_STATE_MEASURE_START;
-    // Сброс
-    temp_chip_reset();
-}
-
-float32_t temp_current_get(void)
+sensor_value_t temp_current_get(void)
 {
     return temp_current;
 }

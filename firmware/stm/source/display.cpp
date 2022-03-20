@@ -400,7 +400,7 @@ protected:
     virtual void attached(void) override final
     {
         // Базовый метод
-        led_filter_t::refresh();
+        led_filter_t::attached();
         // Стоп эффекта по всем разрядам
         for (hmi_rank_t i = 0; i < LED_COUNT; i++)
             effect[i].stop();
@@ -1016,6 +1016,111 @@ protected:
     }
 } display_scene_clock;
 
+#include "light.h"
+
+// Сцена вывода освещенности
+static class display_scene_light_t : public display_scene_t
+{
+    // Фильтр смены цифр ламп
+    display_nixie_change_filter_t nixie_change;
+public:
+    // Управление лампами
+    class nixie_source_t : public nixie_filter_t
+    {
+        // Текущее покзаание
+        sensor_value_t last_value;
+        
+        // Обновление покзаания на экране
+        void update(sensor_value_t value)
+        {
+            last_value = value;
+            if (value == SENSOR_VALUE_EMPTY)
+            {
+                // Нет данных
+                for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
+                    change_full(i, NIXIE_DIGIT_SPACE);
+                return;
+            }
+            
+            auto round = (uint32_t)value;
+            uint32_t rank = 1;
+            for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++, rank *= 10)
+                change_full(NIXIE_COUNT - i - 1, (uint8_t)((round / rank) % 10));
+        }
+    protected:
+        // Обновление данных
+        virtual void refresh(void) override final
+        {
+            // Базовый метод
+            nixie_filter_t::refresh();
+            
+            // Текущее покзаание
+            const auto current_value = light_current_get();
+            if (current_value != last_value)
+                update(current_value);
+        }
+                
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        {
+            // Базовый метод
+            nixie_filter_t::attached();
+            // Обновление
+            update(light_current_get());
+        }
+    public:
+        // Конструктор по умолчанию
+        nixie_source_t(void) : nixie_filter_t(HMI_FILTER_PURPOSE_SOURCE)
+        { }
+    } nixie_source;    
+
+    // Управление неонками
+    class neon_source_t : public neon_filter_t
+    {
+    protected:
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        {
+            // Базовый метод
+            neon_filter_t::attached();
+            
+            // Всё включаем
+            for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
+                state_set(i, true);
+        }
+        
+        // Обновление данных
+        virtual void refresh(void) override final
+        {
+            // Базовый метод
+            neon_filter_t::refresh();
+        }
+    public:
+        // Конструктор по умолчанию
+        neon_source_t(void) : neon_filter_t(HMI_FILTER_PURPOSE_SOURCE)
+        { }
+    } neon_source;    
+    
+    // Конструктор по умолчанию
+    display_scene_light_t(void)
+    {
+        nixie_change.kind = display_nixie_change_filter_t::KIND_SWITCH_DEPTH_OUT;
+        // Лампы
+        nixie.attach(nixie_source);
+        nixie.attach(nixie_change);
+        // Неонки
+        neon.attach(neon_source);
+    }
+
+protected:
+    // Получает, нужно ли отобразить сцену
+    virtual bool show_required(void) override final
+    {
+        // Всегда нужно показывать
+        return true;
+    }
+} display_scene_light;
+
 /*// Тестовый источник для LED эффекта радуги
 TODO:
 static class display_led_rainbow_source_t : public led_model_t::filter_t
@@ -1085,6 +1190,7 @@ static void display_scene_set_default(void)
     static display_scene_t * const SCENES[] =
     {
         &display_scene_test,
+        //&display_scene_light,
         &display_scene_clock
     };
     // Обход известных сцен

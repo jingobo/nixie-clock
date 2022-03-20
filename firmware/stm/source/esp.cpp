@@ -86,6 +86,7 @@ static timer_callback_t esp_io_begin_timer([](void)
     if (esp_io.active)
         return;
     esp_io.active = true;
+    
     // Опрос команд
     esp_handler_host.pool();
     // Подготовка данных
@@ -94,7 +95,8 @@ static timer_callback_t esp_io_begin_timer([](void)
     // Начало передачи
     IO_PORT_RESET(IO_ESP_CS);                                                   // Slave select
     // DMA
-    DMA1_C2->CNDTR = DMA1_C3->CNDTR = sizeof(esp_io.dma);                       // Transfer data size
+    DMA1_C2->CNDTR = DMA1_C3->CNDTR = 
+        sizeof(esp_io.dma) - sizeof(esp_io.dma.pads);                           // Transfer data size
     DMA1_C2->CCR |= DMA_CCR_EN;                                                 // Channel enable
     DMA1_C3->CCR |= DMA_CCR_EN;                                                 // Channel enable
 });
@@ -125,6 +127,9 @@ static timer_callback_t esp_reset_timer([](void)
 {
     switch (esp_reset_state)
     {
+        case ESP_RESET_STATE_IDLE:
+            // Пропуск
+            break;
         case ESP_RESET_STATE_RESET:
             IO_PORT_SET(IO_ESP_RST);                                            // Esp unreset
             // Таймер на бутлоадер
@@ -187,6 +192,11 @@ void esp_init(void)
     esp_dma_channel_init(DMA1_C3, DMA_CCR_DIR);                                 // Memory to peripheral
     // Сброс чипа
     esp_reset_do();
+}
+
+bool esp_wire_active(void)
+{
+    return (DMA1_C2->CCR & DMA_CCR_EN) != 0;                                    // Check channel enabled
 }
 
 void esp_handler_add(ipc_handler_t &handler)

@@ -11,6 +11,7 @@
 #include "ntime.h"
 #include "nixie.h"
 #include "event.h"
+#include "light.h"
 #include "timer.h"
 #include "screen.h"
 #include "display.h"
@@ -33,6 +34,7 @@ __task __noreturn void main(void)
         led_init();
         neon_init();
         temp_init();
+        light_init();
         nixie_init();
         screen_init();
         display_init();

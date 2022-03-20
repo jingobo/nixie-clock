@@ -80,5 +80,6 @@ void io_init(void)
     AFIO->MAPR = AFIO_MAPR_TIM2_REMAP_PARTIALREMAP2 |                           // TIM2 partial remap (CH1/ETR/PA0, CH2/PA1, CH3/PB10, CH4/PB11)
                  AFIO_MAPR_SPI1_REMAP |                                         // SPI1 remap (NSS/PA15, SCK/PB3, MISO/PB4, MOSI/PB5)
                  AFIO_MAPR_USART1_REMAP |                                       // USART1 remap (TX/PB6, RX/PB7)
-                 AFIO_MAPR_SWJ_CFG_1;                                           // Only SWD w/o SWO
+                 AFIO_MAPR_SWJ_CFG_1 |                                          // Only SWD w/o SWO
+                 AFIO_MAPR_I2C1_REMAP;                                          // I2C1 remap (SCL/PB8, SDA/PB9)
 }

@@ -10,6 +10,8 @@
 #define WFI()                   __WFI()
 // Установка опции компилятора через макрос
 #define PRAGMA_OPTION(m, v)      PRAGMA(m = v)
+// Пустая операция
+#define NOP()                   __no_operation()
 
 // Режимы оптимизаций функций
 #define OPTIMIZE_NONE           PRAGMA_OPTION(optimize, none)
@@ -46,5 +48,5 @@
 #define IRQ_SAFE_ENTER()        \
     IRQ_CTX_SAVE();             \
     IRQ_CTX_DISABLE()
-
+        
 #endif // __TYPEDEFS_H
