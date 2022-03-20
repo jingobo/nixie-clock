@@ -1,5 +1,4 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-![Beer](https://img.shields.io/beerpay/hashdog/scrapfy-chrome-extension.svg)
 
 # Настольные часы на ИН-12
 ## Ключевые особенности
