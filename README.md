@@ -1,5 +1,4 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/c843050f193b43f386815034419c3617)](https://www.codacy.com/app/exclude/nixie-clock?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jingobo/nixie-clock&amp;utm_campaign=Badge_Grade)
 ![Beer](https://img.shields.io/beerpay/hashdog/scrapfy-chrome-extension.svg)
 
 # Настольные часы на ИН-12
@@ -26,6 +25,7 @@
 PCB не финальные, есть небольшой TODO список по доработкам, но схема и размеры меняться не будут).
 - [x] Платы закончены
 - [x] Запущно измерение температуры
+- [x] Запущно измерение освещенности
 - [x] Базовые модули в STM32 и ESP8266
 - [x] Связь между контроллерами по SPI
 - [x] Базовые фильтры вывода ламп, неонок, подсветки
