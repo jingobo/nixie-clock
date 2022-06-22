@@ -65,13 +65,42 @@ public:
     { }
 } core_main_task;
 
+RAM bool core_processor_out_t::side_t::transmit_to(const ipc_packet_t &packet, const args_t &args, core_link_side_t dest)
+{
+    // Определяем код команды
+    const auto opcode = packet.dll.opcode;
+    // Имя текущей стороны
+    const auto this_name = CORE_LINK_SIDE[side].name;
+    // Имя другой стороны
+    const auto other_name = CORE_LINK_SIDE[dest].name;
+    // Признак запроса
+    const auto request = packet.dll.dir != IPC_DIR_RESPONSE;
+
+    // Передача запроса
+    if (CORE_LINK_SIDE[dest].in->packet_process(packet, args))
+    {
+        // Если не пакет последний
+        if (packet.dll.more)
+        	return false;
+
+        // Пакет последний, лог
+        LOGI("%s - %s %d to %s (%d bytes)", this_name, request ? "request" : "response", opcode, other_name, args.size);
+        // Помечаем с какой стороны пришел запрос
+		core_route_map[opcode][request ? side : dest] = request;
+        return false;
+    }
+
+    // Не удалось передать пакет, лог
+    LOGW("%s - %s %d to %s failed!", this_name,  request ? "request" : "response", opcode, other_name);
+	return true;
+}
+
 RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet, const args_t &args)
 {
-    auto result = false;
+	// Результат выполнения
+	auto result = true;
     // Определяем код команды
-    auto opcode = packet.dll.opcode;
-    // Определяем последний ли пакет
-    auto last = !packet.dll.more;
+    const auto opcode = packet.dll.opcode;
 
     // Начало ввода
     if (args.first)
@@ -82,9 +111,8 @@ RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet
     {
         case IPC_DIR_REQUEST:
             {
-                // Конечная сторона
-                core_link_side_t dest = CORE_LINK_SIDE_COUNT;
                 // Определяем кому передать
+                core_link_side_t dest;
                 if (opcode > IPC_OPCODE_ESP_HANDLE_BASE)
                     dest = CORE_LINK_SIDE_ESP;
                 else if (opcode > IPC_OPCODE_STM_HANDLE_BASE)
@@ -92,65 +120,47 @@ RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet
                 else
                 {
                     // WTF?
-                    LOGW("Unknown opcode group %d!", opcode);
-                    break;
+                    LOGE("Unknown opcode group %d!", opcode);
+                    return false;
                 }
-                assert(dest != CORE_LINK_SIDE_COUNT);
-                // Если пакет последний
-                if (last)
-                {
-                    // Индикация
-                    io_led_yellow.flash();
-                    // Лог
-                    LOGI("%s request 0x%02x, %d bytes", CORE_LINK_SIDE[dest].name, packet.dll.opcode, args.size);
-                    // Помечаем с какой стороны пришел запрос
-                    core_route_map[opcode][side] = true;
-                }
+
                 // Передача
-                result = CORE_LINK_SIDE[dest].in->packet_process(packet, args);
-                // Если результат бедовый и это последний пакет...
-                if (last && !result)
-                    // Сброс
-                    core_route_map[opcode][side] = false;
+                if (transmit_to(packet, args, dest))
+                	result = false;
             }
             break;
+
         case IPC_DIR_RESPONSE:
+            // Определяем кому разослать
+            for (auto dest = CORE_LINK_SIDE_ESP; dest < CORE_LINK_SIDE_COUNT; dest = ENUM_VALUE_NEXT(dest))
             {
-                // Определяем кому разослать
-                for (auto lside = CORE_LINK_SIDE_ESP; lside < CORE_LINK_SIDE_COUNT; lside = ENUM_VALUE_NEXT(lside))
-                {
-                    // Пропускаем того кто отвечает
-                    if (lside == side)
-                        continue;
-                    // Нужно ли обрабатывать запрос
-                    if (!core_route_map[opcode][lside])
-                        continue;
-                    // Лог
-                    if (last)
-                        LOGI("%s response 0x%02x, %d bytes", CORE_LINK_SIDE[lside].name, packet.dll.opcode, args.size);
-                    // Передача
-                    result = CORE_LINK_SIDE[lside].in->packet_process(packet, args);
-                    // Если передать не удалось или это последний пакет...
-                    if (last || !result)
-                        // Снимаем метку
-                        core_route_map[opcode][lside] = false;
-                }
-                // Индикация
-                if (last)
-                    io_led_yellow.flash();
+                // Пропускаем того кто отвечает
+                if (dest == side)
+                    continue;
+
+                // Нужно ли обрабатывать запрос
+                if (!core_route_map[opcode][dest])
+                    continue;
+
+                // Передача
+                if (transmit_to(packet, args, dest))
+                	result = false;
             }
-            break;
+        	break;
+
         default:
             assert(false);
-            break;
+            return false;
     }
-    // Завершение ввода
-    if (last || !result)
-        core_main_task.mutex.leave();
 
-    // Лог
-    if (!result)
-        LOGW("Packet process failed! Opcode: %d, direction: %d", opcode, packet.dll.dir);
+    // Завершение ввода
+    if (!(packet.dll.more && result))
+    {
+    	core_main_task.mutex.leave();
+    	// Индикация
+        // io_led_yellow.flash();
+    }
+
     return result;
 }
 

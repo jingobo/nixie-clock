@@ -2,6 +2,7 @@
 #include "nvic.h"
 #include "temp.h"
 #include "timer.h"
+#include "xmath.h"
 #include "system.h"
 
 // Alias
@@ -63,23 +64,6 @@ static const uint8_t TEMP_MEASURE_REQUEST_READ[] =
     TEMP_BYTE_ARRAY_GEN(0xFF),
 };
 
-// Точка для линеаризации (взято из графика в даташите)
-static struct
-{
-    // Точка линеаризации
-    float32_t x, y;
-} TEMP_LINEARIZATION_POINTS[] =
-{
-    { 0.0f,     0.15f },
-    { 10.0f,    0.18f },
-    { 20.0f,    0.20f },
-    { 30.0f,    0.18f },
-    { 40.0f,    0.14f },
-    { 50.0f,    0.07f },
-    { 60.0f,    -0.01f },
-    { 70.0f,    -0.14f },
-};
-
 // Текущее состояние автомата
 static __no_init enum
 {
@@ -106,7 +90,7 @@ static __no_init struct
 static __no_init bool temp_reseting;
 
 // Текущее покзаание температуры
-static __no_init sensor_value_t temp_current;
+static __no_init float_t temp_current;
 
 // Обработчик таймера таймаута операций ввода вывода (предварительное объявление)
 static void temp_timeout_timer_cb(void);
@@ -167,6 +151,12 @@ static void temp_dma_stop(void)
     DMA1_C5->CCR &= ~DMA_CCR_EN;                                                // Channel disable
 }
 
+// Сброс текущего значения
+static void temp_current_set_reset(void)
+{
+    temp_current = 99.9f;
+}
+
 // Обработчик события ошибки чипа
 static void temp_chip_error(void)
 {
@@ -175,7 +165,7 @@ static void temp_chip_error(void)
     // Переход в начальное состояние
     temp_idle_state();
     // Сброс покзаания
-    temp_current = SENSOR_VALUE_EMPTY;
+    temp_current_set_reset();
 }
 
 // Запуск процедуры сброса чипа
@@ -218,35 +208,20 @@ static void temp_timeout_timer_cb(void)
 // Линеаризация текущей температуры
 static void temp_current_linearization(void)
 {
-    assert(temp_current != SENSOR_VALUE_EMPTY);
-    // Границы таблицы
-    static const auto TOP = 0;
-    static const auto BOTTOM = ARRAY_SIZE(TEMP_LINEARIZATION_POINTS) - 1;
-    // Определение смещения
-    float32_t correction;
-    if (temp_current <= TEMP_LINEARIZATION_POINTS[TOP].x)
-        correction = TEMP_LINEARIZATION_POINTS[TOP].y;
-    else if (temp_current >= TEMP_LINEARIZATION_POINTS[BOTTOM].x)
-        correction = TEMP_LINEARIZATION_POINTS[BOTTOM].y;
-    else
-        // Поиск соседних точек
-        for (int8_t i = BOTTOM; i >= TOP; i--)
-            if (temp_current >= TEMP_LINEARIZATION_POINTS[i].x)
-            {
-                auto j = i + 1;
-                // Линейная апроксимация
-                auto y = TEMP_LINEARIZATION_POINTS[i].y;
-                auto dy = TEMP_LINEARIZATION_POINTS[j].y - y;
-                
-                auto x = TEMP_LINEARIZATION_POINTS[i].x;
-                auto dx = TEMP_LINEARIZATION_POINTS[j].x - x;
-                
-                auto k = (temp_current - x) / dx;
-                correction = y + dy * k;
-                break;
-            }
-    // Применение смещения
-    temp_current += correction;
+    // Точка для линеаризации (взято из графика в даташите)
+    static const xmath_point2d_t<float_t, float_t> POINTS[] =
+    {
+        { 0.0f,     0.15f },
+        { 10.0f,    0.18f },
+        { 20.0f,    0.20f },
+        { 30.0f,    0.18f },
+        { 40.0f,    0.14f },
+        { 50.0f,    0.07f },
+        { 60.0f,    -0.01f },
+        { 70.0f,    -0.14f },
+    };
+    
+    temp_current += xmath_linear_interpolation(temp_current, POINTS, ARRAY_SIZE(POINTS));
 }
 
 // Обработчик события завершения передачи по DMA
@@ -353,12 +328,12 @@ void temp_init(void)
     temp_dma_channel_init(DMA1_C5, temp_dma.rx, DMA_CCR_TCIE);                  // Transfer complete IRQ enable
     
     // Начальное состояние
-    temp_current = SENSOR_VALUE_EMPTY;
+    temp_current_set_reset();
     // Форсирование первого измерения
     temp_idle_state(TIMER_US_MIN);
 }
 
-sensor_value_t temp_current_get(void)
+float_t temp_current_get(void)
 {
     return temp_current;
 }

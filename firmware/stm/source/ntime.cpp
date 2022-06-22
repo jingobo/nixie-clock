@@ -34,7 +34,7 @@ static bool ntime_sync_allow(void)
     return wifi_has_internet_get() && ntime_sync_settings.sync_allow();
 }
 
-// Обработчик команды получения даты/времени
+// Обработчик команды чтения даты/времени
 static class ntime_command_handler_time_sync_t : public ipc_requester_template_t<time_command_sync_t>
 {
     // Количество попыток синхронизации
@@ -109,7 +109,7 @@ public:
     }
 } ntime_command_handler_time_sync_start;
 
-// Обработчик команды запроса списка SNTP хостов
+// Обработчик команды чтения списка SNTP хостов
 static class ntime_command_handler_hostlist_t : public ipc_requester_template_t<time_command_hostlist_set_t>
 {
 protected:
@@ -204,7 +204,7 @@ void ntime_command_handler_time_sync_t::work(bool idle)
     }
 }
 
-// Обработчик команды запроса текущей даты/времени
+// Обработчик команды чтения текущей даты/времени
 static class ntime_command_handler_current_get_t : public ipc_responder_template_t<time_command_current_get_t>
 {
 protected:
@@ -224,7 +224,7 @@ protected:
     }
 } ntime_command_handler_current_get;
 
-// Обработчик команды установки текущей даты/времени
+// Обработчик команды записи текущей даты/времени
 static class ntime_command_handler_current_set_t : public ipc_responder_template_t<time_command_current_set_t>
 {
 protected:
@@ -242,7 +242,7 @@ protected:
     }
 } ntime_command_handler_current_set;
 
-// Обработчик команды запроса настроек даты/времени
+// Обработчик команды чтения настроек даты/времени
 static class ntime_command_handler_settings_get_t : public ipc_responder_template_t<time_command_settings_get_t>
 {
 protected:
@@ -258,7 +258,7 @@ protected:
     }
 } ntime_command_handler_settings_get;
 
-// Обработчик команды установки настроек даты/времени
+// Обработчик команды записи настроек даты/времени
 static class ntime_command_handler_settings_set_t : public ipc_responder_template_t<time_command_settings_set_t>
 {
 protected:

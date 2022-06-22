@@ -7,7 +7,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
         <meta name="description" content="Nixie Clock admin panel">
         <meta name="theme-color" content="#317EFB"/>
-        <link rel="manifest" href="/manifest.json">
+        <link rel="manifest" crossorigin="use-credentials" href="/manifest.json">
         <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
         <!-- CSS -->
         <link rel="stylesheet" href="css/bootstrap.min.css">
@@ -31,8 +31,8 @@
             </div>
         </div>
         <!-- Модальное окно с ошибкой -->
-        <div class="modal fade" id="popup" tabindex="-1" role="dialog">
-          <div class="modal-dialog" role="document">
+        <div class="modal fade" id="popup" tabindex="-1">
+          <div class="modal-dialog">
             <div class="modal-content">
               <div class="modal-header">
                 <h5 class="modal-title text-danger">Ошибка обработки запроса</h5>
@@ -51,13 +51,13 @@
             <!-- Дисплей часов -->
             <div class="row justify-content-center">
                 <div class="col col-md-auto">
-                    <canvas id="nixie-display" width="1020" height="242">
+                    <canvas id="display" width="1030" height="242">
                         Нет поддержки Canvas :(
                     </canvas>
                 </div>
             </div>
             <!-- Навигация -->
-            <div class="nav nav-tabs nav-fill" id="nav-tab" role="tablist">
+            <div class="nav nav-tabs nav-fill" id="nav-tab">
                 <a class="nav-item nav-link active" data-toggle="tab" id="nav-date" href="#tab-date">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
                         <circle cx="16" cy="16" r="14" />
@@ -211,18 +211,18 @@
                         <label class="col-md-2 col-form-label">Действия</label>
                         <div class="btn-group col-md-10">
                             <button type="button" class="btn btn-success" id="date-ntp-apply">
-                                <div class="spinner-border spinner-inline align-middle"></div>
+                                <div class="spinner-border spinner-inline"></div>
                                 <span>Применить настройки</span>
                             </button>
                             <button type="button" class="btn btn-primary" id="date-ntp-sync">
-                                <div class="spinner-border spinner-inline align-middle"></div>
+                                <div class="spinner-border spinner-inline"></div>
                                 <span>Синхронизировать сейчас</span>
                             </button>
                         </div>
                     </div>
                 </div>
                 <!-- Вкладка WiFi -->
-                <div class="tab-pane fade show active" id="tab-wifi">
+                <div class="tab-pane fade active show" id="tab-wifi">
                     <!-- Своя сеть -->
                     <div class="row form-part">
                         <label for="wifi-ap-enable" class="col-auto mr-auto">Создать новую сеть</label>
@@ -242,7 +242,7 @@
                         <!-- Пароль -->
                         <label for="wifi-ap-pass" class="col-md-2 col-form-label">Пароль</label>
                         <div class="col-md-4">
-                            <input type="password" class="form-control" id="wifi-ap-pass" placeholder="Пароль доступа к сети">
+                            <input type="password" class="form-control" id="wifi-ap-pass" placeholder="Пароль новой сети">
                         </div>
                     </div>
                     <!-- Канал -->
@@ -251,19 +251,19 @@
                         <div class="col-md-10">
                             <select class="custom-select" id="wifi-ap-channel">
                                 <option value="0">Автоматически</option>
-                                <option value="1">#1 [2.412 МГц]</option>
-                                <option value="2">#2 [2.417 МГц]</option>
-                                <option value="3">#3 [2.422 МГц]</option>
-                                <option value="4">#4 [2.427 МГц]</option>
-                                <option value="5">#5 [2.432 МГц]</option>
-                                <option value="6">#6 [2.437 МГц]</option>
-                                <option value="7">#7 [2.442 МГц]</option>
-                                <option value="8">#8 [2.447 МГц]</option>
-                                <option value="9">#9 [2.452 МГц]</option>
-                                <option value="10">#10 [2.457 МГц]</option>
-                                <option value="11">#11 [2.462 МГц]</option>
-                                <option value="12">#12 [2.467 МГц]</option>
-                                <option value="13">#13 [2.472 МГц]</option>
+                                <option value="1">#1 [2412 МГц]</option>
+                                <option value="2">#2 [2417 МГц]</option>
+                                <option value="3">#3 [2422 МГц]</option>
+                                <option value="4">#4 [2427 МГц]</option>
+                                <option value="5">#5 [2432 МГц]</option>
+                                <option value="6">#6 [2437 МГц]</option>
+                                <option value="7">#7 [2442 МГц]</option>
+                                <option value="8">#8 [2447 МГц]</option>
+                                <option value="9">#9 [2452 МГц]</option>
+                                <option value="10">#10 [2457 МГц]</option>
+                                <option value="11">#11 [2462 МГц]</option>
+                                <option value="12">#12 [2467 МГц]</option>
+                                <option value="13">#13 [2472 МГц]</option>
                             </select>
                         </div>
                     </div>
@@ -272,35 +272,71 @@
                         <label class="col-md-2 col-form-label">Действия</label>
                         <div class="btn-group col-md-10">
                             <button type="button" class="btn btn-success" id="wifi-ap-apply">
-                                <div class="spinner-border spinner-inline align-middle"></div>
+                                <div class="spinner-border spinner-inline"></div>
                                 <span>Применить настройки новой сети</span>
                             </button>
                         </div>
                     </div>
                     <!-- Подключиться к чужой сети -->
                     <div class="row form-part">
-                        <div class="col-auto mr-auto">Подключение к сети</div>
-                        <div class="col-auto spinner-border spinner-inline text-primary" id="wifi-sta-preloader">
-                            <span class="sr-only">Загрузка...</span>
+						<!-- Заголовок -->
+                        <label for="wifi-sta-find" class="col-auto mr-auto">Подключение к сети</label>
+						<!-- Кнопка обновления -->
+                        <div class="col-auto">
+                            <button type="button" class="btn btn-primary" id="wifi-sta-find">
+                                <div></div>
+                                <span>Обновить</span>
+                            </button>
                         </div>
                     </div>
+					<!-- Список сетей -->
+					<div class="accordion" id="wifi-sta-list">
+						<!-- Шаблон элемента -->
+						<template>
+							<!-- Враппер -->
+							<div class="card">
+								<!-- Заголовок -->
+								<div class="card-header p-0">
+									<!-- Кнопка заголовка -->
+									<button class="list-group-item list-group-item-action collapsed" type="button" data-toggle="collapse" data-target="#wifi-sta-info">
+										<div class="d-flex justify-content-between align-items-center">
+											<!-- Имя сети -->
+											<span></span>
+											<div class="d-flex align-items-center net-props">
+												<!-- Уровень сигнала -->
+												<small></small>
+												<!-- Признак привтной сети -->
+												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" stroke="currentcolor" stroke-width="0.1">
+													<path fill="currentColor" d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" />
+												</svg>
+											</div>
+										</div>
+									</button>
+								</div>
 
-                    <!-- Список доступных сетей -->
-                    <div class="list-group">
-                        <a href="#" class="list-group-item list-group-item-action active">
-                            <div class="d-flex w-100 justify-content-between">
-                                <span>Holiday [2.4 GHz]</span>
-                                <small>-117 дБм</small>
-                            </div>
-                        </a>
-                        <a href="#" class="list-group-item list-group-item-action">
-                            <div class="d-flex w-100 justify-content-between">
-                                <span>Сеть 23</span>
-                                <small>-90 дБм</small>
-                            </div>
-                        </a>
-                    </div>
-                </div>
+								<!-- Враппер аккардиона -->
+								<div id="wifi-sta-info" class="collapse" data-parent="#wifi-sta-list">
+									<!-- Тело информации -->
+									<div class="row card-body">
+										<!-- Кнопка подключения -->
+										<div class="btn-group col-md-auto">
+											<button type="button" class="btn btn-success" id="wifi-ap-apply">
+												<div class="spinner-border spinner-inline"></div>
+												<span>Подключиться</span>
+											</button>
+										</div>
+										<!-- Пароль -->
+										<label for="wifi-sta-pass" class="wifi-sta-psw-part col-md-auto col-form-label">Пароль</label>
+										<div class="wifi-sta-psw-part col-md-auto">
+											<input type="text" class="form-control" id="wifi-sta-pass" placeholder="Пароль доступа">
+										</div>
+									</div>
+								</div>
+							</div>
+						</template>
+					</div>
+				</div>
+				
                 <!-- Вкладка настроек дисплея -->
                 <div class="tab-pane fade" id="tab-disp">
                     123
@@ -312,7 +348,7 @@
         <script src="js/bootstrap.min.js"></script>
 
         <script src="js/utils.js"></script>
-        <script src="js/nixie.js"></script>
+        <script src="js/lamps.js"></script>
         <script src="js/main.js"></script>
         <!-- https://jsfiddle.net/4u7Lbn2r/1/ -->
     </body>

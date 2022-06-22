@@ -39,9 +39,16 @@ enum ipc_opcode_t : uint8_t
         IPC_OPCODE_STM_WIFI_SETTINGS_GET,
         // Установка настроек WiFi
         IPC_OPCODE_STM_WIFI_SETTINGS_SET,
+        
+        // Получает состояние экрана
+        IPC_OPCODE_STM_SCREEN_STATE_GET,
 
     // Не команда, база для команд, обрабатываемых модулем ESP8266
-    IPC_OPCODE_ESP_HANDLE_BASE = 50,
+    IPC_OPCODE_ESP_HANDLE_BASE = 25,
+		// Запрос состояния сети
+		IPC_OPCODE_ESP_WIFI_STATE_GET,
+        // Поиск сетей с опросом состояния
+        IPC_OPCODE_ESP_WIFI_SEARCH_POOL,
         // Оповещение, что настройки WiFi сменились
         IPC_OPCODE_ESP_WIFI_SETTINGS_CHANGED,
         
@@ -49,8 +56,9 @@ enum ipc_opcode_t : uint8_t
         IPC_OPCODE_ESP_TIME_SYNC,
         // Передача списка хостов SNTP
         IPC_OPCODE_ESP_TIME_HOSTLIST_SET,
+
     // Не команда, определяет лимит количества команд
-    IPC_OPCODE_LIMIT = 100,
+    IPC_OPCODE_LIMIT = 50,
 };
 
 // Тип направления
@@ -109,8 +117,19 @@ struct ipc_packet_t
     
     // Подсчет контрольной суммы
     uint16_t checksum_get(void) const;
+    
+    // Получает признак последнего пакета
+    bool last_get(void) const
+    {
+        return !dll.more;
+    }
+    
     // Начальная подготовка пакета перед заполнением
-    void prepare(ipc_opcode_t opcode, ipc_dir_t dir);
+    void prepare(ipc_opcode_t opcode, ipc_dir_t dir)
+    {
+        dll.dir = dir;
+        dll.opcode = opcode;
+    }
     
     // Проверяет на равенство кода кодманды и направления
     bool equals(ipc_opcode_t opcode, ipc_dir_t dir) const
@@ -231,6 +250,8 @@ protected:
         RESET_REASON_COUNT
     };
     
+    // Признак пропуска пакетов
+    bool skip;
     // Слоты на приём/передачу
     ipc_slots_t tx, rx;
     
@@ -255,41 +276,6 @@ public:
     virtual bool packet_input(const ipc_packet_t &packet);
     // Обработка пакета (перенос в передачу)
     virtual bool packet_process(const ipc_packet_t &packet, const args_t &args) override;
-};
-
-// Контроллер пакетов (слейв)
-typedef ipc_link_t ipc_link_slave_t;
-
-// Контроллер пакетов (мастер)
-class ipc_link_master_t : public ipc_link_t
-{
-    // Контроль переотправки исходящих данных
-    struct retry_t
-    {
-        // Два кэшированных пакета
-        ipc_packet_t packet[2];
-        // Индекс передаваемого пакета
-        uint8_t index;
-
-        // Конструктор по умолчанию
-        retry_t(void) : index(ARRAY_SIZE(packet))
-        { }
-    } retry;
-    // Счетчик ошибок передачи
-    uint8_t corruption_count = 0;
-protected:
-    // Событие массового сброса (другая сторона не отвечает)
-    virtual void reset_slave(void) = 0;
-    
-    // Проверка фазы полученного пакета
-    virtual bool check_phase(const ipc_packet_t &packet) override final;
-    // Сброс прикладного уровня
-    virtual void reset_layer(reset_reason_t reason, bool internal) override final;
-public:
-    // Получение пакета к выводу
-    virtual void packet_output(ipc_packet_t &packet) override;
-    // Ввод полученного пакета
-    virtual bool packet_input(const ipc_packet_t &packet) override;
 };
 
 // Базовый класс команды
@@ -335,8 +321,10 @@ protected:
         {
             case IPC_DIR_REQUEST:
                 return sizeof(request);
+                
             case IPC_DIR_RESPONSE:
                 return sizeof(response);
+                
             default:
                 return ipc_command_t::buffer_size(dir);
         }
@@ -349,8 +337,10 @@ protected:
         {
             case IPC_DIR_REQUEST:
                 return &request;
+                
             case IPC_DIR_RESPONSE:
                 return &response;
+                
             default:
                 return ipc_command_t::buffer_pointer(dir);
         }
@@ -362,6 +352,7 @@ protected:
         // Проверка данных
         assert(dir != IPC_DIR_RESPONSE || response.check());
         assert(dir != IPC_DIR_REQUEST || request.check());
+        
         // Возвращаем размер из базового метода
         return ipc_command_t::encode(dir);
     }
@@ -376,6 +367,7 @@ protected:
                 if (!request.check())
                     return false;
                 break;
+                
             case IPC_DIR_RESPONSE:
                 if (!response.check())
                     return false;
@@ -405,6 +397,7 @@ protected:
         {
             case IPC_DIR_RESPONSE:
                 return sizeof(response);
+                
             default:
                 return ipc_command_t::buffer_size(dir);
         }
@@ -417,6 +410,7 @@ protected:
         {
             case IPC_DIR_RESPONSE:
                 return &response;
+                
             default:
                 return ipc_command_t::buffer_pointer(dir);
         }
@@ -427,6 +421,7 @@ protected:
     {
         // Проверка данных
         assert(dir != IPC_DIR_RESPONSE || response.check());
+        
         // Возвращаем размер из базового метода
         return ipc_command_t::encode(dir);
     }
@@ -440,6 +435,7 @@ protected:
             case IPC_DIR_RESPONSE:
                 if (!response.check())
                     return false;
+                
             default:
                 // Возвращаем результат из базового метода
                 return ipc_command_t::decode(dir, size);
@@ -466,6 +462,7 @@ protected:
         {
             case IPC_DIR_REQUEST:
                 return sizeof(request);
+                
             default:
                 return ipc_command_t::buffer_size(dir);
         }
@@ -478,6 +475,7 @@ protected:
         {
             case IPC_DIR_REQUEST:
                 return &request;
+                
             default:
                 return ipc_command_t::buffer_pointer(dir);
         }
@@ -488,6 +486,7 @@ protected:
     {
         // Проверка данных
         assert(dir != IPC_DIR_REQUEST || request.check());
+        
         // Возвращаем размер из базового метода
         return ipc_command_t::encode(dir);
     }
@@ -501,6 +500,7 @@ protected:
             case IPC_DIR_REQUEST:
                 if (!request.check())
                     return false;
+                
             default:
                 // Возвращаем результат из базового метода
                 return ipc_command_t::decode(dir, size);
@@ -565,6 +565,7 @@ protected:
         {
             if (!enabled || tick_get() - time < delay)
                 return false;
+            
             if (autostop)
                 stop();
             return true;
@@ -629,6 +630,7 @@ protected:
     virtual void notify(ipc_dir_t dir) override final
     {
         assert(dir == IPC_DIR_RESPONSE);
+        
         // Переход к ожиданию обработки только если ожидали ответ
         if (state == HANDLER_STATE_RESPONSE_WAIT)
             state = HANDLER_STATE_RESPONSE_PENDING;
@@ -683,6 +685,7 @@ protected:
     virtual void notify(ipc_dir_t dir) override final
     {
         assert(dir == IPC_DIR_REQUEST);
+        
         // Переход к ожиданию обработки только если были в простое
         if (state == HANDLER_STATE_IDLE)
             state = HANDLER_STATE_REQUEST_PENDING;

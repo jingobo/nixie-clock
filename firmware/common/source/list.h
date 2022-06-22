@@ -10,9 +10,10 @@ enum list_side_t
     LIST_SIDE_PREV,
     // Следущюий элемент
     LIST_SIDE_NEXT,
-    // Количество сторон
-    LIST_SIDE_COUNT
 };
+
+// Количество сторон
+constexpr const auto LIST_SIDE_COUNT = 2;
 
 // Первый элемент
 #define LIST_SIDE_HEAD      LIST_SIDE_PREV

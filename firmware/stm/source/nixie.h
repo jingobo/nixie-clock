@@ -51,49 +51,24 @@ struct nixie_data_t
 class nixie_model_t : public hmi_model_t<nixie_data_t, NIXIE_COUNT>
 { };
 
-// Базовый класс фильтров для ламп
+// Базовый класс фильтра
 class nixie_filter_t : public nixie_model_t::filter_t
 {
 protected:
-    // Основой конструктор
-    nixie_filter_t(hmi_filter_purpose_t purpose) : filter_t(purpose)
+    // Приоритеты фильтров
+    enum
+    {
+        // Освещенность
+        PRIORITY_AMBIENT,
+        // Плавное изменение насыщенности
+        PRIORITY_SMOOTH_SAT,
+        // Плавное изменение значения
+        PRIORITY_SMOOTH_VAL,
+    };
+    
+    // Основной конструктор
+    nixie_filter_t(int8_t priority) : filter_t(priority)
     { }
-    
-    // Смена данных с указанием цифры
-    void change(hmi_rank_t index, uint8_t digit)
-    {
-        auto data = data_get(index);
-        data.digit = digit;
-        data_change(index, data);
-    }
-
-    // Смена данных с указанием цифры, насыщенности
-    void change_sat(hmi_rank_t index, uint8_t digit, hmi_sat_t sat = HMI_SAT_MAX)
-    {
-        auto data = data_get(index);
-        data.sat = sat;
-        data.digit = digit;
-        data_change(index, data);
-    }
-
-    // Смена данных с указанием цифры, насыщенности
-    void change_dot(hmi_rank_t index, uint8_t digit, bool dot = false)
-    {
-        auto data = data_get(index);
-        data.dot = dot;
-        data.digit = digit;
-        data_change(index, data);
-    }
-    
-    // Смена данных с указанием цифры, насыщенности и точки
-    void change_full(hmi_rank_t index, uint8_t digit, hmi_sat_t sat = HMI_SAT_MAX, bool dot = false)
-    {
-        auto data = data_get(index);
-        data.sat = sat;
-        data.dot = dot;
-        data.digit = digit;
-        data_change(index, data);
-    }
 };
 
 // Развязочная таблица, указаны цифры по убыванию в глубь лампы

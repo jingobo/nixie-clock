@@ -1,27 +1,28 @@
 // Логирование
-var log =
+const log =
 {
     // Вывод в консоль строки с ошибкой
-    error: function (msg)
+    error(msg)
     {
-        if (console === undefined || console.error === undefined)
+        if (console === undefined)
             return;
-        console.error(msg);
+        console?.error(msg);
     },
 
     // Вывод в консоль строки с информацией
-    info: function (msg)
+    info(msg)
     {
-        if (console === undefined || console.info === undefined)
+        if (console === undefined)
             return;
-        console.info(msg);
+        console?.info(msg);
     },
     
     // Проверка условия
-    assert: function (cond, msg)
+    assert(cond, msg)
     {
         if (cond)
             return;
+		
         if (msg === undefined)
             msg = "Assertion error!";
         this.error(msg);
@@ -29,57 +30,57 @@ var log =
 };
 
 // Утилиты по работе с DOM
-var utils = new function ()
+const utils =
 {
     // Добавление значения к выпа
-    this.dropdownAdd = function (dropdown, value, text)
+    dropdownAdd(dropdown, value, text)
     {
         dropdown.append($("<option />").val(value).text(text));
-    };
+    },
     
     // Заполнение выпадающего списка числами
-    this.dropdownFillNumber = function (dropdown, from, to, ranks)
+    dropdownFillNumber(dropdown, from, to, ranks)
     {
         // Проверка аргументов
         log.assert(from <= to);
         // Отчистка списка
         dropdown.empty();
         // Заполнение числами
-        for (var i = from; i <= to; i++)
+        for (let i = from; i <= to; i++)
         {
-            var text = i;
+            let text = i;
             if (ranks)
                 text = this.leadingZeros(text, ranks);
             this.dropdownAdd(dropdown, i, text);
         }
-    };
+    },
     
     // Заполнение выпадающего списка массивом
-    this.dropdownFillArray = function (dropdown, values, texts)
+    dropdownFillArray(dropdown, values, texts)
     {
         // Проверка аргументов
         log.assert(values.length == texts.length);
         // Отчистка списка
         dropdown.empty();
         // Заполнение числами
-        for (var i = 0; i < values.length; i++)
+        for (let i = 0; i < values.length; i++)
             this.dropdownAdd(dropdown, values[i], texts[i]);
-    };
+    },
     
     // Получает значение выбранного элмента в виде числа
-    this.dropdownSelectedNumber = function (dropdown)
+    dropdownSelectedNumber(dropdown)
     {
         return Number(dropdown.val());
-    };
+    },
     
     // Приводит символы CR LF к одиночному LF
-    this.lf = function (input)
+    lf(input)
     {
         return input.replace('\r', "");
-    };
+    },
     
     // Добавление лидирующих нулей в числе
-    this.leadingZeros = function (value, count)
+    leadingZeros(value, count)
     {
         value = value.toString();
         while (value.length < count)
@@ -88,116 +89,95 @@ var utils = new function ()
     }
 };
 
-// Объект цвета
+// Кодирование текста
+const textCoder = new function ()
+{
+	// Декодирование
+	const decoder = new TextDecoder();
+	
+	this.decode = array => decoder.decode(new Uint8Array(array));
+	
+	// Кодирование
+	const encoder = new TextEncoder();
+	
+	this.encode = str => Array.from(encoder.encode(str));
+};
+
+// Генератор диапазона
+function range(from, to)
+{
+	const result = [];
+	for (let i = from; i <= to; i++)
+		result.push(i);
+	
+	return result;
+}
+
+// Генератор индексов
+function range(count)
+{
+	const result = [];
+	for (let i = 0; i < count; i++)
+		result.push(i);
+	
+	return result;
+}
+
+// Класс цвета
 function Color(r, g, b, a)
 {
 	this.r = r;
 	this.g = g;
 	this.b = b;
 	this.a = a;
-    // Для замыканий
-    var color = this;
-    // Конфертирование в CSS RGBA представление
+    
+	// Конфертирование в CSS RGBA представление
     this.toCSS = function ()
     {
     	return "rgba(" + 
-        	color.r + "," + 
-            color.g + "," +
-            color.b + "," +
-            color.a / 255 + ")";
+        	this.r + "," + 
+            this.g + "," +
+            this.b + "," +
+            this.a / 255 + ")";
     };
 }
 
-// Диапазон сопосталвения ANSI символов и Unicode
-function CpRange(ansiStart, ucsStart, count)
+// Класс счетчика загрузок
+function LoadCounter(maximum)
 {
-    // Инициализация полей
-    this.ansi = ansiStart;
-    this.ucs = ucsStart;
-    this.count = arguments.length > 2 ? count : 1;
-    // Проверка аргументов
-    log.assert(this.count > 0);
+	// Максимум опционален
+	if (maximum === undefined)
+		maximum = 0;
+	
+	// Счетчик
+	let counter = 0;
+	
+	// Добавление свойства количества
+	Object.defineProperty(this, 'count', 
+		{
+			get() { return counter; },
+			configurable: false
+		});
+		
+	// Добавление свойства готовности
+	Object.defineProperty(this, 'ready', 
+		{
+			get() { return counter >= maximum; },
+			configurable: false
+		});
+	
+	// Сброс счетчика
+	this.reset = () => counter = 0;
+	// Инкремент счетчика
+	this.increment = () => counter++;
 }
 
-// Конвертирование величин
-var convert = 
-{
-    // Кодовые стараницы
-    page:
-    {
-        // Windows-1251
-        cp1251:
-        [
-            new CpRange(0x80, 0x0402, 2),   new CpRange(0x82, 0x201A),      new CpRange(0x83, 0x0453),
-            new CpRange(0x84, 0x201E),      new CpRange(0x85, 0x2026),      new CpRange(0x86, 0x2020, 2),
-            new CpRange(0x88, 0x20AC),      new CpRange(0x89, 0x2030),      new CpRange(0x8A, 0x0409),
-            new CpRange(0x8B, 0x2039),      new CpRange(0x8C, 0x040A),      new CpRange(0x8D, 0x040C),
-            new CpRange(0x8E, 0x040B),      new CpRange(0x8F, 0x040F),
-            
-            new CpRange(0x90, 0x0452),      new CpRange(0x91, 0x2018, 2),   new CpRange(0x93, 0x201C, 2),
-            new CpRange(0x95, 0x2022),      new CpRange(0x96, 0x2013, 2),   new CpRange(0x99, 0x2122),
-            new CpRange(0x9A, 0x0459),      new CpRange(0x9B, 0x203A),      new CpRange(0x9C, 0x045A),
-            new CpRange(0x9D, 0x045C),      new CpRange(0x9E, 0x045B),      new CpRange(0x9F, 0x045F),
-
-            new CpRange(0xA0, 0x00A0),      new CpRange(0xA1, 0x040E),      new CpRange(0xA2, 0x045E),
-            new CpRange(0xA3, 0x0408),      new CpRange(0xA4, 0x00A4),      new CpRange(0xA5, 0x0490),
-            new CpRange(0xA6, 0x00A6, 2),   new CpRange(0xA8, 0x0401),      new CpRange(0xA9, 0x00A9),
-            new CpRange(0xAA, 0x0404),      new CpRange(0xAB, 0x00AB, 4),   new CpRange(0xAF, 0x0407),
-            
-            new CpRange(0xB0, 0x00B0, 2),   new CpRange(0xB2, 0x0406),      new CpRange(0xB3, 0x0456),
-            new CpRange(0xB4, 0x0491),      new CpRange(0xB5, 0x00B5, 3),   new CpRange(0xB8, 0x0451),
-            new CpRange(0xB9, 0x2116),      new CpRange(0xBA, 0x0454),      new CpRange(0xBB, 0x00BB),
-            new CpRange(0xBC, 0x0458),      new CpRange(0xBD, 0x0405),      new CpRange(0xBE, 0x0455),
-            new CpRange(0xBF, 0x0457),      new CpRange(0xC0, 0x0410, 64),
-        ],
-    },
-    
-    // Конвертирование одного Unicode символа в Ansi (беззнак)
-    ucs2ansi: function (symbol, codePage)
-    {
-        // Стандарт ANSI
-        if (symbol < 0x80)
-            return symbol;
-        // Поиск в кодовой странице
-        for (var i = 0; i < codePage.length; i++)
-        {
-            var cp = codePage[i];
-            if ((symbol >= cp.ucs) && (symbol < (cp.ucs + cp.count)))
-                return cp.ansi + symbol - cp.ucs;
-        }
-        // Неизвестный символ
-        return 0x7F;
-    },
-    
-    // Конвертирование одного Ansi (беззнак) символа в Unicode
-    ansi2ucs: function (symbol, codePage)
-    {
-        // Стандарт ANSI
-        if (symbol < 0x80)
-            return symbol;
-        // Поиск в кодовой странице
-        for (var i = 0; i < codePage.length; i++)
-        {
-            var cp = codePage[i];
-            if ((symbol >= cp.ansi) && (symbol < (cp.ansi + cp.count)))
-                return cp.ucs + symbol - cp.ansi;
-        }
-        // Неизвестный символ
-        return 0x25A1;
-    },
-    
-    // Перевод градусов в радианы
-    grad2rad: function (angle)
-    {
-        return angle * Math.PI / 180;
-    },
-};
-
 // Класс реализующий чтение бинарных данных из ArrayBuffer
-function BinReader(buffer)
+function BinReader(buffer, offset)
 {
-    var offset = 0;
-    var dview = new DataView(buffer);
+	if (offset == undefined)
+		offset = 0;
+    const dview = new DataView(buffer);
     
     // Проверка на доступное простаранстров
     function assert(adv)
@@ -209,119 +189,174 @@ function BinReader(buffer)
     function conv(size, method)
     {
         assert(size);
-        var result = method.call(dview, offset, true);
+        const result = method.call(dview, offset, true);
         offset += size;
         return result;
     }
     
     // Возвращает, достигнут ли конец потока
-    this.eof = function () { return offset >= buffer.byteLength };
+    this.eof = () => offset >= buffer.byteLength;
 
     // Чтение Int8
-    this.int8 = function () { return conv(1, dview.getInt8) };
+    this.int8 = () => conv(1, dview.getInt8);
     // Чтение UInt8
-    this.uint8 = function () { return conv(1, dview.getUint8) };
+    this.uint8 = () => conv(1, dview.getUint8);
     // Чтение булевы
-    this.bool = function () { return this.uint8() > 0; };
+    this.bool = () => this.uint8() > 0;
     
     // Чтение Int16
-    this.int16 = function () { return conv(2, dview.getInt16) };
+    this.int16 = () => conv(2, dview.getInt16);
     // Чтение UInt16
-    this.uint16 = function () { return conv(2, dview.getUint16); };
+    this.uint16 = () => conv(2, dview.getUint16);
 
     // Чтение Int32
-    this.int32 = function () { return conv(4, dview.getInt32) };
+    this.int32 = () => conv(4, dview.getInt32);
     // Чтение UInt32
-    this.uint32 = function () { return conv(4, dview.getUint32) };
+    this.uint32 = () => conv(4, dview.getUint32);
     
-    // Чтение нультерминированной Си строки со страницей 1251
-    this.cstr = function (chars)
+    // Чтение нультерминированной Си строки
+    this.cstr = chars =>
     {
         assert(chars);
-        var result = "";
-        var skip = false;
-        for (var i = 0; i < chars; i++)
-        {
-            var c = this.uint8();
-            // Терминальный символ
-            if (skip)
-                continue;
-            if (c <= 0)
-            {
-                skip = true;
-                continue;
-            }
-            result += String.fromCharCode(convert.ansi2ucs(c, convert.page.cp1251));
-        }
-        return result;
+		
+		// Получаем байты строки
+		const source = [];
+		{
+			let skip = false;
+			for (let i = 0; i < chars; i++)
+			{
+				// Получаем текущий символ
+				const c = this.uint8();
+				
+				// Если конец строки
+				if (skip)
+					continue;
+				
+				// Терминальный символ
+				if (c <= 0)
+				{
+					skip = true;
+					continue;
+				}
+				
+				source.push(c);
+			}
+			
+			log.assert(skip, "Null termination symbol not found");
+		}
+		
+		// Декодирование
+		return textCoder.decode(source);
     };
+	
+	// Клонирование
+	this.clone = () => new BinReader(buffer, offset);
 }
 
 // Класс реализующий запись бинарных данных в ArrayBuffer
 function BinWriter()
 {
     // Буфер, содержащий UInt8
-    var buffer = [];
+    const buffer = [];
     
     // Промежуточный буфер
-    var array = new ArrayBuffer(8);
-    var dview = new DataView(array);
-    var uint8 = new Uint8Array(array);
+    const array = new ArrayBuffer(8);
+    const dview = new DataView(array);
+    const uint8 = new Uint8Array(array);
     
     // Добавление байт из промежуточного в результирующий
     function conv(size, method, x)
     {
         method.call(dview, 0, x, true);
-        for (var i = 0; i < size; i++)
+        for (let i = 0; i < size; i++)
             buffer.push(uint8[i]);
     };
 
     // Запись Int8
-    this.int8 = function (x) { conv(1, dview.setInt8, x) };
+    this.int8 = x => conv(1, dview.setInt8, x);
     // Запись UInt8
-    this.uint8 = function (x) { conv(1, dview.setUint8, x) };
+    this.uint8 = x => conv(1, dview.setUint8, x);
     // Запись булевы
-    this.bool = function (x) { this.uint8(x ? 1 : 0); };
+    this.bool = x => this.uint8(x ? 1 : 0);
     
     // Запись Int16
-    this.int16 = function (x) { conv(2, dview.setInt16, x) };
+    this.int16 = x => conv(2, dview.setInt16, x);
     // Запись UInt16
-    this.uint16 = function (x) { conv(2, dview.setUint16, x) };
+    this.uint16 = x => conv(2, dview.setUint16, x);
 
     // Запись Int32
-    this.int32 = function (x) { conv(4, dview.setInt32, x) };
+    this.int32 = x => conv(4, dview.setInt32, x);
     // Запись UInt32
-    this.uint32 = function (x) { conv(4, dview.setUint32, x) };
+    this.uint32 = x => conv(4, dview.setUint32, x);
     
     // Запись нультерминированной Си строки со страницей 1251
-    this.cstr = function (str, chars)
+    this.cstr = (str, chars) =>
     {
-        log.assert(str.length < chars);
         // Обход символов
-        for (var i = 0; i < str.length; i++, chars--)
-            this.uint8(convert.ucs2ansi(str.charCodeAt(i), convert.page.cp1251));
+		const data = textCoder.encode(str);
+		data.forEach(this.uint8);
+		
+		chars -= data.length;
+        log.assert(chars > 0);
+
         // Терминальные символы
         for (; chars > 0; chars--)
             this.uint8(0);
     };
 
     // Конфвертирование ArrayBuffer
-    this.toArray = function ()
+    this.toArray = () =>
     {
-        var result = new ArrayBuffer(buffer.length);
-        var u8 = new Uint8Array(result);
-        for (var i = 0; i < buffer.length; i++)
+        const result = new ArrayBuffer(buffer.length);
+        const u8 = new Uint8Array(result);
+        for (let i = 0; i < buffer.length; i++)
             u8[i] = buffer[i];
         return result;
     };
 }
 
+// Расширения стандартных объектов
+
+// Удаление элемента из массива
+Array.prototype.remove = function (item)
+{
+	const index = this.indexOf(item);
+	if (index < 0)
+		return false;
+	
+	this.splice(index, 1);
+	return true;
+};
+
+// Вставка элемента по индексу
+Array.prototype.insert = function (index, item)
+{
+    this.splice(index, 0, item);
+};
+
+// Awaitable задерка в миллисекундах
+// TODO: может не нужна
+function delay(mills)
+{
+	// Создание промиса
+	let timeout;
+	const result = new Promise(resolve => 
+		timeout = setTimeout(resolve, mills));
+	
+	// Добавление функции отмены
+	result.cancel = () => clearTimeout(timeout);
+	
+	return result;
+};
+
 // Расширения для jQuery
 jQuery.fn.extend(
 {
-    // Показывает/скрывает элемент по булвому значению
-    visible: function (state) 
+    // Показывает/скрывает/получает элемент по булвому значению
+    visible(state) 
     {
+        if (state === undefined)
+            return this.is(":visible");
         if (state)
             this.show();
         else
@@ -329,15 +364,16 @@ jQuery.fn.extend(
     },
     
     // Установка/снятие/получение состояния чекбокса
-    checked: function (state)
+    checked(state)
     {
         if (state === undefined)
             return this.is(":checked");
         this.prop("checked", state);
+		this.trigger("change");
     },
 
     // Установка/снятие/получение разрешения клика по кнопке
-    disabled: function (state)
+    disabled(state)
     {
         if (state === undefined)
             return this.prop("disabled");
@@ -347,10 +383,100 @@ jQuery.fn.extend(
             this.removeAttr("disabled");
     },
     
+	// Добавление/Удаление класса
+	setClass(name, state)
+	{
+		if (this.hasClass(name) != state)
+			this.toggleClass(name);
+	},
+	
     // Показывает/скрывает спинер на кнопке
-    spinner: function (state)
+    spinner(state)
     {
+		// Показ/Скрытие элементов
         this.children("span").css("opacity", state ? 0 : 1);
-        this.children("div.spinner-border").visible(state);
+        this.children("div").visible(state);
     },
+	
+	// Инициализация списочного элемента с шаблоном
+	templatedList()
+	{
+		// Текущий идентификатор
+		let id = 0;
+		// Список элементов
+		const items = [];
+		// Родительский контейнер
+		const parent = this;
+		// Список суффиксов замены
+		const suffixes = [].slice.call(arguments);
+		// Текстовый шаблон элемента
+		const template = this.children("template").html();
+		
+		// Готовим результат
+		const result = 
+		{
+			// Список элементов
+			items: items,
+			
+			// Метод создания
+			create()
+			{
+				// Создание элемента из шаблона
+				id++;
+				let html = template;
+				for (let i = 0; i < suffixes.length; i++)
+				{
+					let suffix = suffixes[i];
+					html = html.replaceAll(suffix, suffix + "-" + id);
+				}
+				const item = $(html).last();
+				
+				// Объект управления списком
+				item.list =
+				{
+					// Метод удаления
+					remove()
+					{
+						if (items.indexOf(item) < 0)
+							return;
+						
+						// Удаление из DOM
+						item.remove();
+						// Удаление из списка
+						items.remove(item);
+					},
+					
+					// Вставка по индексу
+					insert(index)
+					{
+						// Удаление
+						item.list.remove();
+						
+						if (index >= items.length)
+						{
+							// Добавление в DOM
+							parent.append(item);
+							items.push(item);
+							return;
+						}
+						
+						// Вставка в DOM
+						items[index].before(item);
+						items.insert(index, item);
+					},
+				};
+				
+				return item;
+			},
+			
+			// Метод отчистки списка
+			clear()
+			{
+				while (items.length > 0)
+					items[0].list.remove();
+			}
+		};
+		
+		return result;
+	},
 });

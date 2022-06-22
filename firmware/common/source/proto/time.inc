@@ -98,7 +98,7 @@ static inline bool time_hosts_empty(const time_hosts_data_t source)
     return source[0] == '\0';
 }
 
-// Данные запроса команды установки хостов SNTP
+// Данные запроса команды записи хостов
 ALIGN_FIELD_8
 struct time_command_hostlist_set_request_t
 {
@@ -113,12 +113,54 @@ struct time_command_hostlist_set_request_t
 };
 ALIGN_FIELD_DEF
 
-// Команда отправки списка серверов
+// Команда записи списка серверов
 class time_command_hostlist_set_t : public ipc_command_set_t<time_command_hostlist_set_request_t>
 {
 public:
     // Конструктор по умолчанию
     time_command_hostlist_set_t(void) : ipc_command_set_t(IPC_OPCODE_ESP_TIME_HOSTLIST_SET)
+    { }
+};
+
+// Структура ответа команды чтения текущей даты/времени
+ALIGN_FIELD_8
+struct time_command_current_get_response_t
+{
+    struct
+    {
+        // Текущее время синхронизации
+        datetime_t current;
+        // Последнее время синхронизации
+        datetime_t sync;
+    } time;
+    // Можно ли запустить синхронизацию
+    ipc_bool_t sync_allow : 8;
+
+    // Проверка полей
+    bool check(void) const
+    {
+        return sync_allow <= IPC_BOOL_TRUE &&
+               time.current.check() &&
+               (time.sync.check() || time.sync.empty());
+    }
+};
+ALIGN_FIELD_DEF
+
+// Команда чтения текущей даты/времени
+class time_command_current_get_t : public ipc_command_get_t<time_command_current_get_response_t>
+{
+public:
+    // Конструктор по умолчанию
+    time_command_current_get_t(void) : ipc_command_get_t(IPC_OPCODE_STM_TIME_GET)
+    { }
+};
+
+// Команда записи текущей даты/времени
+class time_command_current_set_t : public ipc_command_set_t<datetime_t>
+{
+public:
+    // Конструктор по умолчанию
+    time_command_current_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_TIME_SET)
     { }
 };
 
@@ -152,49 +194,7 @@ struct time_sync_settings_t
 };
 ALIGN_FIELD_DEF
 
-// Структура ответа команды получения текущей даты/времени
-ALIGN_FIELD_8
-struct time_command_current_get_response_t
-{
-    struct
-    {
-        // Текущее время синхронизации
-        datetime_t current;
-        // Последнее время синхронизации
-        datetime_t sync;
-    } time;
-    // Можно ли запустить синхронизацию
-    ipc_bool_t sync_allow : 8;
-
-    // Проверка полей
-    bool check(void) const
-    {
-        return sync_allow <= IPC_BOOL_TRUE &&
-               time.current.check() &&
-               (time.sync.check() || time.sync.empty());
-    }
-};
-ALIGN_FIELD_DEF
-
-// Команда получения текущей даты/времени
-class time_command_current_get_t : public ipc_command_get_t<time_command_current_get_response_t>
-{
-public:
-    // Конструктор по умолчанию
-    time_command_current_get_t(void) : ipc_command_get_t(IPC_OPCODE_STM_TIME_GET)
-    { }
-};
-
-// Команда установки текущей даты/времени
-class time_command_current_set_t : public ipc_command_set_t<datetime_t>
-{
-public:
-    // Конструктор по умолчанию
-    time_command_current_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_TIME_SET)
-    { }
-};
-
-// Команда получения настроек даты/времени
+// Команда чтения настроек даты/времени
 class time_command_settings_get_t : public ipc_command_get_t<time_sync_settings_t>
 {
 public:
@@ -203,7 +203,7 @@ public:
     { }
 };
 
-// Команда установки настроек даты/времени
+// Команда записи настроек даты/времени
 class time_command_settings_set_t : public ipc_command_set_t<time_sync_settings_t>
 {
 public:

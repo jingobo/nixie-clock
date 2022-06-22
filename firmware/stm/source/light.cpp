@@ -2,7 +2,13 @@
 #include "mcu.h"
 #include "light.h"
 #include "timer.h"
+#include "xmath.h"
 #include "system.h"
+
+// Количество измерений в секунду (не менять)
+constexpr const uint8_t LIGHT_MSR_PER_SECOND = 5;
+// Количество секунд обновления уровня освещенности
+constexpr const uint16_t LIGHT_LEVEL_UPDATE_SECONDS = 3;
 
 // Генерация начала транзакции
 static bool light_wire_start(bool is_read)
@@ -63,7 +69,7 @@ static bool light_wire_finalize(void)
 }
 
 // Чтение данных по I2C
-static bool light_wire_read(uint8_t &msb, uint8_t &lsb)
+static bool light_wire_read(uint8_t &dr0, uint8_t &dr1)
 {
     if (!light_wire_start(true))
         return false;
@@ -74,8 +80,8 @@ static bool light_wire_read(uint8_t &msb, uint8_t &lsb)
     if (!light_wire_stop())
         return false;
 
-    msb = I2C1->DR;                                                             // Read MSB
-    lsb = I2C1->DR;                                                             // Read LSB
+    dr0 = I2C1->DR;                                                             // Read first byte
+    dr1 = I2C1->DR;                                                             // Read second byte
 
     return light_wire_finalize();
 }
@@ -106,23 +112,45 @@ static void light_state_timer_cb(void);
 // Текущее состояние автомата
 static __no_init enum light_state_t
 {
-    // Старт измерения
-    LIGHT_STATE_MEASURE,
-    // Завершение измерения
-    LIGHT_STATE_MEASURE_FIN,
+    // Конфигурирование
+    LIGHT_STATE_CONGIF,
+    // Чтение результатов
+    LIGHT_STATE_READING,
 } light_state;
 
+// Максимальное покзаание в люксах
+static __no_init float_t light_max_lux;
 // Текущее покзаание в люксах
-static __no_init sensor_value_t light_current;
+static __no_init float_t light_current_lux;
+// Текущее показание уровня освещенности
+static __no_init light_level_t light_current_level;
+// Прескалер обновления уровня освещенности
+static __no_init uint16_t light_level_update_prescaler;
 
 // Таймер автомата состояний
 static timer_callback_t light_state_timer(light_state_timer_cb);
 
-// Установка состояния
-static void light_state_set(light_state_t state, uint32_t us)
+// Обновление уровня освещенности
+static void light_level_update(void)
 {
-    light_state = state;
-    light_state_timer.start_us(us);
+    // Откладываем обновление
+    light_level_update_prescaler = 0;
+    
+    // Точки линеаризации
+    static const xmath_point2d_t<float_t, light_level_t> POINTS[] =
+    {
+        { 0.0f,     0 },
+        { 5.0f,     20 },
+        { 10.0f,    40 },
+        { 20.0f,    60 },
+        { 40.0f,    80 },
+        { 70.0f,    100 },
+    };
+    
+    // Интерполяция
+    light_current_lux = light_max_lux;
+    light_current_level = xmath_linear_interpolation(light_current_lux, POINTS, ARRAY_SIZE(POINTS));
+    light_max_lux = 0.0f;
 }
 
 // Повтор выполнения текущего состояния
@@ -131,20 +159,21 @@ static void light_state_retry(void)
     light_state_timer.start_us(TIMER_US_MIN);
 }
 
-// Обработчик завершения измерения
-static void light_measure_done(void)
+// Установка таймера для задержки состояния
+static void light_state_delay(void)
 {
-    // Повторное измерение через 1 секунду
-    light_state_set(LIGHT_STATE_MEASURE, XM(1));
+    light_state_timer.start_hz(LIGHT_MSR_PER_SECOND);
 }
 
 // Обрабогтчик ошибки измерения
 static void light_measure_error(void)
 {
-    // Сброс показания
-    light_current = SENSOR_VALUE_EMPTY;
-    // Завершение измерения
-    light_measure_done();
+    // Текущее значение не известно
+    light_current_lux = NAN;
+    // Переход к конфигурированию
+    light_state = LIGHT_STATE_CONGIF;
+    // Задержка обработки
+    light_state_delay();
 }
 
 // Обработчик таймера автомата состояний
@@ -153,7 +182,10 @@ static void light_state_timer_cb(void)
     /* Если активна линия ESP, то откладываем
      * В Errata запрещено использование SPI1 и I2C в случае ремапа */
     if (esp_wire_active())
+    {
         light_state_retry();
+        return;
+    }
     
     // Включение I2C1
     RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;                                         // I2C1 clock enable
@@ -162,16 +194,27 @@ static void light_state_timer_cb(void)
     
     switch (light_state)
     {
-        case LIGHT_STATE_MEASURE:
-            // Питание, измерение
-            if (light_wire_write(0x01) && light_wire_write(0x20))
+        case LIGHT_STATE_CONGIF:
+            // Питание, тайминг, измерение
+            if (light_wire_write(0x01) && 
+                light_wire_write(0x47) &&
+                light_wire_write(0x47) &&
+                light_wire_write(0x7E) &&
+                light_wire_write(0x11))
                 // Ожидание 200 мС
-                light_state_set(LIGHT_STATE_MEASURE_FIN, XK(200));
-            else
-                // Опа...
-                light_measure_error();
+            {
+                // Переход к чтению
+                light_state = LIGHT_STATE_READING;
+                // Задержка обработки
+                light_state_delay();
+                break;
+            }
+            
+            // Опа...
+            light_measure_error();
             break;
-        case LIGHT_STATE_MEASURE_FIN:
+            
+        case LIGHT_STATE_READING:
             {
                 // Чтение результатов
                 union
@@ -182,19 +225,50 @@ static void light_state_timer_cb(void)
                         uint8_t lsb, msb;
                     };
                 };
+                
                 if (!light_wire_read(msb, lsb))
                 {
                     light_measure_error();
                     break;
                 }
-                
+
                 // Конвертирование
-                auto current = raw * 0.83f;
+                float_t lux;
+                {
+                    // Точность
+                    constexpr const auto ACCURACY = 1.2f;
+                    // Значение регистра тайминга по умолчанию
+                    constexpr const auto MTREG_DEF = 69.0f;
+                    // Текущее значение регистра тайминга
+                    constexpr const auto MTREG_CUR = 254.0f;
+                    // Делитель при высокой точности
+                    constexpr const auto HIRES_DIV = 2.0f;
+                    // Коофициент трансформации
+                    constexpr const auto COEFF = 1.0f / ACCURACY * (MTREG_DEF / MTREG_CUR) / HIRES_DIV;
+
+                    // Пересчет
+                    lux = raw * COEFF;
+                }
                 
-                // Гестерезис в 5
-                if (abs(light_current - current) > 5)
-                    light_current = current;
-                light_measure_done();
+                // Задержка обработки
+                light_state_delay();
+                
+                // Если текущее значение не определенно или больше
+                if (isnan(light_current_lux) || light_current_lux < lux)
+                {
+                    light_max_lux = lux;
+                    light_level_update();
+                    break;
+                }
+                
+                // Определение минимума
+                if (light_max_lux < lux)
+                    light_max_lux = lux;
+                
+                // Прескалер обновления
+                if (++light_level_update_prescaler >= 
+                    LIGHT_MSR_PER_SECOND * LIGHT_LEVEL_UPDATE_SECONDS)
+                    light_level_update();
             }
             break;
     }
@@ -205,13 +279,15 @@ static void light_state_timer_cb(void)
 
 void light_init(void)
 {
+    // Изначально счтиаем что максимально
+    light_current_level = LIGHT_LEVEL_MAX;
     // Изначально в состояние ошибки
     light_measure_error();
     // Форсирование первого измерения
     light_state_retry();
 }
 
-sensor_value_t light_current_get(void)
+light_level_t light_level_get(void)
 {
-    return light_current;
+    return light_current_level;
 }

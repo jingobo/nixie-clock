@@ -46,24 +46,114 @@ static struct esp_io_t
 static ipc_handler_host_t esp_handler_host;
 
 // Класс связи с ESP
-static class esp_link_t : public ipc_link_master_t
+static class esp_link_t : public ipc_link_t
 {
-protected:
-    // Массовый сброс (другая сторона не отвечает)
-    virtual void reset_slave(void) override final
+    // Контроль переотправки исходящих данных
+    struct retry_t
     {
+        // Два кэшированных пакета
+        ipc_packet_t packet[2];
+        // Индекс передаваемого пакета
+        uint8_t index;
+
+        // Конструктор по умолчанию
+        retry_t(void) : index(ARRAY_SIZE(packet))
+        { }
+    } retry;
+    
+    // Счетчик ошибок фаз
+    uint16_t unphase_count = 0;
+    // Счетчик ошибок передачи
+    uint8_t corruption_count = 0;
+    
+    // Событие массового сброса (другая сторона не отвечает)
+    void reset_slave(void)
+    {
+        // Сброс счетчиков
+        unphase_count = 0;
+        corruption_count = 0;
+        
         // Сброс чипаа
         esp_reset_do();
     }
+protected:
+    // Проверка фазы полученного пакета
+    virtual bool check_phase(const ipc_packet_t &packet) override final
+    {
+        // Базовый метод
+        if (ipc_link_t::check_phase(packet))
+        {
+            // Фаза не слошлась, на другой стороне пропущен пакет
+            retry.index = 0;
+            
+            // Обработка счетчика несовпадения фаз
+            unphase_count += 2;
+            if (unphase_count < ESP_SPI_IPC_TX_HZ * 10) // ...на 10 секунд
+                return false;
+            
+            // Жопа
+            reset_slave();
+            return true;
+        }
+        
+        // Фаза сошлась
+        if (unphase_count > 0)
+            unphase_count--;
+        return false;
+    }
+    
+    // Сброс прикладного уровня
+    virtual void reset_layer(reset_reason_t reason, bool internal) override final
+    {
+        retry.index = ARRAY_SIZE(retry.packet);
+        // Базовый метод
+        ipc_link_t::reset_layer(reason, internal);
+        // Обработка счетчика ошибок передачи
+        if (internal && reason == RESET_REASON_CORRUPTION)
+            corruption_count += 4;
+    }
+
 public:
+    // Получение пакета к выводу
+    virtual void packet_output(ipc_packet_t &packet) override final
+    {
+        if (retry.index < ARRAY_SIZE(retry.packet))
+        {
+            // Переотправляем
+            packet = retry.packet[retry.index++];
+            return;
+        }
+        
+        // Выводим и кэшируем
+        ipc_link_t::packet_output(packet);
+        retry.packet[0] = retry.packet[1];
+        retry.packet[1] = packet;
+    }
+
     // Ввод полученного пакета
     virtual bool packet_input(const ipc_packet_t &packet) override final
     {
         // Базовый метод
-        auto result = ipc_link_master_t::packet_input(packet);
-        // Обработка
-        if (result && !packet.dll.more)
-            flush_packets(esp_handler_host);
+        if (ipc_link_t::packet_input(packet))
+        {
+            // Декремент счетчика ошибок
+            if (corruption_count > 0)
+                corruption_count--;
+            
+            // Обработка
+            if (packet.last_get())
+                flush_packets(esp_handler_host);
+            
+            // Результат не проверяется
+            return true;
+        }
+        
+        // Обработка счетчика ошибок передачи
+        if (corruption_count > 10)
+            // Жопа
+            reset_slave();
+        
+        // Результат не проверяется
         return true;
     }
 } esp_link;

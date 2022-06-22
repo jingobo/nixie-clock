@@ -173,139 +173,319 @@ public:
     }
 };
 
-// Назначение передатчика данных
-enum hmi_filter_purpose_t
-{
-    // Источник данных
-    HMI_FILTER_PURPOSE_SOURCE,
-    
-    // Плавная коррекция значения
-    HMI_FILTER_PURPOSE_SMOOTH_VAL,
-    // Плавная коррекция насыщенности
-    HMI_FILTER_PURPOSE_SMOOTH_SAT,
-    
-    // Мгновенная коррекция значения
-    HMI_FILTER_PURPOSE_INSTANT_VAL,
-    // Мгновенная коррекция насыщенности
-    HMI_FILTER_PURPOSE_INSTANT_SAT,
-    
-    // ---  Не перемещаемые --- //
-    
-    // Конечный дисплей (приёмнк данных)
-    HMI_FILTER_PURPOSE_DISPLAY
-};
-
 // Класс модели фильтров
 template <typename DATA, hmi_rank_t COUNT>
 class hmi_model_t
 {
+    // Проверка индекса
+    static void index_check(hmi_rank_t index)
+    {
+        assert(index < COUNT); 
+    }
+    
+    // Статические приортитеты
+    enum
+    {
+        // Приоритет источника
+        LAYER_PRIORITY_SOURCE = INT8_MIN,
+        // Приоритет перехватчика источника
+        LAYER_PRIORITY_SOURCE_HOOK,
+        // Приоритет дисплея
+        LAYER_PRIORITY_DISPLAY = INT8_MAX,
+    };
 public:
-    // Базовый класс фильтра 
-    class filter_t : list_item_t
+    // Базовый класс слоя данных
+    class layer_t : protected list_item_t
     {
         friend class hmi_model_t;
-        // Последние принятые данные
-        DATA last[COUNT];
-        // Назначение фильтра
-        const hmi_filter_purpose_t purpose;
-        
-        // Проверка индекса
-        static void index_check(hmi_rank_t index)
-        { 
-            assert(index < COUNT); 
-        }
-        
-        // Передача данный следующему фильтру
-        void resend(void)
-        {
-            for (hmi_rank_t i = 0; i < COUNT; i++)
-            {
-                // Обязательное копирование и обработка
-                auto tmp = last[i];
-                process(i, tmp);
-            }
-        }
-        
-        // Получает, можно ли фильтр переносить в другую модель
-        bool moveable(void) const
-        {
-            return purpose != HMI_FILTER_PURPOSE_DISPLAY;
-        }
-        
-        // Устанавливает новые дныые следующему фильтру
-        void data_set_next(hmi_rank_t index, DATA data) const
-        {
-            index_check(index);
-            // Полуение следующего фильтра
-            auto next = next_cast();
-            if (next != NULL)
-                next->data_set(index, data);
-        }
+        // Входящие данные
+        DATA in[COUNT];
     protected:
-        // Основой конструктор
-        filter_t(hmi_filter_purpose_t _purpose) : purpose(_purpose)
-        { }
-        
-        // Получает приведенный указательн на следующий фильтр
-        filter_t * next_cast(void) const
-        {
-            return (filter_t *)next();
-        }
-
-        // Событие присоединения к цепочке
+        // Обработчик события присоединения к цепочке
         virtual void attached(void)
         { }
-        
+
         // Обнвление данных
         virtual void refresh(void)
         { }
+
+        // Получает, можно ли слой переносить в другую модель
+        virtual bool moveable_get(void) const = 0;
         
-        // Событие обработки новых данных
-        virtual void process(hmi_rank_t index, DATA &data)
+        // Получает приоритет слоя
+        virtual int8_t priority_get(void) const = 0;
+
+        // Обработчик изменения стороны
+        virtual void side_changed(list_side_t side) = 0;
+        
+        // Обработчик изменения данных
+        virtual void data_changed(hmi_rank_t index, DATA &data) = 0;
+        
+        // Получсет данные по указанному разряду
+        DATA get(hmi_rank_t index) const
         {
             index_check(index);
-            // Переход к следующему фильтру
-            data_set_next(index, data);
-        }
-
-        // Получает текущие данные
-        DATA data_get(hmi_rank_t index) const
-        { 
-            index_check(index);
-            return last[index]; 
+            return in[index];
         }
         
-        // Устанавливает новые дныые
-        void data_set(hmi_rank_t index, DATA data)
+        // Ввод данных
+        void input(hmi_rank_t index, DATA data)
         {
             index_check(index);
             // Изменились ли данные
-            if (last[index] == data)
+            if (in[index] == data)
                 return;
             // Обязательно скопировать
             auto next = data;
             // Обработка новых данных
-            process(index, next);
+            data_changed(index, next);
             // Установка новых данных
-            last[index] = data;
+            in[index] = data;
         }
-                        
-        // Смена данных на разряде (относительно назначения фильтра)
-        void data_change(hmi_rank_t index, DATA data)
+    };
+
+    // Базовый класс трансивера данных
+    class transceiver_t : public layer_t
+    {
+        // Исходящие данные
+        DATA out[COUNT];
+        
+        // Получает приведенный указательн на следующий слой
+        layer_t * next_layer(void) const
         {
-            switch (purpose)
+            return (layer_t *)list_item_t::next();
+        }
+        
+    protected:
+        // Вывод данных
+        virtual void output(hmi_rank_t index, DATA &data)
+        {
+            index_check(index);
+            
+            // Полуение следующего слоя
+            auto next = next_layer();
+            if (next != NULL)
+                next->input(index, data);
+        }
+        
+    public:
+        // Вывод данных
+        void reoutput(void)
+        {
+            for (hmi_rank_t i = 0; i < COUNT; i++)
             {
-                case HMI_FILTER_PURPOSE_SOURCE:
-                    // Устанавливаем себе
-                    data_set(index, data);
+                auto data = out[i];
+                output(i, data);
+            }
+        }
+        
+    protected:
+        // Установка данных
+        void set(hmi_rank_t index, DATA data)
+        {
+            out[index] = data;
+            output(index, data);
+        }
+        
+        // Обработчик изменения стороны
+        virtual void side_changed(list_side_t side) override
+        {
+            switch (side)
+            {
+                case LIST_SIDE_PREV:
+                    // Ничего не делаем
                     break;
-                case HMI_FILTER_PURPOSE_DISPLAY:
-                    // Ничего не далем
+                    
+                case LIST_SIDE_NEXT:
+                    // Передаем данные
+                    reoutput();
                     break;
+                    
                 default:
-                    // По умолчанию передаем дальше
-                    data_set_next(index, data);
+                    assert(false);
+            }
+        }
+    };
+    
+    // Базовый класс источника данных
+    class source_t : public transceiver_t
+    {
+    protected:
+        // Получает, можно ли слой переносить в другую модель
+        virtual bool moveable_get(void) const override final
+        {
+            // Источник всегда можно перемещать
+            return true;
+        }
+        
+        // Получает приоритет слоя
+        virtual int8_t priority_get(void) const override final
+        {
+            // Низший приоритет
+            return LAYER_PRIORITY_SOURCE;
+        }
+        
+        // Обработчик изменения стороны
+        virtual void side_changed(list_side_t side) override final
+        {
+            switch (side)
+            {
+                case LIST_SIDE_NEXT:
+                    // Базовый метод
+                    transceiver_t::side_changed(side);
                     break;
+                    
+                default:
+                    assert(false);
+            }
+        }
+
+        // Обработчик изменения данных
+        virtual void data_changed(hmi_rank_t index, DATA &data) override
+        {
+            // По умолчанию нет реакции
+            // В источник могут прилететь только данные предыдущей сцены
+            index_check(index);
+        }
+        
+        // Вывод данных
+        virtual void output(hmi_rank_t index, DATA &data) override final
+        {
+            // Просто запечатывание метода
+            transceiver_t::output(index, data);
+        }
+    };
+    
+    // Базовый класс перехватчика источника данных
+    class source_hook_t : public transceiver_t
+    {
+    protected:
+        // Получает, можно ли слой переносить в другую модель
+        virtual bool moveable_get(void) const override final
+        {
+            // Перехватчика источника перемещать нельзя
+            return false;
+        }
+        
+        // Получает приоритет слоя
+        virtual int8_t priority_get(void) const override final
+        {
+            // Низший приоритет
+            return LAYER_PRIORITY_SOURCE_HOOK;
+        }
+        
+        // Обработчик изменения стороны
+        virtual void side_changed(list_side_t side) override final
+        {
+            // Просто запечатывание метода
+            transceiver_t::side_changed(side);
+        }
+        
+        // Обработчик изменения данных
+        virtual void data_changed(hmi_rank_t index, DATA &data) override final
+        {
+            data_store(index, data);
+            // По умолчанию передача дальше
+            transceiver_t::set(index, data);
+        }
+        
+        // Вывод данных
+        virtual void output(hmi_rank_t index, DATA &data) override final
+        {
+            // Просто запечатывание метода
+            transceiver_t::output(index, data);
+        }
+        
+        // Оповещение о сохранении данных
+        virtual void data_store(hmi_rank_t index, const DATA &data) = 0;
+    };
+    
+    // Базовый класс фильтра данных
+    class filter_t : public transceiver_t
+    {
+        // Приоритет фильтра
+        const int8_t priority;
+    protected:
+        // Основой конструктор
+        filter_t(int8_t _priority) : priority(_priority)
+        {
+            assert(priority > LAYER_PRIORITY_SOURCE_HOOK);
+            assert(priority < LAYER_PRIORITY_DISPLAY);
+        }
+    
+        // Получает, можно ли слой переносить в другую модель
+        virtual bool moveable_get(void) const override
+        {
+            // Фильтр по умолчанию можно перемещать
+            return true;
+        }
+        
+        // Получает приоритет слоя
+        virtual int8_t priority_get(void) const override final
+        {
+            // Указанный приоритет
+            return priority;
+        }
+
+        // Обработчик изменения стороны
+        virtual void side_changed(list_side_t side) override final
+        {
+            // Просто запечатывание метода
+            transceiver_t::side_changed(side);
+        }
+        
+        // Обработчик изменения данных
+        virtual void data_changed(hmi_rank_t index, DATA &data) override
+        {
+            // По умолчанию передача дальше
+            transceiver_t::set(index, data);
+        }
+        
+        // Вывод данных
+        virtual void output(hmi_rank_t index, DATA &data) override final
+        {
+            // Трансформация
+            transform(index, data);
+            // Базовый метод
+            transceiver_t::output(index, data);
+        }
+        
+        // Трансформация данных
+        virtual void transform(hmi_rank_t index, DATA &data) const
+        {
+            // По умолчанию не реализованно (только для пассивных фильтров)
+        }
+    };
+    
+    // Базовый класс дисплея данных
+    class display_t : public layer_t
+    {
+    protected:
+        // Получает, можно ли слой переносить в другую модель
+        virtual bool moveable_get(void) const override final
+        {
+            // Дисплей никогда не перемещаемый
+            return false;
+        }
+        
+        // Получает приоритет слоя
+        virtual int8_t priority_get(void) const override final
+        {
+            // Высший приоритет
+            return LAYER_PRIORITY_DISPLAY;
+        }
+        
+        // Обработчик изменения стороны
+        virtual void side_changed(list_side_t side) override final
+        {
+            switch (side)
+            {
+                case LIST_SIDE_PREV:
+                    // Ничего не делаем
+                    break;
+                    
+                default:
+                    assert(false);
             }
         }
     };
@@ -313,14 +493,18 @@ private:
     // Указатель на перенаправляемую модель модель добавление/удаления фильтров
     hmi_model_t *redirect;
     // Список фильтров
-    list_template_t<filter_t> list;
+    list_template_t<layer_t> list;
     
-    // Передача данный следующему фильтру
-    static void resend(list_item_t *filter)
+    // Оповещение сторон о смене слоёв
+    static void side_changed(list_item_t *prev, list_item_t *next)
     {
-        if (filter == NULL)
-            return;
-        ((filter_t *)filter)->resend();
+        // Предыдущая
+        if (prev != NULL)
+            ((layer_t *)prev)->side_changed(LIST_SIDE_NEXT);
+        
+        // Следующая
+        if (next != NULL)
+            ((layer_t *)next)->side_changed(LIST_SIDE_PREV);
     }
 public:
     // Конструктор по умолчанию
@@ -334,8 +518,8 @@ public:
             i->refresh();
     }
     
-    // Добавление фильтра в цепочку
-    void attach(filter_t &item)
+    // Добавление слоя в цепочку
+    void attach(layer_t &item)
     {
         // Если уже добавлен
         if (item.linked())
@@ -343,122 +527,115 @@ public:
             assert(item.list() == &list);
             return;
         }
+        
         // Если есть перенаправление
         if (redirect != NULL)
         {
             redirect->attach(item);
             return;
         }
+        
         // Поиск места вставки
-        filter_t *place = NULL;
+        layer_t *place = NULL;
         for (auto i = list.head(); i != NULL; i = LIST_ITEM_NEXT(i))
-            if (i->purpose > item.purpose)
+            if (i->priority_get() > item.priority_get())
             {
                 place = i;
                 break;
             }
+        
         // Вставка
         if (place == NULL)
             item.link(list);
         else
             item.link(place, LIST_SIDE_PREV);
-        // Обновление данных
-        resend(item.prev());
+        
+        // Оповещение сторон о смене слоёв
+        side_changed(item.prev(), item.next());
         // Генерирование события
         item.attached();
     }
     
-    // Удаление фильтра из цепочки
-    void detach(filter_t &item)
+    // Удаление слоя из цепочки
+    void detach(layer_t &item)
     {
         // Если уже удален
         if (item.unlinked())
             return;
+        
         // Если есть перенаправление
         if (redirect != NULL)
         {
             redirect->detach(item);
             return;
         }
+        
         // Проверка, есть ли в цепочке
         assert(list.contains(item));
-        // Расцепление
-        auto prev = item.unlink(LIST_SIDE_PREV);
-        // Обновление данных
-        resend(prev);
+        
+        // Получаем стороны при удалении
+        auto prev = item.prev();
+        auto next = item.unlink(LIST_SIDE_NEXT);
+        
+        // Оповещение сторон о смене слоёв
+        side_changed(prev, next);
     }
     
-    // Перенос фильтров кроме диспеля и гаммы в указанную сцену
+    // Перенос фильтров в указанную сцену
     void move(hmi_model_t &to)
     {
         assert(redirect == NULL);
+        
         // Если возвращаем фильтры
-        auto backward = to.redirect != NULL;
+        const auto backward = to.redirect != NULL;
         if (backward)
         {
+            // Сброс переноса
             assert(to.redirect == this);
             to.redirect = NULL;
         }
-        // Если уже перенесены
+        
+        // К этому моменту должен быть сброшен
         assert(redirect == NULL);
+        
         // Последние выводиме данные дисплея
-        DATA last_displayed[COUNT];
-        // Не перемещаемые фильтры переносим во временный список
-        list_template_t<filter_t> non_moveable;
-        for (auto i = to.list.head(); i != NULL;)
+        DATA data[COUNT];
         {
-            // Получаем ссылку на фильтр
-            auto &filter = *i;
-            // Переход к следующему фильтру
-            i = LIST_ITEM_NEXT(i);
-            // Проверка возможности переноса
-            assert(!filter.moveable());
-            // Если первый не перемещаемый фильтр
-            if (non_moveable.empty())
-                // Сохранение его данные
-                for (hmi_rank_t j = 0; j < COUNT; j++)
-                    last_displayed[j] = filter.data_get(j);
-            // Перенос во временный список
-            filter.unlink();
-            filter.link(non_moveable);
+            auto last = to.list.last();
+            if (last != NULL)
+                for (hmi_rank_t i = 0; i < COUNT; i++)
+                    data[i] = last->get(i);
         }
-        // Перенос с начала
+        
+        // Перенос слоёв
         for (auto i = list.head(); i != NULL;)
         {
-            // Получаем ссылку на фильтр
-            auto &filter = *i;
-            // Переход к следующему фильтру
+            // Получаем ссылку на слой
+            auto &layer = *i;
+            // Переход к следующему слою
             i = LIST_ITEM_NEXT(i);
+            
             // Проверяем, можно ли перенести
-            if (filter.moveable())
-            {
-                // Удаление
-                detach(filter);
-                // Если первый фильтр - применение последних данных
-                if (to.list.empty())
-                    for (hmi_rank_t j = 0; j < COUNT; j++)
-                        filter.data_set(j, last_displayed[j]);
-                // Добавление
-                to.attach(filter);
-            }
+            if (!layer.moveable_get())
+                continue;
+            
+            // Удаление
+            detach(layer);
+            // Добавление
+            to.attach(layer);
         }
-        // Возвращаем не перемещаемые объекты   
-        for (auto i = non_moveable.head(); i != NULL;)
-        {
-            // Получаем ссылку на фильтр
-            auto &filter = *i;
-            // Переход к следующему фильтру
-            i = LIST_ITEM_NEXT(i);
-            // Возвращение в исходный список
-            filter.unlink();
-            // Не перемещаемые объекты всегда с конца
-            filter.link(to.list);
-            // Получение данных
-            resend(filter.prev());
-        }
+
         // Указываем куда перенесены
         if (!backward)
             redirect = &to;
+        
+        // Применение последних данных
+        {
+            auto head = to.list.head();
+            if (head != NULL)
+                for (hmi_rank_t i = 0; i < COUNT; i++)
+                    head->input(i, data[i]);
+        }
     }
 };
 
@@ -470,7 +647,8 @@ extern const hmi_hsv_t
     HMI_COLOR_HSV_BLACK,
     HMI_COLOR_HSV_RED,
     HMI_COLOR_HSV_GREEN,
-    HMI_COLOR_HSV_BLUE;
+    HMI_COLOR_HSV_BLUE,
+    HMI_COLOR_HSV_WHITE;
 
 // Цвета RGB
 extern const hmi_rgb_t 
@@ -479,19 +657,5 @@ extern const hmi_rgb_t
     HMI_COLOR_RGB_GREEN,
     HMI_COLOR_RGB_BLUE,
     HMI_COLOR_RGB_WHITE;
-
-// Функция приведения чиисла from в to за frame_cout фреймов
-template <typename T>
-static inline T hmi_drift(T from, T to, uint32_t frame, uint32_t frame_cout)
-{
-    assert(frame_cout > 0);
-    // Определяем разницу
-    auto dx = (int32_t)to - from;
-    // Расчет
-    if (dx >= 0)
-        return (T)(from + (uint32_t)dx * frame / frame_cout);
-    dx = -dx;
-    return (T)(from - (uint32_t)dx * frame / frame_cout);
-}
 
 #endif // __HMI_H

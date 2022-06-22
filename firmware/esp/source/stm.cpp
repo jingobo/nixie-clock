@@ -53,7 +53,7 @@ public:
 } stm_task;
 
 // Связь с STM
-static class stm_link_t : public ipc_link_slave_t
+static class stm_link_t : public ipc_link_t
 {
     // Буфер для пакетов приёма/передачи
     union
@@ -73,7 +73,7 @@ protected:
     virtual void reset_layer(reset_reason_t reason, bool internal = true)
     {
         // Базовый метод
-        ipc_link_slave_t::reset_layer(reason, internal);
+    	ipc_link_t::reset_layer(reason, internal);
         // Вывод в лог
         LOGW("Layer reset, reason %d, internal %d", reason, internal);
     }
@@ -97,7 +97,7 @@ RAM bool stm_link_t::packet_process(const ipc_packet_t &packet, const args_t &ar
         stm_task.mutex.enter();
 
     // Ввод
-    auto result = ipc_link_slave_t::packet_process(packet, args);
+    auto result = ipc_link_t::packet_process(packet, args);
 
     // Завершение ввода
     if (!(result && packet.dll.more))

@@ -80,7 +80,7 @@ static bool ntime_try_host(const char *host)
         auto server_addr = lwip_gethostbyname(host);
         if (server_addr == NULL || server_addr->h_addr_list == NULL)
         {
-            LOGI("Resolve failed!");
+            LOGW("Resolve failed!");
             return false;
         }
         ep_addr.sin_addr = *((in_addr *)server_addr->h_addr_list[0]);
@@ -104,7 +104,7 @@ static bool ntime_try_host(const char *host)
         // Попытка подключения (на самом деле подключения не происходит, это же UDP)
         if (lwip_connect(socket_fd, (sockaddr *)&ep_addr, sizeof(sockaddr_in)) != 0)
         {
-            LOGI("Сonnect failed!");
+            LOGW("Сonnect failed!");
             break;
         }
 
@@ -115,14 +115,14 @@ static bool ntime_try_host(const char *host)
         // Отправка запроса
         if (lwip_send(socket_fd, &packet, sizeof(packet), 0) != sizeof(packet))
         {
-            LOGI("Send failed!");
+            LOGW("Send failed!");
             break;
         }
 
         // Получение ответа
         if (lwip_recv(socket_fd, &packet, sizeof(packet), 0) < sizeof(packet))
         {
-            LOGI("Not answered!");
+            LOGW("Not answered!");
             break;
         }
         fail = false;

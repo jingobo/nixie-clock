@@ -25,6 +25,9 @@ class core_processor_out_t
     {
         // Обрабатывающая сторона
         const core_link_side_t side;
+
+        // Передача другой стороне
+        bool transmit_to(const ipc_packet_t &packet, const args_t &args, core_link_side_t dest);
     public:
         // Конструктор по умолчанию
         side_t(core_link_side_t _side) : side(_side)

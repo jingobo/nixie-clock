@@ -1086,6 +1086,9 @@
         <group>
             <name>proto</name>
             <file>
+                <name>$PROJ_DIR$\source\proto\screen.inc</name>
+            </file>
+            <file>
                 <name>$PROJ_DIR$\..\common\source\proto\time.inc</name>
             </file>
             <file>
@@ -1099,13 +1102,13 @@
             <name>$PROJ_DIR$\..\common\source\common.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\source\sensor.h</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\source\system.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\source\typedefs.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\source\xmath.h</name>
         </file>
     </group>
     <group>

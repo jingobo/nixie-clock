@@ -20,7 +20,7 @@
 #define LED_LINE_BIT_HIGH       (LED_HIBIT_PERIOD * 2)
 
 // Драйвер светодиодной подсветки
-static class led_driver_t : public led_filter_t
+static class led_display_t : public led_model_t::display_t
 {
     // Тип данных для всех компонент одного светодиода
     typedef uint8_t rgb_t[LED_RGB_COM_COUNT][LED_RGB_BIT_DEPTH];
@@ -35,15 +35,14 @@ static class led_driver_t : public led_filter_t
         // Для отчистки CCR и установки линии в 0
         uint8_t gap;
     } dma_buffer;
+    
     // Было ли перемещение данных в буфер DMA
     bool uploaded = false;
 protected:
-    // Событие обработки новых данных
-    virtual void process(hmi_rank_t index, hmi_rgb_t &data) override final
+    // Обработчик изменения данных
+    virtual void data_changed(hmi_rank_t index, hmi_rgb_t &data) override final
     {
         uploaded = false;
-        // Базовый метод (не передаем далее, это дисплей)
-        // led_filter_t::process(index, data);
     }
     
     // Обновление состояния светодиодов (возможна задержка выполнения до 0.25 мС)
@@ -51,31 +50,34 @@ protected:
     virtual void refresh(void) override final
     {
         // Базовый метод
-        led_filter_t::refresh();
+        display_t::refresh();
+        
         // Если нужно перезалить данные в DMA
         if (uploaded)
             return;
         uploaded = true;
+        
         // Ожидание остановки TIM
         WAIT_WHILE(TIM1->CR1 & TIM_CR1_CEN);
         // Подготовка смещения буфера DMA
-        rgb_t *dest = dma_buffer.data;
+        rgb_t *dest = dma_buffer.data + LED_COUNT;
         for (hmi_rank_t led = 0; led < LED_COUNT; led++)
         {
             rgb_t buf;
-            hmi_rgb_t rgb = data_get(led);
+            auto rgb = get(led);
             // Коррекция гаммы
             rgb.correction(HMI_GAMMA_TABLE);
             // Формирование в буфер
-            for (uint8_t i = 0; i < LED_RGB_BIT_DEPTH; i++)
-                for (uint8_t j = 0; j < LED_RGB_COM_COUNT; j++)
+            for (auto i = 0; i < LED_RGB_BIT_DEPTH; i++)
+                for (auto j = 0; j < LED_RGB_COM_COUNT; j++)
                 {
                     buf[j][i] = (rgb.grba[j] & 0x80) ? LED_LINE_BIT_HIGH : LED_LINE_BIT_LOW;
                     rgb.grba[j] <<= 1;
                 }
             // Копирование в буфер DMA
-            memcpy(dest++, buf, sizeof(rgb_t));
+            memcpy(--dest, buf, sizeof(rgb_t));
         }
+        
         // Старт таймера
         TIM1->CR1 &= ~TIM_CR1_OPM;                                              // OPM disable
         TIM1->CR1 |= TIM_CR1_CEN;                                               // TIM enable
@@ -85,7 +87,7 @@ protected:
     }
 public:
     // Конструктор по умолчанию
-    led_driver_t(void) : led_filter_t(HMI_FILTER_PURPOSE_DISPLAY)
+    led_display_t(void)
     {
         MEMORY_CLEAR(dma_buffer);
     }
@@ -95,7 +97,7 @@ public:
     {
         return &dma_buffer;
     }
-} led_driver;
+} led_display;
 
 void led_init(void)
 {
@@ -118,13 +120,13 @@ void led_init(void)
         // В TIM CC3
         TIM1->CCR3, 
         // Из памяти
-        led_driver.dma_pointer_get());
+        led_display.dma_pointer_get());
     DMA1_C6->CCR |= DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 |              // Memory to peripheral, Memory increment (8-bit), Peripheral size 16-bit
                     DMA_CCR_PL | DMA_CCR_TCIE;                                  // Very high priority, Transfer complete interrupt enable
     // Включаем прерывание канала DMA
     nvic_irq_enable_set(DMA1_Channel6_IRQn, true);
     // Добавляем в цепочку драйвер
-    screen.led.attach(led_driver);
+    screen.led.attach(led_display);
 }
 
 IRQ_ROUTINE
