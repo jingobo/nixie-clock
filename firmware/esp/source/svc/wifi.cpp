@@ -51,9 +51,11 @@ public:
         LOGI("[Finder] started...");
 
     	wifi_scan_config_t config;
-    	memset(&config, 0, sizeof(config));
+    	MEMORY_CLEAR(config);
+
+    	// Не более 10 секунд
     	config.scan_time.active.min = 100;
-		config.scan_time.active.max = 500;
+		config.scan_time.active.max = 700;
 
     	ESP_ERROR_CHECK(esp_wifi_scan_start(&config, false));
     }
@@ -79,9 +81,14 @@ public:
             	// Поиск сетки к которой подключены
             	const auto &ap = ap_records[i];
 
+                // Конвертирование MAC в строку
+                tool_mac_buffer_t mac_str;
+                tool_mac_to_string(ap.bssid, mac_str);
+
             	// Лог
-                LOGI("[Finder] ap \"%s\", rssi %d, private %s.",
+                LOGI("[Finder] ap \"%s\", mac %s, rssi %d, private %s.",
                 	ap.ssid,
+					mac_str,
 					ap.rssi,
 					ap.authmode != WIFI_AUTH_OPEN ?
 						"yes" :
@@ -275,7 +282,7 @@ protected:
         // Точка доступа
         if (wifi_settings.softap.use && softap_changed)
         {
-            memset(&config.ap, 0, sizeof(config.ap));
+        	MEMORY_CLEAR(config.ap);
             // Имя, пароль
             memcpy(config.ap.ssid, wifi_settings.softap.ssid, sizeof(wifi_ssid_t));
             memcpy(config.ap.password, wifi_settings.softap.password, sizeof(wifi_password_t));
@@ -301,7 +308,7 @@ protected:
 
 			if (wifi_settings.station.use)
 			{
-				memset(&config.sta, 0, sizeof(config.sta));
+				MEMORY_CLEAR(config.sta);
 				// Имя, пароль
 				memcpy(config.sta.ssid, wifi_settings.station.ssid, sizeof(wifi_ssid_t));
 				memcpy(config.sta.password, wifi_settings.station.password, sizeof(wifi_password_t));
@@ -371,7 +378,7 @@ protected:
             return;
 
         // Отчистка ответа
-        memset(&command.response, 0, sizeof(command.response));
+        MEMORY_CLEAR(command.response);
 
         // Разбор команды
         switch (command.request.command)

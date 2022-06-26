@@ -197,7 +197,7 @@ static class httpd_server_task_t : public os_task_base_t
     {
         // Привязка к адресу
         sockaddr_in sa;
-        memset(&sa, 0, sizeof(sa));
+        MEMORY_CLEAR(sa);
         // Инициализация адреса
         sa.sin_family = AF_INET;
         sa.sin_port = htons(80);
