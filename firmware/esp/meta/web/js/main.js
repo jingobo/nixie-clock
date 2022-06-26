@@ -1172,9 +1172,25 @@ app.page =
 			{
 				const station = i.station;
 				
+                // Если простой
+                if (state == 0)
+                {
+                    if (station.state == STATION_STATE_CONNECT)
+                        return;
+                    
+					station.loading = false;
+					station.state = STATION_STATE_CONNECT;
+                    return;
+                }
+                
 				if (station.active)
 					switch (state)
 					{
+                        // Подключение
+                        case 1:
+							station.loading = true;
+                            break;
+                            
 						// Подключено
 						case 2:
 							station.loading = false;
@@ -1187,11 +1203,6 @@ app.page =
 							station.state = STATION_STATE_FORGET;
 							break;
 					}
-				else
-				{
-					station.loading = false;
-					station.state = STATION_STATE_CONNECT;
-				}
 			});
 			
 			// Следующий перезапрос
