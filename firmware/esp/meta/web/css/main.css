@@ -19,7 +19,7 @@ textarea
 
 template
 {
-	display: none;
+    display: none;
 }
 
 #display 
@@ -57,12 +57,12 @@ template
 .tab-content,
 .nav-link.active 
 { 
-	background-color: #f9f9f9 !important;
+    background-color: #f9f9f9 !important;
 }
 
 .nav-link.active 
 { 
-	border-bottom-color: #f9f9f9 !important; 
+    border-bottom-color: #f9f9f9 !important; 
 }
 
 .form-part
@@ -96,7 +96,7 @@ template
 
 .card-body
 {
-	padding: 1rem;
+    padding: 1rem;
 }
 
 .tab-pane .alert
@@ -127,7 +127,7 @@ button > .spinner-inline
     bottom: 0;
     margin: auto;
     position: absolute;
-	vertical-align: baseline;
+    vertical-align: baseline;
 }
 
 .spinner-inline
@@ -281,52 +281,52 @@ button > .spinner-inline
 
 .accordion button.list-group-item-action
 {
-	margin: 0;
-	border: 0;
-	outline: 0;
-	border-radius: 0;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    border-radius: 0;
 }
 
 #tab-wifi a,
 #wifi-sta-list .alert
 {
-	display: none;
+    display: none;
     margin-top: 1rem;
 }
 
 #wifi-sta-list svg
 {
-	display: none;
-	color: gray;
-	margin-left: 0.35rem;
+    display: none;
+    color: gray;
+    margin-left: 0.35rem;
 }
 
 #wifi-sta-list .active svg
 {
-	color: white;
+    color: white;
 }
 
 #wifi-sta-list .card
 {
-	display: none;
+    display: none;
 }
 
 #wifi-sta-list .card-header span
 {
-	text-overflow: ellipsis;
-	margin-right: 0.5rem;
-	white-space: nowrap;
-	overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 #wifi-sta-list .card-header small
 {
-	white-space: nowrap;
+    white-space: nowrap;
 }
 
 #wifi-sta-list div.spinner-border
 {
-	display: none;
+    display: none;
 }
 
 #wifi-sta-find
@@ -334,9 +334,9 @@ button > .spinner-inline
     border: 0;
     font-size: 0.8rem;
     padding: 0 0.35rem;
-	margin: -0.3rem 0 0 0;
-	position: relative;
-	overflow: hidden;
+    margin: -0.3rem 0 0 0;
+    position: relative;
+    overflow: hidden;
 }
 
 #wifi-sta-find.focus,
@@ -347,17 +347,17 @@ button > .spinner-inline
 
 #wifi-sta-find > div
 {
-	left: 0;
+    left: 0;
     top: 0;
     right: 0;
     bottom: 0;
     position: absolute;
-	
-	background-image: linear-gradient(45deg,rgba(255,255,255,.55) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.55) 50%,rgba(255,255,255,.55) 75%,transparent 75%,transparent);
+    
+    background-image: linear-gradient(45deg,rgba(255,255,255,.55) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.55) 50%,rgba(255,255,255,.55) 75%,transparent 75%,transparent);
     background-size: 1rem 1rem;
-	
-	-webkit-animation: progress-bar-stripes 0.3s linear infinite;
-    animation: progress-bar-stripes 0.3s linear infinite;	
+    
+    -webkit-animation: progress-bar-stripes 0.3s linear infinite;
+    animation: progress-bar-stripes 0.3s linear infinite;    
 }
 
 #wifi-sta-find > span

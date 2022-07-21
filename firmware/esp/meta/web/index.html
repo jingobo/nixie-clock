@@ -283,9 +283,9 @@
                     </div>
                     <!-- Подключиться к чужой сети -->
                     <div class="row form-part">
-						<!-- Заголовок -->
+                        <!-- Заголовок -->
                         <label for="wifi-sta-find" class="col-auto mr-auto">Подключение к сети</label>
-						<!-- Кнопка обновления -->
+                        <!-- Кнопка обновления -->
                         <div class="col-auto">
                             <button type="button" class="btn btn-primary" id="wifi-sta-find">
                                 <div></div>
@@ -293,65 +293,65 @@
                             </button>
                         </div>
                     </div>
-					<!-- Список сетей -->
-					<div class="accordion" id="wifi-sta-list">
-						<!-- Шаблон элемента -->
-						<template>
-							<!-- Враппер -->
-							<div class="card">
-								<!-- Заголовок -->
-								<div class="card-header p-0">
-									<!-- Кнопка заголовка -->
-									<button class="list-group-item list-group-item-action collapsed" type="button" data-toggle="collapse" data-target="#wifi-sta-info">
-										<div class="d-flex justify-content-between align-items-center">
-											<!-- Имя сети -->
-											<span></span>
-											<div class="d-flex align-items-center net-props">
-												<!-- Уровень сигнала -->
-												<small></small>
-												<!-- Признак привтной сети -->
-												<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" stroke="currentcolor" stroke-width="0.1">
-													<path fill="currentColor" d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" />
-												</svg>
-											</div>
-										</div>
-									</button>
-								</div>
+                    <!-- Список сетей -->
+                    <div class="accordion" id="wifi-sta-list">
+                        <!-- Шаблон элемента -->
+                        <template>
+                            <!-- Враппер -->
+                            <div class="card">
+                                <!-- Заголовок -->
+                                <div class="card-header p-0">
+                                    <!-- Кнопка заголовка -->
+                                    <button class="list-group-item list-group-item-action collapsed" type="button" data-toggle="collapse" data-target="#wifi-sta-info">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <!-- Имя сети -->
+                                            <span></span>
+                                            <div class="d-flex align-items-center net-props">
+                                                <!-- Уровень сигнала -->
+                                                <small></small>
+                                                <!-- Признак привтной сети -->
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" stroke="currentcolor" stroke-width="0.1">
+                                                    <path fill="currentColor" d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
 
-								<!-- Враппер аккардиона -->
-								<div id="wifi-sta-info" class="collapse" data-parent="#wifi-sta-list">
-									<!-- Тело информации -->
-									<div class="row card-body">
-										<!-- Кнопка подключения -->
-										<div class="btn-group col-md-auto">
-											<button type="button" class="btn btn-success" id="wifi-ap-apply">
-												<div class="spinner-border spinner-inline"></div>
-												<span>Подключиться</span>
-											</button>
-										</div>
-										<!-- Пароль -->
-										<label for="wifi-sta-pass" class="wifi-sta-psw-part col-md-auto col-form-label">Пароль</label>
-										<div class="wifi-sta-psw-part col-md-auto">
-											<input type="text" class="form-control" id="wifi-sta-pass" placeholder="Пароль этой сети">
-										</div>
+                                <!-- Враппер аккардиона -->
+                                <div id="wifi-sta-info" class="collapse" data-parent="#wifi-sta-list">
+                                    <!-- Тело информации -->
+                                    <div class="row card-body">
+                                        <!-- Кнопка подключения -->
+                                        <div class="btn-group col-md-auto">
+                                            <button type="button" class="btn btn-success" id="wifi-ap-apply">
+                                                <div class="spinner-border spinner-inline"></div>
+                                                <span>Подключиться</span>
+                                            </button>
+                                        </div>
+                                        <!-- Пароль -->
+                                        <label for="wifi-sta-pass" class="wifi-sta-psw-part col-md-auto col-form-label">Пароль</label>
+                                        <div class="wifi-sta-psw-part col-md-auto">
+                                            <input type="text" class="form-control" id="wifi-sta-pass" placeholder="Пароль этой сети">
+                                        </div>
                                         <!-- Адрес -->
-										<div class="col-md-auto px-0 d-flex align-items-center justify-content-center">
-											<a target="_blank" rel="noopener noreferrer" class="my-md-auto text-primary stretched-link"></a>
-										</div>
+                                        <div class="col-md-auto px-0 d-flex align-items-center justify-content-center">
+                                            <a target="_blank" rel="noopener noreferrer" class="my-md-auto text-primary stretched-link"></a>
+                                        </div>
                                         
                                         <!-- Банер ошибки подключения -->
-										<div class="col-md-auto d-flex align-items-center justify-content-center">
+                                        <div class="col-md-auto d-flex align-items-center justify-content-center">
                                             <div class="alert alert-danger my-md-auto">
                                                 Не удалось подключиться к сети
                                             </div>                                        
-										</div>
-									</div>
-								</div>
-							</div>
-						</template>
-					</div>
-				</div>
-				
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
                 <!-- Вкладка настроек дисплея -->
                 <div class="tab-pane fade" id="tab-disp">
                     123

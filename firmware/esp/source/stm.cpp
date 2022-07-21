@@ -73,7 +73,7 @@ protected:
     virtual void reset_layer(reset_reason_t reason, bool internal = true)
     {
         // Базовый метод
-    	ipc_link_t::reset_layer(reason, internal);
+        ipc_link_t::reset_layer(reason, internal);
         // Вывод в лог
         LOGW("Layer reset, reason %d, internal %d", reason, internal);
     }

@@ -45,10 +45,10 @@ union wifi_ip_t
 // Перечисление интерфейса
 enum wifi_intf_t
 {
-	// Подключение к точке
-	WIFI_INTF_STATION = 0,
-	// Создание точки
-	WIFI_INTF_SOFTAP,
+    // Подключение к точке
+    WIFI_INTF_STATION = 0,
+    // Создание точки
+    WIFI_INTF_SOFTAP,
 };
 
 // Количество интерфейсов

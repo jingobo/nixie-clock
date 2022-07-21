@@ -22,7 +22,7 @@ const log =
     {
         if (cond)
             return;
-		
+        
         if (msg === undefined)
             msg = "Assertion error!";
         this.error(msg);
@@ -92,50 +92,50 @@ const utils =
 // Кодирование текста
 const textCoder = new function ()
 {
-	// Декодирование
-	const decoder = new TextDecoder();
-	
-	this.decode = array => decoder.decode(new Uint8Array(array));
-	
-	// Кодирование
-	const encoder = new TextEncoder();
-	
-	this.encode = str => Array.from(encoder.encode(str));
+    // Декодирование
+    const decoder = new TextDecoder();
+    
+    this.decode = array => decoder.decode(new Uint8Array(array));
+    
+    // Кодирование
+    const encoder = new TextEncoder();
+    
+    this.encode = str => Array.from(encoder.encode(str));
 };
 
 // Генератор диапазона
 function range(from, to)
 {
-	const result = [];
-	for (let i = from; i <= to; i++)
-		result.push(i);
-	
-	return result;
+    const result = [];
+    for (let i = from; i <= to; i++)
+        result.push(i);
+    
+    return result;
 }
 
 // Генератор индексов
 function range(count)
 {
-	const result = [];
-	for (let i = 0; i < count; i++)
-		result.push(i);
-	
-	return result;
+    const result = [];
+    for (let i = 0; i < count; i++)
+        result.push(i);
+    
+    return result;
 }
 
 // Класс цвета
 function Color(r, g, b, a)
 {
-	this.r = r;
-	this.g = g;
-	this.b = b;
-	this.a = a;
+    this.r = r;
+    this.g = g;
+    this.b = b;
+    this.a = a;
     
-	// Конфертирование в CSS RGBA представление
+    // Конфертирование в CSS RGBA представление
     this.toCSS = function ()
     {
-    	return "rgba(" + 
-        	this.r + "," + 
+        return "rgba(" + 
+            this.r + "," + 
             this.g + "," +
             this.b + "," +
             this.a / 255 + ")";
@@ -145,38 +145,38 @@ function Color(r, g, b, a)
 // Класс счетчика загрузок
 function LoadCounter(maximum)
 {
-	// Максимум опционален
-	if (maximum === undefined)
-		maximum = 0;
-	
-	// Счетчик
-	let counter = 0;
-	
-	// Добавление свойства количества
-	Object.defineProperty(this, 'count', 
-		{
-			get() { return counter; },
-			configurable: false
-		});
-		
-	// Добавление свойства готовности
-	Object.defineProperty(this, 'ready', 
-		{
-			get() { return counter >= maximum; },
-			configurable: false
-		});
-	
-	// Сброс счетчика
-	this.reset = () => counter = 0;
-	// Инкремент счетчика
-	this.increment = () => counter++;
+    // Максимум опционален
+    if (maximum === undefined)
+        maximum = 0;
+    
+    // Счетчик
+    let counter = 0;
+    
+    // Добавление свойства количества
+    Object.defineProperty(this, 'count', 
+        {
+            get() { return counter; },
+            configurable: false
+        });
+        
+    // Добавление свойства готовности
+    Object.defineProperty(this, 'ready', 
+        {
+            get() { return counter >= maximum; },
+            configurable: false
+        });
+    
+    // Сброс счетчика
+    this.reset = () => counter = 0;
+    // Инкремент счетчика
+    this.increment = () => counter++;
 }
 
 // Класс реализующий чтение бинарных данных из ArrayBuffer
 function BinReader(buffer, offset)
 {
-	if (offset == undefined)
-		offset = 0;
+    if (offset == undefined)
+        offset = 0;
     const dview = new DataView(buffer);
     
     // Проверка на доступное простаранстров
@@ -218,39 +218,39 @@ function BinReader(buffer, offset)
     this.cstr = chars =>
     {
         assert(chars);
-		
-		// Получаем байты строки
-		const source = [];
-		{
-			let skip = false;
-			for (let i = 0; i < chars; i++)
-			{
-				// Получаем текущий символ
-				const c = this.uint8();
-				
-				// Если конец строки
-				if (skip)
-					continue;
-				
-				// Терминальный символ
-				if (c <= 0)
-				{
-					skip = true;
-					continue;
-				}
-				
-				source.push(c);
-			}
-			
-			log.assert(skip, "Null termination symbol not found");
-		}
-		
-		// Декодирование
-		return textCoder.decode(source);
+        
+        // Получаем байты строки
+        const source = [];
+        {
+            let skip = false;
+            for (let i = 0; i < chars; i++)
+            {
+                // Получаем текущий символ
+                const c = this.uint8();
+                
+                // Если конец строки
+                if (skip)
+                    continue;
+                
+                // Терминальный символ
+                if (c <= 0)
+                {
+                    skip = true;
+                    continue;
+                }
+                
+                source.push(c);
+            }
+            
+            log.assert(skip, "Null termination symbol not found");
+        }
+        
+        // Декодирование
+        return textCoder.decode(source);
     };
-	
-	// Клонирование
-	this.clone = () => new BinReader(buffer, offset);
+    
+    // Клонирование
+    this.clone = () => new BinReader(buffer, offset);
 }
 
 // Класс реализующий запись бинарных данных в ArrayBuffer
@@ -293,10 +293,10 @@ function BinWriter()
     this.cstr = (str, chars) =>
     {
         // Обход символов
-		const data = textCoder.encode(str);
-		data.forEach(this.uint8);
-		
-		chars -= data.length;
+        const data = textCoder.encode(str);
+        data.forEach(this.uint8);
+        
+        chars -= data.length;
         log.assert(chars > 0);
 
         // Терминальные символы
@@ -320,12 +320,12 @@ function BinWriter()
 // Удаление элемента из массива
 Array.prototype.remove = function (item)
 {
-	const index = this.indexOf(item);
-	if (index < 0)
-		return false;
-	
-	this.splice(index, 1);
-	return true;
+    const index = this.indexOf(item);
+    if (index < 0)
+        return false;
+    
+    this.splice(index, 1);
+    return true;
 };
 
 // Вставка элемента по индексу
@@ -338,15 +338,15 @@ Array.prototype.insert = function (index, item)
 // TODO: может не нужна
 function delay(mills)
 {
-	// Создание промиса
-	let timeout;
-	const result = new Promise(resolve => 
-		timeout = setTimeout(resolve, mills));
-	
-	// Добавление функции отмены
-	result.cancel = () => clearTimeout(timeout);
-	
-	return result;
+    // Создание промиса
+    let timeout;
+    const result = new Promise(resolve => 
+        timeout = setTimeout(resolve, mills));
+    
+    // Добавление функции отмены
+    result.cancel = () => clearTimeout(timeout);
+    
+    return result;
 };
 
 // Расширения для jQuery
@@ -369,7 +369,7 @@ jQuery.fn.extend(
         if (state === undefined)
             return this.is(":checked");
         this.prop("checked", state);
-		this.trigger("change");
+        this.trigger("change");
     },
 
     // Установка/снятие/получение разрешения клика по кнопке
@@ -383,100 +383,100 @@ jQuery.fn.extend(
             this.removeAttr("disabled");
     },
     
-	// Добавление/Удаление класса
-	setClass(name, state)
-	{
-		if (this.hasClass(name) != state)
-			this.toggleClass(name);
-	},
-	
+    // Добавление/Удаление класса
+    setClass(name, state)
+    {
+        if (this.hasClass(name) != state)
+            this.toggleClass(name);
+    },
+    
     // Показывает/скрывает спинер на кнопке
     spinner(state)
     {
-		// Показ/Скрытие элементов
+        // Показ/Скрытие элементов
         this.children("span").css("opacity", state ? 0 : 1);
         this.children("div").visible(state);
     },
-	
-	// Инициализация списочного элемента с шаблоном
-	templatedList()
-	{
-		// Текущий идентификатор
-		let id = 0;
-		// Список элементов
-		const items = [];
-		// Родительский контейнер
-		const parent = this;
-		// Список суффиксов замены
-		const suffixes = [].slice.call(arguments);
-		// Текстовый шаблон элемента
-		const template = this.children("template").html();
-		
-		// Готовим результат
-		const result = 
-		{
-			// Список элементов
-			items: items,
-			
-			// Метод создания
-			create()
-			{
-				// Создание элемента из шаблона
-				id++;
-				let html = template;
-				for (let i = 0; i < suffixes.length; i++)
-				{
-					let suffix = suffixes[i];
-					html = html.replaceAll(suffix, suffix + "-" + id);
-				}
-				const item = $(html).last();
-				
-				// Объект управления списком
-				item.list =
-				{
-					// Метод удаления
-					remove()
-					{
-						if (items.indexOf(item) < 0)
-							return;
-						
-						// Удаление из DOM
-						item.remove();
-						// Удаление из списка
-						items.remove(item);
-					},
-					
-					// Вставка по индексу
-					insert(index)
-					{
-						// Удаление
-						item.list.remove();
-						
-						if (index >= items.length)
-						{
-							// Добавление в DOM
-							parent.append(item);
-							items.push(item);
-							return;
-						}
-						
-						// Вставка в DOM
-						items[index].before(item);
-						items.insert(index, item);
-					},
-				};
-				
-				return item;
-			},
-			
-			// Метод отчистки списка
-			clear()
-			{
-				while (items.length > 0)
-					items[0].list.remove();
-			}
-		};
-		
-		return result;
-	},
+    
+    // Инициализация списочного элемента с шаблоном
+    templatedList()
+    {
+        // Текущий идентификатор
+        let id = 0;
+        // Список элементов
+        const items = [];
+        // Родительский контейнер
+        const parent = this;
+        // Список суффиксов замены
+        const suffixes = [].slice.call(arguments);
+        // Текстовый шаблон элемента
+        const template = this.children("template").html();
+        
+        // Готовим результат
+        const result = 
+        {
+            // Список элементов
+            items: items,
+            
+            // Метод создания
+            create()
+            {
+                // Создание элемента из шаблона
+                id++;
+                let html = template;
+                for (let i = 0; i < suffixes.length; i++)
+                {
+                    let suffix = suffixes[i];
+                    html = html.replaceAll(suffix, suffix + "-" + id);
+                }
+                const item = $(html).last();
+                
+                // Объект управления списком
+                item.list =
+                {
+                    // Метод удаления
+                    remove()
+                    {
+                        if (items.indexOf(item) < 0)
+                            return;
+                        
+                        // Удаление из DOM
+                        item.remove();
+                        // Удаление из списка
+                        items.remove(item);
+                    },
+                    
+                    // Вставка по индексу
+                    insert(index)
+                    {
+                        // Удаление
+                        item.list.remove();
+                        
+                        if (index >= items.length)
+                        {
+                            // Добавление в DOM
+                            parent.append(item);
+                            items.push(item);
+                            return;
+                        }
+                        
+                        // Вставка в DOM
+                        items[index].before(item);
+                        items.insert(index, item);
+                    },
+                };
+                
+                return item;
+            },
+            
+            // Метод отчистки списка
+            clear()
+            {
+                while (items.length > 0)
+                    items[0].list.remove();
+            }
+        };
+        
+        return result;
+    },
 });

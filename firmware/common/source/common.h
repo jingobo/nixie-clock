@@ -48,7 +48,7 @@ typedef float32_t float_t;
 // --- Битовые маски --- //
         
 #define MASK(type, value, pos)  ((type)(value) << (pos))
-#define MASK_8(value, pos)     	MASK(uint8_t, value, pos)
+#define MASK_8(value, pos)      MASK(uint8_t, value, pos)
 #define MASK_16(value, pos)     MASK(uint16_t, value, pos)
 #define MASK_32(value, pos)     MASK(uint32_t, value, pos)
 
@@ -71,9 +71,9 @@ typedef float32_t float_t;
 // --- Арифметические операции --- //
         
 // Умножение на 1000
-#define XK(v)                	(1000l * (v))
+#define XK(v)                   (1000l * (v))
 // Умножение на 1000000
-#define XM(v)                	(1000000l * (v))
+#define XM(v)                   (1000000l * (v))
 // Получает наименьший элемент
 #define MIN(a, b)               (((a) < (b)) ? (a) : (b))
 // Получает размер массива в элементах
@@ -84,17 +84,18 @@ typedef float32_t float_t;
 // --- Разное --- //
 
 // Не используемый символ
-#define UNUSED(x)           	((void)(x))
+#define UNUSED(x)               ((void)(x))
 // Отчистка строки
 #define CSTR_CLEAR(x)           (x)[0] = 0
 // Ожидание FALSE
-#define WAIT_WHILE(expr)         do { } while (expr)
+#define WAIT_WHILE(expr)        do { } while (expr)
 // Ожидание TRUE
-#define WAIT_FOR(expr)           WAIT_WHILE(!(expr))
+#define WAIT_FOR(expr)          WAIT_WHILE(!(expr))
+
 // Сложение для перечислений (вынужденный костыль)
-#define ENUM_VALUE_SHIFT(v, dx) ((decltype(v))(((int)(v)) + (dx)))
-#define ENUM_VALUE_NEXT(v)      ENUM_VALUE_SHIFT(v, 1)
-#define ENUM_VALUE_PREV(v)      ENUM_VALUE_SHIFT(v, -1)
+#define ENUM_VALUE_SHIFT(v, dx)     ((decltype(v))(((int)(v)) + (dx)))
+#define ENUM_VALUE_NEXT(v)          ENUM_VALUE_SHIFT(v, 1)
+#define ENUM_VALUE_PREV(v)          ENUM_VALUE_SHIFT(v, -1)
 
 // --- Утверждения --- //
 

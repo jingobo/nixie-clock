@@ -81,24 +81,24 @@ RAM bool core_processor_out_t::side_t::transmit_to(const ipc_packet_t &packet, c
     {
         // Если не пакет последний
         if (packet.dll.more)
-        	return false;
+            return false;
 
         // Пакет последний, лог
         LOGI("%s - %s %d to %s (%d bytes)", this_name, request ? "request" : "response", opcode, other_name, args.size);
         // Помечаем с какой стороны пришел запрос
-		core_route_map[opcode][request ? side : dest] = request;
+        core_route_map[opcode][request ? side : dest] = request;
         return false;
     }
 
     // Не удалось передать пакет, лог
     LOGW("%s - %s %d to %s failed!", this_name,  request ? "request" : "response", opcode, other_name);
-	return true;
+    return true;
 }
 
 RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet, const args_t &args)
 {
-	// Результат выполнения
-	auto result = true;
+    // Результат выполнения
+    auto result = true;
     // Определяем код команды
     const auto opcode = packet.dll.opcode;
 
@@ -126,7 +126,7 @@ RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet
 
                 // Передача
                 if (transmit_to(packet, args, dest))
-                	result = false;
+                    result = false;
             }
             break;
 
@@ -144,9 +144,9 @@ RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet
 
                 // Передача
                 if (transmit_to(packet, args, dest))
-                	result = false;
+                    result = false;
             }
-        	break;
+            break;
 
         default:
             assert(false);
@@ -156,8 +156,8 @@ RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet
     // Завершение ввода
     if (!(packet.dll.more && result))
     {
-    	core_main_task.mutex.leave();
-    	// Индикация
+        core_main_task.mutex.leave();
+        // Индикация
         // io_led_yellow.flash();
     }
 
