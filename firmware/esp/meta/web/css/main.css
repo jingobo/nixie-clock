@@ -287,6 +287,13 @@ button > .spinner-inline
 	border-radius: 0;
 }
 
+#tab-wifi a,
+#wifi-sta-list .alert
+{
+	display: none;
+    margin-top: 1rem;
+}
+
 #wifi-sta-list svg
 {
 	display: none;

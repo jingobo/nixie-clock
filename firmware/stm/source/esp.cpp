@@ -35,11 +35,7 @@ static struct esp_io_t
         ipc_packet_t tx, rx;
     } dma;
     // Флаг активности транзакцими
-    bool active;
-
-    // Конструктор по умолчанию
-    esp_io_t(void) : active(false)
-    { }
+    bool active = false;
 } esp_io;
 
 // Хост обработчиков команд
@@ -54,11 +50,7 @@ static class esp_link_t : public ipc_link_t
         // Два кэшированных пакета
         ipc_packet_t packet[2];
         // Индекс передаваемого пакета
-        uint8_t index;
-
-        // Конструктор по умолчанию
-        retry_t(void) : index(ARRAY_SIZE(packet))
-        { }
+        uint8_t index = ARRAY_SIZE(packet);
     } retry;
     
     // Счетчик ошибок фаз

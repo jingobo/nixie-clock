@@ -8,7 +8,7 @@
 class event_t : list_item_t
 {
     // Указывает, что элемент добавлен и ожидает обработки
-    bool pending;
+    bool pending = false;
     
     // Обработка событий
     static void process(void);
@@ -16,10 +16,6 @@ protected:
     // Обработка события
     virtual void execute(void) = 0;
 public:
-    // Конструктор по умолчанию
-    event_t(void) : pending(false)
-    { }
-    
     // Генерация события
     void raise(void);
     

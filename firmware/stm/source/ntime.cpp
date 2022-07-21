@@ -24,7 +24,7 @@ __no_init static datetime_t ntime_sync_time;
 // Отчистка даты последней синхронизации
 static void ntime_sync_time_clear(void)
 {
-    memset(&ntime_sync_time, 0, sizeof(ntime_sync_time));
+    MEMORY_CLEAR(ntime_sync_time);
 }
 
 // Получает, можно ли запустить процедуру синхронизации

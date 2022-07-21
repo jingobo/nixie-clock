@@ -115,15 +115,11 @@ public:
 class list_item_t : public list_sides_t
 {
     // Указатель на родительский список (опционально)
-    list_t * parent;
+    list_t *parent = NULL;
     
     // Связка элемента
     void link_internal(list_sides_t &data, list_side_t side);
 public:
-    // Конструктор по умолчанию
-    list_item_t(void) : parent(NULL)
-    { }
-    
     // Получает, расцеплен ли элемент
     bool unlinked(void) const
     {

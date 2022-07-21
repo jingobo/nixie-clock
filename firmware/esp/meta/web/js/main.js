@@ -21,16 +21,18 @@ app.opcode =
     // Установка настроек даты/времени
     STM_TIME_SETTINGS_SET: 6,
     
+    // Отчет о присвоении IP
+    STM_WIFI_IP_REPORT: 7,
     // Запрос настроек WiFi
-    STM_WIFI_SETTINGS_GET: 7,
+    STM_WIFI_SETTINGS_GET: 8,
     // Установка настроек WiFi
-    STM_WIFI_SETTINGS_SET: 8,
+    STM_WIFI_SETTINGS_SET: 9,
 
 	// Получает состояние экрана
-	STM_SCREEN_STATE_GET: 9,
+	STM_SCREEN_STATE_GET: 10,
 
-	// Запрос состояния сети
-	ESP_WIFI_STATE_GET: 26,	
+	// Запрос информации о сети
+	ESP_WIFI_INFO_GET: 26,	
 	// Поиск сетей с опросом состояния
 	ESP_WIFI_SEARCH_POOL: 27,	
 	// Оповещение, что настройки WiFi сменились
@@ -157,6 +159,8 @@ app.dom = new function ()
 			{
 				ssid: "#wifi-ap-ssid",
 				pass: "#wifi-ap-pass",
+                addr: "#wifi-ap-addr",
+                group: "#wifi-ap-group",
 				apply: "#wifi-ap-apply",
 				enable: "#wifi-ap-enable",
 				channel: "#wifi-ap-channel",
@@ -406,7 +410,7 @@ app.display = new function ()
         // Старт цикла обновления дисплея
 		redrawInterval = setInterval(redraw, 1000 / 50);
         // Начальный запрос
-		//request();
+		request();
 	};
 	
 	// Выгрузка страницы
@@ -700,16 +704,34 @@ app.page =
 			$("#wifi-sta-list .card-body button").disabled(state);
 		}
 
+        // Устанавливает адрес ссылке
+        function setLinkAddress(link, address)
+        {
+            link.text(address);
+            link.prop("href", "http://" + address);
+        }
+        
 		// Валидация значения пароля
-		function validateStationPassword(input)
+		function validateStationPassword(input, allowEmpty)
 		{
 			const value = input.val();
-			const result = (value.length > 0 && value.length < 8) || value.length > 12;
-			
+            
+            let result = true;
+            if (allowEmpty)
+            {
+                if ((value.length > 0) && (value.length < 8 || value.length > 12))
+                    app.popup.show("Пароль должен либо отсутствовать либо содержать от 8 до 12 символов!");
+                else
+                    result = false;
+            }
+            else if (value.length <= 0)
+                app.popup.show("Пароль не введен!");
+            else if (value.length < 8 || value.length > 12)
+                app.popup.show("Пароль должен содержать от 8 до 12 символов!");
+            else
+                result = false;
+            
 			input.setClass("is-invalid", result);
-			if (result)
-				app.popup.show("Пароль должен либо отсутствовать либо содержать от 8 до 12 символов!");
-
 			return result;
 		}
 		
@@ -752,15 +774,20 @@ app.page =
 		// Состояние подключения
 		const STATION_STATE_CONNECT = 0;
 		// Состояние отключения
-		const STATION_STATE_DISCONNECT = 1;
+		const STATION_STATE_DISCONNECT = 2;
 		// Состояние забыть
-		const STATION_STATE_FORGET = 2;
+		const STATION_STATE_FORGET = 3;
 		
+        // Получает признак загрузки настроек
+        let settingsUploaded = false;
+        
 		// Класс информации о точке доступа
 		function Station(parent)
 		{
 			// Плавный показ
 			parent.slideDown("fast");
+			// Адрес интерфейса
+			const link = parent.find("a");
 			// Заголовок
 			const header = parent.find(".card-header");
 			// Кнопка аккордиона
@@ -769,17 +796,20 @@ app.page =
 			const props = header.find("net-props");
 			// Поле пароля
 			const passInput = parent.find("input");
+			// Предупреждение о ошибке подключения
+			const connectAlert = parent.find(".alert");
 			// Части ввода пароля
 			const passParts = parent.find(".wifi-sta-psw-part");
 			// Кнопка подключения
 			const connectButton = parent.find(".btn-group > .btn");
 			
+            // Обновление видимости полей пароля
+            const updatePassParts = () =>
+                passParts.visible(this.priv && this.state == STATION_STATE_CONNECT);
+            
 			// Обработчик клика по кнопке подключения
 			connectButton.click(async () =>
 				{
-					if (validateStationPassword(passInput))
-						return;
-					
 					// Заполнение настроек
 					const ns = new Settings();
 					ns.ssid = this.ssid;
@@ -788,6 +818,14 @@ app.page =
 					switch (this.state)
 					{
 						case STATION_STATE_CONNECT:
+                            // Коррекция/Сброс пароля
+                            if (this.priv)
+                            {
+                                if (validateStationPassword(passInput, false))
+                                    return;
+                            }
+                            else
+                                ns.password = "";
 							ns.use = true;
 							break;
 							
@@ -802,12 +840,13 @@ app.page =
 					
 					// Заполнение пакета
 					const packet = new Packet(app.opcode.STM_WIFI_SETTINGS_SET, "применение настроек WiFi");
-					apSettings.save(packet.data);
 					ns.save(packet.data);
+					apSettings.save(packet.data);
 					
 					// Запрос
 					this.loading = true;
-					await app.session.transmit(packet);
+                    settingsUploaded = false;
+                    await app.session.transmit(packet);
 					
 					// Перезапрос настроек
 					requestSettings();
@@ -855,7 +894,7 @@ app.page =
 					{
 						priv = value;
 						header.find("svg").visible(priv);
-						passParts.visible(priv);
+						updatePassParts();
 					},
 					configurable: false
 				});
@@ -887,8 +926,12 @@ app.page =
 						// Сброс класса
 						connectButton.setClass("btn-success", false);
 						connectButton.setClass("btn-warning", false);
-						connectButton.setClass("btn-danger", false);
+						connectButton.setClass("btn-secondary", false);
 						
+                        // Сброс предупреждения
+                        connectAlert.visible(false);
+                        
+                        link.visible(false);
 						const span = connectButton.find("span");
 						switch (value)
 						{
@@ -898,19 +941,23 @@ app.page =
 								break;
 								
 							case STATION_STATE_DISCONNECT:
+                                link.visible(true);
 								span.text("Отключиться");
 								connectButton.setClass("btn-warning", true);
 								break;
 								
 							case STATION_STATE_FORGET:
-								span.text("Забыть");
-								connectButton.setClass("btn-danger", true);
+                                connectAlert.visible(true);
+								span.text("Ввести другой пароль");
+								connectButton.setClass("btn-secondary", true);
 								break;
 								
 							default:
 								log.assert(false);
 								break;
 						}
+                        
+						updatePassParts();
 					},
 					configurable: false
 				});
@@ -924,14 +971,22 @@ app.page =
 					{
 						if (loading == value)
 							return;
-						
+                        
 						loading = value;
 						setConnectLock(value);
 						connectButton.spinner(value);
 					},
 					configurable: false
 				});
-				
+
+            // Адрес
+			Object.defineProperty(this, "address", 
+				{
+					get: () => link.text(),
+					set: value => setLinkAddress(link, value),
+					configurable: false
+				});
+			
 			// Признак удаления
 			this.removing = false;
 		}
@@ -1132,18 +1187,19 @@ app.page =
 			if (data == null)
 				return;
 			
+            settingsUploaded = true;
 			log.info("Received WiFi settings...");
 			
 			// Декодирование
-			apSettings.load(data);
 			staSettings.load(data);
+			apSettings.load(data);
 			
 			// Новая сеть
 			app.dom.wifi.ap.ssid.val(apSettings.ssid);
 			app.dom.wifi.ap.pass.val(apSettings.password);
 			app.dom.wifi.ap.enable.checked(apSettings.use);
 			app.dom.wifi.ap.channel.val(apSettings.channel);
-			
+            
 			// Подключенная сеть
 			cleanupStations();
 			// Обновление состояния
@@ -1157,56 +1213,87 @@ app.page =
 		async function requestState()
 		{
 			clearTimeout(requestStateTimeout);
-			// Запрос
-			const data = await app.session.transmit(new Packet(app.opcode.ESP_WIFI_STATE_GET, "запрос состояния WiFi"), loadCounter);
+			
+            // Запрос
+			const data = await app.session.transmit(new Packet(app.opcode.ESP_WIFI_INFO_GET, "запрос состояния WiFi"), loadCounter);
 			if (data == null)
 				return;
+
+			// Следующий перезапрос
+			requestStateTimeout = setTimeout(requestState, 1000);
+            
+            // Выходим если настройки загружаются
+            if (!settingsUploaded)
+                return;
 			
-			// Создание сети (пропуск)
-			data.uint8();
+            // Чтение адреса
+            function ip()
+            {
+                const o1 = data.uint8();
+                const o2 = data.uint8();
+                const o3 = data.uint8();
+                const o4 = data.uint8();
+                
+                return o1 + "." + o2 + "." + o3 + "." + o4;
+            }
+            
 			// Подключение к сети
-			const state = data.uint8();
+                // Статус
+			const stationState = data.uint8();
+            const stationIp = ip();
+			// Создание сети
+                // Статус (пропуск)
+			const softapState = data.uint8();
+                // Адрес
+            const softapIp = ip();
+            {
+                const CLASS_USE = "col-md-8";
+                const CLASS_UNUSE = "col-md-10";
+                
+                // Признак активности
+                const active = softapState == 2;
+                
+                // Сброс класса группы
+                app.dom.wifi.ap.group.setClass(CLASS_USE, false);
+                app.dom.wifi.ap.group.setClass(CLASS_UNUSE, false);
+                
+                // Установка класса группы
+                app.dom.wifi.ap.group.setClass(active ?
+                    CLASS_USE :
+                    CLASS_UNUSE, true);
+                    
+                // Установка видимости адреса
+                app.dom.wifi.ap.addr.visible(active);
+            }
+            
+            setLinkAddress(app.dom.wifi.ap.addr, softapIp);
 			
 			// Обход сетей
 			stations.items.forEach(i =>
 			{
 				const station = i.station;
 				
-                // Если простой
-                if (state == 0)
+                // Если не активная точка
+                if (!station.active)
                 {
-                    if (station.state == STATION_STATE_CONNECT)
-                        return;
-                    
 					station.loading = false;
 					station.state = STATION_STATE_CONNECT;
                     return;
                 }
                 
-				if (station.active)
-					switch (state)
-					{
-                        // Подключение
-                        case 1:
-							station.loading = true;
-                            break;
-                            
-						// Подключено
-						case 2:
-							station.loading = false;
-							station.state = STATION_STATE_DISCONNECT;
-							break;
-							
-						// Ошибка
-						case 3:
-							station.loading = false;
-							station.state = STATION_STATE_FORGET;
-							break;
-					}
+                // Если транзакция
+                if (stationState == 1)
+                    // Не обрабатываем
+                    return;
+                    
+                // Если состояние не изменилось
+                if (station.state == stationState)
+                    return;
+                
+                station.state = stationState;
+                station.loading = false;
+                station.address = stationIp;
 			});
-			
-			// Следующий перезапрос
-			requestStateTimeout = setTimeout(requestState, 1000);
 		}
 		
         // Инициализация страницы
@@ -1234,7 +1321,7 @@ app.page =
 				}
 				
 				// Валидация пароля
-				if (validateStationPassword(app.dom.wifi.ap.pass))
+				if (validateStationPassword(app.dom.wifi.ap.pass, true))
 					return;
 				
 				// Заполнение настроек
@@ -1246,8 +1333,8 @@ app.page =
 				
 				// Заполнение пакета
 				const packet = new Packet(app.opcode.STM_WIFI_SETTINGS_SET, "применение настроек WiFi");
-				ns.save(packet.data);
 				staSettings.save(packet.data);
+				ns.save(packet.data);
 				
 				// Запрос
 				setConnectLock(true);
@@ -1344,8 +1431,17 @@ app.pages = new function ()
 // Сессия
 app.session = new function ()
 {
-    // Ссылка на WS
+    // Фаза начального подключения
+    const WS_PHASE_INIT = 0;
+    // Фаза нормального приёма
+    const WS_PHASE_NORMAL = 1;
+    // Фаза восстановления
+    const WS_PHASE_RESTORE = 2;
+
+    // Ссылка на сокет
     let ws = null;
+    // Режим восстановления сокета
+    let wsPhase = WS_PHASE_INIT;
     
     // Контроллер IPC пакетов
     const ipc = new function ()
@@ -1436,6 +1532,9 @@ app.session = new function ()
         // Переотправка текущего пакета
         function resend()
         {
+			clearResendTimeout();
+            
+            // Получаем текущий элемент
 			const current = queue.current;
             if (current == null)
                 return;
@@ -1443,6 +1542,16 @@ app.session = new function ()
 			// Проверка истечения количества попыток
             if (++current.repeat > 10)
             {
+                // Если режим восстановления
+                if (wsPhase != WS_PHASE_RESTORE)
+                {
+                    // Пробуем снова
+                    current.repeat = 0;
+                    ws.close();
+                    return;
+                }
+                
+                // Не получили данных
                 receive();
                 return;
             }
@@ -1459,8 +1568,7 @@ app.session = new function ()
             }
             
             // Установка таймаута
-			clearResendTimeout();
-            resendTimeout = setTimeout(resend, 1000);
+            resendTimeout = setTimeout(resend, 500);
         }
         
         // Передача следующего пакета
@@ -1473,14 +1581,25 @@ app.session = new function ()
 			
             // Проверяем, есть ли сокет
             if (ws == null)
+            {
                 reset();
-			else
-				resend();
+                return;
+            }
+            
+            // Если всё еще в состоянии подключения
+            if (ws.readyState != WebSocket.OPEN)
+                return;
+            
+            // Отправялем
+            resend();
         };
 
         // Сброс очереди
         this.reset = reset;
-        		
+
+        // Переход к следующему элементу
+        this.next = next;
+        
 		// Передача пакета
 		this.transmit = (packet, loadCounter) =>
 			new Promise(resolve =>
@@ -1577,9 +1696,13 @@ app.session = new function ()
 		}
 		
 		// Отключение WS
+        wsPhase = WS_PHASE_INIT;
         if (ws != null)
-            ws.close();
-        ws = null;
+        {
+            const temp = ws;
+            ws = null;
+            temp.close();
+        }
         
 		// Сброс IPC
         ipc.reset();
@@ -1590,6 +1713,7 @@ app.session = new function ()
     // Внутренняя функция перезапуска
     function restart()
     {
+        log.info("Socket connecting...");
         // Инициализация WS
         try
         {
@@ -1609,25 +1733,87 @@ app.session = new function ()
         // Конфигурирование
         ws.binaryType = "arraybuffer";
 
+        // 10 секунд на подключение
+        const connectTimeout = setTimeout(() => ws?.close(), 2 * 1000);
+        
         // Обработчик открытия
         ws.onopen = event =>
         {
-			loaded = true;
-			
-			// Оповещение сообщения
-			app.popup.loaded();
-            // Оповещение страниц
-            app.pages.loaded();
-			// Оповещение дисплея
-			app.display.loaded();
+            clearTimeout(connectTimeout);
+            log.info("Socket connected!");
+            
+            switch (wsPhase)
+            {
+                case WS_PHASE_INIT:
+                    loaded = true;
+                    // Оповещение сообщения
+                    app.popup.loaded();
+                    // Оповещение страниц
+                    app.pages.loaded();
+                    // Оповещение дисплея
+                    app.display.loaded();
+                    return;
+                    
+                case WS_PHASE_NORMAL:
+                    log.assert(false);
+                    return;
+                    
+                case WS_PHASE_RESTORE:
+                    // Снова переход к следующему
+                    log.info("Retransmit packet...");
+                    ipc.next();
+                    return;
+            }
         };
         
         // Обработчик закрытия
-        ws.onclose = event => app.session.restart();
+        ws.onclose = event => 
+        {
+            clearTimeout(connectTimeout);
+            
+            // Если событие уже из выгрузки
+            if (ws == null)
+                return;
+
+            log.error("Socket disconnected!");
+
+            switch (wsPhase)
+            {
+                // Если режим восстановления уже включен
+                case WS_PHASE_INIT:
+                case WS_PHASE_RESTORE:
+                    app.session.restart();
+                    return;
+                    
+                case WS_PHASE_NORMAL:
+                    // Обработка ниже
+                    break;
+            }
+            
+            // Включение режима восстановления
+            log.error("Try restore socket...");
+            wsPhase = WS_PHASE_RESTORE;
+            restart();
+        };
         
         // Обработчик получения данных
         ws.onmessage = event =>
         {
+            // Сброс восстановления
+            switch (wsPhase)
+            {
+                // Если режим восстановления уже включен
+                case WS_PHASE_INIT:
+                    log.info("Socket approved!");
+                    break;
+                    
+                case WS_PHASE_RESTORE:
+                    log.info("Socket restored!");
+                    break;
+            }
+            wsPhase = WS_PHASE_NORMAL;
+            
+            // Приём
 			ipc.receive(event.data);
             
 			// Если основная страница не выводится...

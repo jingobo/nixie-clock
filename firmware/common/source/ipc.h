@@ -35,6 +35,8 @@ enum ipc_opcode_t : uint8_t
         // Установка настроек даты/времени
         IPC_OPCODE_STM_TIME_SETTINGS_SET,
         
+        // Отчет о присвоении IP 
+        IPC_OPCODE_STM_WIFI_IP_REPORT,
         // Запрос настроек WiFi
         IPC_OPCODE_STM_WIFI_SETTINGS_GET,
         // Установка настроек WiFi
@@ -45,8 +47,8 @@ enum ipc_opcode_t : uint8_t
 
     // Не команда, база для команд, обрабатываемых модулем ESP8266
     IPC_OPCODE_ESP_HANDLE_BASE = 25,
-		// Запрос состояния сети
-		IPC_OPCODE_ESP_WIFI_STATE_GET,
+		// Запрос информации о сети
+		IPC_OPCODE_ESP_WIFI_INFO_GET,
         // Поиск сетей с опросом состояния
         IPC_OPCODE_ESP_WIFI_SEARCH_POOL,
         // Оповещение, что настройки WiFi сменились

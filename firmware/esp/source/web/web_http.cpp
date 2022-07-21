@@ -598,6 +598,6 @@ bool web_http_handler_t::allocate(web_slot_socket_t &socket)
 {
     auto result = web_slot_handler_t::allocate(socket);
     if (result)
-        socket.timeout_change(2000);
+        socket.timeout_change(5 * 1000);
     return result;
 }

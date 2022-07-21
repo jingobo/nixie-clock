@@ -7,11 +7,7 @@ static struct event_list_t
     // Один список накопляемый, второй обрабатываемый
     list_template_t<event_t> item[2];
     // Указатель на накопляемый список
-    list_template_t<event_t> *active;
-    
-    // Конструктор по умолчанию
-    event_list_t(void) : active(item)
-    { }
+    list_template_t<event_t> *active = item;
 } event_list;
 
 void event_t::raise(void)

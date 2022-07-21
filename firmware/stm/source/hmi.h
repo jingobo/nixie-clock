@@ -287,6 +287,16 @@ public:
             output(index, data);
         }
         
+        // Обработчик события присоединения к цепочке
+        virtual void attached(void)
+        {
+            // Базовый метод
+            layer_t::attached();
+            
+            // Передаем данные
+            reoutput();
+        }
+        
         // Обработчик изменения стороны
         virtual void side_changed(list_side_t side) override
         {
@@ -491,7 +501,7 @@ public:
     };
 private:
     // Указатель на перенаправляемую модель модель добавление/удаления фильтров
-    hmi_model_t *redirect;
+    hmi_model_t *redirect = NULL;
     // Список фильтров
     list_template_t<layer_t> list;
     
@@ -507,10 +517,6 @@ private:
             ((layer_t *)next)->side_changed(LIST_SIDE_PREV);
     }
 public:
-    // Конструктор по умолчанию
-    hmi_model_t(void) : redirect(NULL)
-    { }
-
     // Обнвление данных
     void refresh(void) const
     {
@@ -518,20 +524,13 @@ public:
             i->refresh();
     }
     
-    // Добавление слоя в цепочку
-    void attach(layer_t &item)
+    // Добавление слоя в цепочку (внутренний метод)
+    void attach(layer_t &item, bool raise_event)
     {
         // Если уже добавлен
         if (item.linked())
         {
             assert(item.list() == &list);
-            return;
-        }
-        
-        // Если есть перенаправление
-        if (redirect != NULL)
-        {
-            redirect->attach(item);
             return;
         }
         
@@ -550,25 +549,31 @@ public:
         else
             item.link(place, LIST_SIDE_PREV);
         
-        // Оповещение сторон о смене слоёв
-        side_changed(item.prev(), item.next());
-        // Генерирование события
-        item.attached();
+        if (raise_event)
+        {
+            // Оповещение сторон о смене слоёв
+            side_changed(item.prev(), item.next());
+            // Генерирование события
+            item.attached();
+        }
     }
     
-    // Удаление слоя из цепочки
-    void detach(layer_t &item)
+    // Добавление слоя в цепочку
+    void attach(layer_t &item)
+    {
+        // Если есть перенаправление
+        if (redirect != NULL)
+            redirect->attach(item);
+        else
+            attach(item, true);
+    }
+
+    // Удаление слоя из цепочки (внутренний метод)
+    void detach(layer_t &item, bool raise_event)
     {
         // Если уже удален
         if (item.unlinked())
             return;
-        
-        // Если есть перенаправление
-        if (redirect != NULL)
-        {
-            redirect->detach(item);
-            return;
-        }
         
         // Проверка, есть ли в цепочке
         assert(list.contains(item));
@@ -577,8 +582,19 @@ public:
         auto prev = item.prev();
         auto next = item.unlink(LIST_SIDE_NEXT);
         
-        // Оповещение сторон о смене слоёв
-        side_changed(prev, next);
+        if (raise_event)
+            // Оповещение сторон о смене слоёв
+            side_changed(prev, next);
+    }
+    
+    // Удаление слоя из цепочки
+    void detach(layer_t &item)
+    {
+        // Если есть перенаправление
+        if (redirect != NULL)
+            redirect->detach(item);
+        else
+            detach(item, true);
     }
     
     // Перенос фильтров в указанную сцену
@@ -586,17 +602,19 @@ public:
     {
         assert(redirect == NULL);
         
+        // Состояния направления переноса
+        const bool forward = to.redirect == NULL;
+        const bool backward = to.redirect != NULL;
+        
         // Если возвращаем фильтры
-        const auto backward = to.redirect != NULL;
         if (backward)
         {
             // Сброс переноса
             assert(to.redirect == this);
             to.redirect = NULL;
         }
-        
-        // К этому моменту должен быть сброшен
-        assert(redirect == NULL);
+        else
+            redirect = &to;
         
         // Последние выводиме данные дисплея
         DATA data[COUNT];
@@ -620,14 +638,10 @@ public:
                 continue;
             
             // Удаление
-            detach(layer);
+            detach(layer, backward);
             // Добавление
-            to.attach(layer);
+            to.attach(layer, forward);
         }
-
-        // Указываем куда перенесены
-        if (!backward)
-            redirect = &to;
         
         // Применение последних данных
         {

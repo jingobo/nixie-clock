@@ -60,27 +60,19 @@ static class nixie_display_t : public nixie_model_t::display_t
     struct irq_t
     {
         // Ширина импульса
-        uint8_t pw;
+        uint8_t pw = 0;
         // Адрес катода
-        uint8_t selc;
-        
-        // Конструктор по умолчанию
-        irq_t(void) : pw(0), selc(nixie_selc_calc(NIXIE_DIGIT_SPACE, false))
-        { }
+        uint8_t selc = nixie_selc_calc(NIXIE_DIGIT_SPACE, false);
     } irq[NIXIE_COUNT];
 
     // Данные лампы (вывод)
     struct out_t
     {
         // Для определения обновления
-        bool unchanged;
-        
-        // Конструктор по умолчанию
-        out_t(void) : unchanged(false)
-        { }
+        bool unchanged = false;
     } out[NIXIE_COUNT];
     // Индекс выводимой дампы (мультиплексирование)
-    uint8_t nmi;
+    uint8_t nmi = 0;
 protected:
     // Обработчик изменения данных
     virtual void data_changed(hmi_rank_t index, nixie_data_t &data) override final
@@ -118,10 +110,6 @@ protected:
         }
     }
 public:
-    // Конструктор по умолчанию
-    nixie_display_t(void) : nmi(0)
-    { }
-    
     // Мультиплексирование
     OPTIMIZE_SPEED
     void mux(void)

@@ -24,25 +24,17 @@ static class neon_display_t : public neon_model_t::display_t
     struct irq_t
     {
         // Ширина импульса
-        uint8_t pw;
-        
-        // Конструктор по умолчанию
-        irq_t(void) : pw(0)
-        { }
+        uint8_t pw = 0;
     } irq[NEON_COUNT];
 
     // Данные лампы (вывод)
     struct out_t
     {
         // Для определения обновления
-        bool unchanged;
-        
-        // Конструктор по умолчанию
-        out_t(void) : unchanged(false)
-        { }
+        bool unchanged = false;
     } out[NEON_COUNT];
     // Индекс выводимой дампы (мультиплексирование)
-    uint8_t nmi;
+    uint8_t nmi = 0;
 protected:
     // Обработчик изменения данных
     virtual void data_changed(hmi_rank_t index, neon_data_t &data) override final
@@ -70,10 +62,6 @@ protected:
         }
     }
 public:
-    // Конструктор по умолчанию
-    neon_display_t(void) : nmi(0)
-    { }
-    
     // Мультиплексирование
     OPTIMIZE_SPEED
     void mux(void)

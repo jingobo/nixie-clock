@@ -58,9 +58,9 @@ public:
 class timer_base_t
 {
     // Общий список
-    timer_wrap_t active;
+    timer_wrap_t active = *this;
     // Для срабатывания
-    timer_wrap_t raised;
+    timer_wrap_t raised = *this;
     // Счетчики интервалов
     uint32_t current, reload;
     // Вызов из прекрывания
@@ -76,10 +76,6 @@ protected:
     // Обработка тика таймера
     virtual void execute(void) = 0;
 public:
-    // Конструктор по умолчанию
-    timer_base_t(void) : active(*this), raised(*this)
-    { }
-
     // Старт таймера
     void start_hz(float_t hz, timer_flag_t flags = TIMER_FLAG_NONE);
     void start_us(uint32_t us, timer_flag_t flags = TIMER_FLAG_NONE);

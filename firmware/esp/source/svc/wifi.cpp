@@ -8,15 +8,16 @@
 #include <tcpip_adapter.h>
 #include <esp_event_loop.h>
 
+#include <wifi_types.h>
 #include <proto/wifi.inc>
 
 // Имя модуля для логирования
 LOG_TAG_DECL("WIFI");
 
+// Информация о сети
+static wifi_info_t wifi_info;
 // Промежуточный буфер для настроек
 static wifi_settings_t wifi_settings;
-// Состояние сети
-static wifi_intf_states_t wifi_state;
 
 // Класс поиска сетей
 static class wifi_net_finder_t
@@ -30,10 +31,6 @@ public:
     const os_mutex_t mutex;
     // Список точек
     wifi_ap_record_t ap_records[wifi_command_search_pool_request_t::MAX_INDEX];
-
-    // Конструктор по умолчанию
-    wifi_net_finder_t(void)
-    { }
 
     // Запуск поиска
     void start(void)
@@ -53,9 +50,9 @@ public:
     	wifi_scan_config_t config;
     	MEMORY_CLEAR(config);
 
-    	// Не более 10 секунд
+    	// Не более 5 секунд
     	config.scan_time.active.min = 100;
-		config.scan_time.active.max = 700;
+		config.scan_time.active.max = 300;
 
     	ESP_ERROR_CHECK(esp_wifi_scan_start(&config, false));
     }
@@ -118,7 +115,7 @@ static os_timer_t wifi_station_reconnect_timer;
 // Переподключение к точке доступа
 static void wifi_station_reconnect(void)
 {
-	wifi_state.station = WIFI_INTF_STATE_ESTABLISH;
+	wifi_info.intf[WIFI_INTF_STATION].state = WIFI_INTF_STATE_ESTABLISH;
     os_timer_disarm(&wifi_station_reconnect_timer);
     ESP_ERROR_CHECK(esp_wifi_connect());
 }
@@ -129,7 +126,7 @@ static void wifi_station_reconnect_handler(void *arg)
 	UNUSED(arg);
 
 	// Выход если подключение отключено
-	if (!wifi_settings.station.use)
+	if (!wifi_settings.intf[WIFI_INTF_STATION].use)
 		return;
 
 	// Выход если запущен поиск
@@ -137,13 +134,61 @@ static void wifi_station_reconnect_handler(void *arg)
 		return;
 
 	// Проверка состояния
-	if (wifi_state.station != WIFI_INTF_STATE_ERROR)
+	if (wifi_info.intf[WIFI_INTF_STATION].state != WIFI_INTF_STATE_ERROR)
 		return;
 
 	// Переподключение
     LOGI("[Station] reconnecting...");
     wifi_station_reconnect();
 }
+
+// Обработчик команды репортирования о присвоении IP адреса
+static class wifi_command_handler_ip_report_t : public ipc_requester_template_t<wifi_command_ip_report_t>
+{
+	// Список признаков изменения по интерфейсам
+	bool changed[WIFI_INTF_COUNT];
+protected:
+    // Обработка данных
+    virtual void work(bool idle) override final
+    {
+        if (!idle)
+        	return;
+
+        // Поиск изменений по интерфейсам
+    	for (auto i = 0; i < WIFI_INTF_COUNT; i++)
+    		if (changed[i])
+    		{
+    			// Получаем интерфейс
+    			changed[i] = false;
+    			const auto &intf = wifi_info.intf[i];
+
+    	    	// Проверка состояния
+    	    	if (intf.state != WIFI_INTF_STATE_READY)
+    	    		return;
+
+    	    	// Сборка
+    	    	command.request.intf = (wifi_intf_t)i;
+    	    	command.request.ip = intf.ip;
+
+    	    	// Передача
+    			transmit();
+    			return;
+    		}
+    }
+public:
+    // Конструктор по умолчанию
+    wifi_command_handler_ip_report_t(void) : ipc_requester_template_t(1000)
+    {
+    	MEMORY_CLEAR_ARR(changed);
+    }
+
+    // Передача для указанного интерфейса
+    void send(tcpip_adapter_if_t intf)
+    {
+    	assert(intf < WIFI_INTF_COUNT);
+    	changed[intf] = true;
+    }
+} wifi_command_handler_ip_report;
 
 // Событие появления сетевого интерфейса
 static os_event_group_t wifi_intf_event;
@@ -152,6 +197,25 @@ static os_event_group_t wifi_intf_event;
 #define WIFI_INTF_EVENT_STATION     MASK_32(1, 0)
 // По созданию своей точки
 #define WIFI_INTF_EVENT_SOFTAP      MASK_32(1, 1)
+
+// Обновление IP адреса указанного интерфейса
+static void wifi_update_intf_address(tcpip_adapter_if_t intf)
+{
+	assert(intf <= TCPIP_ADAPTER_IF_AP);
+
+	// Получаем интерфейс
+	auto &dest = wifi_info.intf[intf];
+
+	// Получаем адрес
+	tcpip_adapter_ip_info_t info;
+	ESP_ERROR_CHECK(tcpip_adapter_get_ip_info(intf, &info));
+	dest.ip = info.ip.addr;
+    // Обновляем состояние
+    dest.state = WIFI_INTF_STATE_READY;
+
+    // Оповещение ядра
+    wifi_command_handler_ip_report.send(intf);
+}
 
 // Обработчик событий ядра WiFi
 static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
@@ -171,6 +235,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         case SYSTEM_EVENT_STA_START:
             LOGI("[Station] started...");
             wifi_intf_event.set(WIFI_INTF_EVENT_STATION);
+
             break;
         case SYSTEM_EVENT_STA_STOP:
             LOGI("[Station] stopped...");
@@ -179,6 +244,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 
         case SYSTEM_EVENT_STA_GOT_IP:
             LOGI("[Station] got IP: %s", ip4addr_ntoa(&info.got_ip.ip_info.ip));
+            wifi_update_intf_address(TCPIP_ADAPTER_IF_STA);
             break;
         case SYSTEM_EVENT_STA_LOST_IP:
             LOGI("[Station] lost IP!");
@@ -186,16 +252,15 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 
         case SYSTEM_EVENT_STA_CONNECTED:
             LOGI("[Station] connected, channel: %d", info.connected.channel);
-            wifi_state.station = WIFI_INTF_STATE_READY;
             os_timer_disarm(&wifi_station_reconnect_timer);
             break;
 
         case SYSTEM_EVENT_STA_DISCONNECTED:
             LOGI("[Station] disconnected, reason: %d", info.disconnected.reason);
-            if (wifi_settings.station.use)
+            if (wifi_settings.intf[WIFI_INTF_STATION].use)
             {
-                wifi_state.station = WIFI_INTF_STATE_ERROR;
-            	os_timer_arm(&wifi_station_reconnect_timer, 10000, true);
+            	wifi_info.intf[WIFI_INTF_STATION].state = WIFI_INTF_STATE_ERROR;
+            	os_timer_arm(&wifi_station_reconnect_timer, 30 * 1000, true);
             }
             break;
 
@@ -203,12 +268,12 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 
         case SYSTEM_EVENT_AP_START:
             LOGI("[Softap] started...");
-            wifi_state.softap = WIFI_INTF_STATE_READY;
             wifi_intf_event.set(WIFI_INTF_EVENT_SOFTAP);
+            wifi_update_intf_address(TCPIP_ADAPTER_IF_AP);
             break;
         case SYSTEM_EVENT_AP_STOP:
             LOGI("[Softap] stopped...");
-            wifi_state.softap = WIFI_INTF_STATE_IDLE;
+            wifi_info.intf[WIFI_INTF_SOFTAP].state = WIFI_INTF_STATE_IDLE;
             wifi_intf_event.reset(WIFI_INTF_EVENT_SOFTAP);
             break;
 
@@ -257,15 +322,18 @@ protected:
          * задачи останавливаются на момент применения! */
 
         // Проверка изменений
-        const auto softap_changed = wifi_settings.softap != command.response.softap;
-        const auto station_changed = wifi_settings.station != command.response.station;
+        const auto softap_changed =
+        		wifi_settings.intf[WIFI_INTF_SOFTAP] != command.response.intf[WIFI_INTF_SOFTAP];
+        const auto station_changed =
+        		wifi_settings.intf[WIFI_INTF_STATION] != command.response.intf[WIFI_INTF_STATION];
+
         // Копирование настроек в промежуточный буфер
         wifi_settings = command.response;
 
         // Изменение интерфейса
         {
             // Выбор интерфейсов
-            const wifi_mode_t mode = wifi_settings.softap.use ?
+            const wifi_mode_t mode = wifi_settings.intf[WIFI_INTF_SOFTAP].use ?
             		WIFI_MODE_APSTA :
 					WIFI_MODE_STA;
 
@@ -280,43 +348,55 @@ protected:
         wifi_config_t config;
 
         // Точка доступа
-        if (wifi_settings.softap.use && softap_changed)
         {
-        	MEMORY_CLEAR(config.ap);
-            // Имя, пароль
-            memcpy(config.ap.ssid, wifi_settings.softap.ssid, sizeof(wifi_ssid_t));
-            memcpy(config.ap.password, wifi_settings.softap.password, sizeof(wifi_password_t));
-            // Авторизация
-            if (strlen(wifi_settings.softap.password) > 0)
-                config.ap.authmode = WIFI_AUTH_WPA2_PSK;
-            // Канал
-            config.ap.channel = wifi_settings.softap.channel;
-            // Разное
-            config.ap.max_connection = 4;
-            config.ap.beacon_interval = 100;
-            // Применение
-            ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &config));
-            LOGI("Creating our AP \"%s\"...", wifi_settings.softap.ssid);
+        	const auto &intf = wifi_settings.intf[WIFI_INTF_SOFTAP];
+            if (intf.use && softap_changed)
+            {
+            	MEMORY_CLEAR(config.ap);
+
+                // Имя, пароль
+                memcpy(config.ap.ssid, intf.ssid, sizeof(wifi_ssid_t));
+                memcpy(config.ap.password, intf.password, sizeof(wifi_password_t));
+
+                // Авторизация
+                if (strlen(intf.password) > 0)
+                    config.ap.authmode = WIFI_AUTH_WPA2_PSK;
+
+                // Канал
+                config.ap.channel = intf.channel;
+
+                // Разное
+                config.ap.max_connection = 4;
+                config.ap.beacon_interval = 100;
+
+                // Применение
+                ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &config));
+                LOGI("Creating our AP \"%s\"...", intf.ssid);
+            }
         }
 
         // Подключение к точке
         if (station_changed)
         {
         	// Сначала отключение
-            wifi_state.station = WIFI_INTF_STATE_IDLE;
+        	wifi_info.intf[WIFI_INTF_STATION].state = WIFI_INTF_STATE_IDLE;
 			ESP_ERROR_CHECK(esp_wifi_disconnect());
 
-			if (wifi_settings.station.use)
+        	const auto &intf = wifi_settings.intf[WIFI_INTF_STATION];
+			if (intf.use)
 			{
 				MEMORY_CLEAR(config.sta);
+
 				// Имя, пароль
-				memcpy(config.sta.ssid, wifi_settings.station.ssid, sizeof(wifi_ssid_t));
-				memcpy(config.sta.password, wifi_settings.station.password, sizeof(wifi_password_t));
+				memcpy(config.sta.ssid, intf.ssid, sizeof(wifi_ssid_t));
+				memcpy(config.sta.password, intf.password, sizeof(wifi_password_t));
+
 				// Канал
-				config.sta.channel = wifi_settings.station.channel;
+				config.sta.channel = intf.channel;
+
 				// Применение
 				ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &config));
-				LOGI("Connecting to AP \"%s\"...", wifi_settings.station.ssid);
+				LOGI("Connecting to AP \"%s\"...", intf.ssid);
 			    wifi_station_reconnect();
 			}
         }
@@ -333,8 +413,8 @@ public:
     }
 } wifi_command_handler_settings_get;
 
-// Обработчик команды чтения состояния сети
-static class wifi_command_handler_state_get_t : public ipc_responder_template_t<wifi_command_state_get_t>
+// Обработчик команды чтения информации о сети
+static class wifi_command_handler_info_get_t : public ipc_responder_template_t<wifi_command_info_get_t>
 {
 protected:
     // Обработка данных
@@ -344,10 +424,10 @@ protected:
             return;
 
         // Отправляем ответ
-        command.response = wifi_state;
+        command.response = wifi_info;
         transmit();
     }
-} wifi_command_handler_state_get;
+} wifi_command_handler_info_get;
 
 // Обработчик команды оповещения о смене настроек WiFi
 static class wifi_command_handler_settings_changed_t : public ipc_responder_template_t<wifi_command_settings_changed_t>
@@ -415,7 +495,7 @@ protected:
 
         	case wifi_command_search_pool_request_t::COMMAND_START:
         		// В момент подключения нельзя запускать поиск
-        		if (wifi_state.station == WIFI_INTF_STATE_ESTABLISH)
+        		if (wifi_info.intf[WIFI_INTF_STATION].state == WIFI_INTF_STATE_ESTABLISH)
         		{
             		command.response.status = wifi_command_search_pool_response_t::STATUS_IDLE;
             		break;
@@ -494,7 +574,8 @@ void wifi_init(void)
     ESP_ERROR_CHECK(esp_wifi_start());
 
     // Добавление обработчиков IPC
-    core_handler_add(wifi_command_handler_state_get);
+    core_handler_add(wifi_command_handler_info_get);
+    core_handler_add(wifi_command_handler_ip_report);
     core_handler_add(wifi_command_handler_search_pool);
     core_handler_add(wifi_command_handler_settings_get);
     core_handler_add(wifi_command_handler_settings_changed);

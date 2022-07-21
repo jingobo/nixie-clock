@@ -16,73 +16,70 @@ static inline bool wifi_password_check(const wifi_password_t password)
     return len == 0 || len > 7;
 }
 
-// Структура части настроек WIFI
-ALIGN_FIELD_8
-struct wifi_settings_part_t
-{
-    // Включена ли точка доступа
-    ipc_bool_t use : 8;
-    // Канал
-    uint8_t channel;
-    // Имя
-    wifi_ssid_t ssid;
-    // Пароль
-    wifi_password_t password;
-
-    // Оператор равенства
-    bool operator == (const wifi_settings_part_t &other)
-    {
-        return use == other.use &&
-               channel == other.channel &&
-               strcmp(ssid, other.ssid) == 0 &&
-               strcmp(password, other.password) == 0;
-    }
-
-    // Оператор неравенства
-    bool operator != (const wifi_settings_part_t &other)
-    {
-        return !(*this == other);
-    }
-
-    // Провера полей
-    bool check(void) const
-    {
-        return use <= IPC_BOOL_TRUE &&
-               channel <= 13 &&
-               (!use || wifi_ssid_check(ssid)) &&
-               (!use || wifi_password_check(password));
-    }
-    
-    // Отчистка полей
-    void clear(void)
-    {
-        channel = 0;
-        use = IPC_BOOL_FALSE;
-        ssid[0] = password[0] = '\0';
-    }
-};
-ALIGN_FIELD_DEF
-
 // Структура настроек WIFI
 ALIGN_FIELD_8
 struct wifi_settings_t
 {
-    // Режим точки доступа
-    wifi_settings_part_t softap;
-    // Режим подключения к точке доступа
-    wifi_settings_part_t station;
+	// Интерфейсы
+	struct intf_t
+	{
+	    // Включена ли точка доступа
+	    ipc_bool_t use : 8;
+	    // Канал
+	    uint8_t channel;
+	    // Имя
+	    wifi_ssid_t ssid;
+	    // Пароль
+	    wifi_password_t password;
+
+	    // Оператор равенства
+	    bool operator == (const intf_t &other)
+	    {
+	        return use == other.use &&
+	               channel == other.channel &&
+	               strcmp(ssid, other.ssid) == 0 &&
+	               strcmp(password, other.password) == 0;
+	    }
+
+	    // Оператор неравенства
+	    bool operator != (const intf_t &other)
+	    {
+	        return !(*this == other);
+	    }
+
+	    // Провера полей
+	    bool check(void) const
+	    {
+	        return use <= IPC_BOOL_TRUE &&
+	               channel <= 13 &&
+	               (!use || wifi_ssid_check(ssid)) &&
+	               (!use || wifi_password_check(password));
+	    }
+
+	    // Отчистка полей
+	    void clear(void)
+	    {
+	        channel = 0;
+	        use = IPC_BOOL_FALSE;
+	        ssid[0] = password[0] = '\0';
+	    }
+	} intf[WIFI_INTF_COUNT];
 
     // Провера полей
     bool check(void) const
     {
-        return softap.check() && station.check();
+    	for (auto i = 0; i < WIFI_INTF_COUNT; i++)
+    		if (!intf[i].check())
+    			return false;
+
+        return true;
     }
     
     // Отчистка полей
     void clear(void)
     {
-        softap.clear();
-        station.clear();
+    	for (auto i = 0; i < WIFI_INTF_COUNT; i++)
+    		intf[i].clear();
     }
 };
 ALIGN_FIELD_DEF
@@ -210,33 +207,65 @@ enum wifi_intf_state_t
 };
 
 ALIGN_FIELD_8
-// Данные ответа на поиск сетей с опросом
-struct wifi_intf_states_t
+// Структура информации о интерфейсах
+struct wifi_info_t
 {
-	// Состояние точки доступа
-	wifi_intf_state_t softap : 8;
-	// Состояние подключения к точки доступа
-	wifi_intf_state_t station : 8;
-
-	// Конструктор по умолчанию
-	wifi_intf_states_t(void)
-		: softap(WIFI_INTF_STATE_IDLE), station(WIFI_INTF_STATE_IDLE)
-	{ }
+    // Данные интерфейса сети
+    struct intf_t
+    {
+        // Состояние
+        wifi_intf_state_t state : 8;
+        // IP
+        wifi_ip_t ip;
+        
+        // Конструктор по умолчанию
+        intf_t(void) : state(WIFI_INTF_STATE_IDLE)
+        { }
+    } intf[WIFI_INTF_COUNT];
 
     // Провера полей
     bool check(void) const
     {
-        return softap <= WIFI_INTF_STATE_ERROR &&
-        	   station <= WIFI_INTF_STATE_ERROR;
+    	for (auto i = 0; i < WIFI_INTF_COUNT; i++)
+    		if (intf[i].state > WIFI_INTF_STATE_ERROR)
+    			return false;
+
+        return true;
     }
 };
 ALIGN_FIELD_DEF
 
-// Команда чтения состояния сети
-class wifi_command_state_get_t : public ipc_command_get_t<wifi_intf_states_t>
+// Команда чтения информации о сети
+class wifi_command_info_get_t : public ipc_command_get_t<wifi_info_t>
 {
 public:
     // Конструктор по умолчанию
-    wifi_command_state_get_t(void) : ipc_command_get_t(IPC_OPCODE_ESP_WIFI_STATE_GET)
+	wifi_command_info_get_t(void) : ipc_command_get_t(IPC_OPCODE_ESP_WIFI_INFO_GET)
+    { }
+};
+
+ALIGN_FIELD_8
+// Данные запроса репортировании о присвоении IP адреса
+struct wifi_ip_report_request_t
+{
+    // IP
+    wifi_ip_t ip;
+	// Интерфейс
+	wifi_intf_t intf : 8;
+    
+    // Провера полей
+    bool check(void) const
+    {
+        return intf < WIFI_INTF_COUNT;
+    }
+};
+ALIGN_FIELD_DEF
+
+// Команда репортировании о присвоении IP адреса
+class wifi_command_ip_report_t : public ipc_command_set_t<wifi_ip_report_request_t>
+{
+public:
+    // Конструктор по умолчанию
+    wifi_command_ip_report_t(void) : ipc_command_set_t(IPC_OPCODE_STM_WIFI_IP_REPORT)
     { }
 };

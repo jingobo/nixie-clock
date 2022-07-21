@@ -38,8 +38,8 @@ bool web_slot_socket_t::allocate(web_slot_handler_allocator_t &initial_allocator
     sprintf(address + strlen(address), ":%d", ntohs(addr.sin_port));
     // Вывод в лог
     log("Connected", socket);
-    // Установка начального таймаута в 100 мС
-    timeout_change(100);
+    // Установка начального таймаута в 500 мС
+    timeout_change(500);
     // Выделение обработчика
     handler_change(initial_allocator.allocate(*this), WEB_SLOT_FREE_REASON_MIGRATION);
     // Проверка обработчика
@@ -76,6 +76,7 @@ void web_slot_socket_t::close_detect(void)
     // Проверяем открытость сокета
     if (check_io(lwip_recv(socket, &tv, sizeof(tv), 0)) >= 0)
         return;
+
     log("Reset!");
     close();
 }

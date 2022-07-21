@@ -45,12 +45,8 @@ class screen_t : public screen_model_t
 {
     friend void screen_second_event_cb(void);
     // Указатель на текущую сцену
-    screen_scene_t *scene;
+    screen_scene_t *scene = NULL;
 public:
-    // Конструктор по умолчанию
-    screen_t(void) : scene(NULL)
-    { }
-    
     // Получает текущую отображаемую схему
     screen_scene_t * scene_get(void) const
     {

@@ -270,11 +270,15 @@
                     <!-- Действия -->
                     <div class="row">
                         <label class="col-md-2 col-form-label">Действия</label>
-                        <div class="btn-group col-md-10">
+                        <div id="wifi-ap-group" class="btn-group col-md-10">
                             <button type="button" class="btn btn-success" id="wifi-ap-apply">
                                 <div class="spinner-border spinner-inline"></div>
                                 <span>Применить настройки новой сети</span>
                             </button>
+                        </div>
+                        <!-- Адрес -->
+                        <div class="col-md-2 d-flex align-items-center justify-content-center">
+                            <a id="wifi-ap-addr" target="_blank" rel="noopener noreferrer" class="my-md-auto text-primary stretched-link"></a>
                         </div>
                     </div>
                     <!-- Подключиться к чужой сети -->
@@ -328,7 +332,18 @@
 										<!-- Пароль -->
 										<label for="wifi-sta-pass" class="wifi-sta-psw-part col-md-auto col-form-label">Пароль</label>
 										<div class="wifi-sta-psw-part col-md-auto">
-											<input type="text" class="form-control" id="wifi-sta-pass" placeholder="Пароль доступа">
+											<input type="text" class="form-control" id="wifi-sta-pass" placeholder="Пароль этой сети">
+										</div>
+                                        <!-- Адрес -->
+										<div class="col-md-auto px-0 d-flex align-items-center justify-content-center">
+											<a target="_blank" rel="noopener noreferrer" class="my-md-auto text-primary stretched-link"></a>
+										</div>
+                                        
+                                        <!-- Банер ошибки подключения -->
+										<div class="col-md-auto d-flex align-items-center justify-content-center">
+                                            <div class="alert alert-danger my-md-auto">
+                                                Не удалось подключиться к сети
+                                            </div>                                        
 										</div>
 									</div>
 								</div>

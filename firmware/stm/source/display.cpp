@@ -10,7 +10,7 @@
 #define DISPLAY_SMOOTH_FRAME_COUNT_HALF     (DISPLAY_SMOOTH_FRAME_COUNT / 2)
 
 // Класс фильтра плавной смены цифр на лампах
-class display_nixie_smooth_val_filter_t : public nixie_filter_t
+class display_nixie_smooth_filter_t : public nixie_filter_t
 {
     // Данные для эффекта
     struct effect_t
@@ -192,7 +192,7 @@ protected:
     virtual void attached(void) override final
     {
         // Базовый метод
-        nixie_filter_t::refresh();
+        nixie_filter_t::attached();
         // Стоп эффекта по всем разрядам
         for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
             effect[i].stop();
@@ -287,7 +287,7 @@ public:
     } kind = KIND_SMOOTH_DEFAULT;
 
     // Конструктор по умолчанию
-    display_nixie_smooth_val_filter_t(void) : nixie_filter_t(PRIORITY_SMOOTH_VAL)
+    display_nixie_smooth_filter_t(void) : nixie_filter_t(PRIORITY_SMOOTH_VAL)
     { }
 };
 
@@ -332,7 +332,7 @@ protected:
     virtual void attached(void) override final
     {
         // Базовый метод
-        neon_filter_t::refresh();
+        neon_filter_t::attached();
         // Стоп эффекта по всем разрядам
         for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
             effect[i].stop();
@@ -491,7 +491,8 @@ public:
 // Класс источника для светодиодов эффекта радуги
 class display_led_rainbow_source_t : public led_model_t::source_t
 {
-    uint16_t time_prescaller, hue;
+    uint16_t hue = 0;
+    uint16_t time_prescaller = HMI_FRAME_RATE * 10;
 protected:
     // Обнвление данных
     virtual void refresh(void) override final
@@ -509,11 +510,10 @@ protected:
         }
         hue++;
     }
-public:
-    // Конструктор по умолчанию
-    display_led_rainbow_source_t(void) : time_prescaller(HMI_FRAME_RATE * 10), hue(0)
-    { }
 };
+
+// Установка сцены по умолчанию (предварительное объявление)
+static void display_scene_set_default(void);
 
 // Базовый класс сцены
 class display_scene_t : public screen_scene_t
@@ -523,9 +523,6 @@ protected:
     // Получает, нужно ли отобразить сцену
     virtual bool show_required(void) = 0;
 };
-
-// Установка сцены по умолчанию (предварительное объявление)
-static void display_scene_set_default(void);
 
 // Сцена начального теста
 static class display_scene_test_t : public display_scene_t
@@ -574,10 +571,6 @@ static class display_scene_test_t : public display_scene_t
                 set(i, data);
         }
     public:
-        // Конструктор по умолчанию
-        nixie_source_t(void)
-        { }
-        
         // Переход к следующей цифре
         void next(void)
         {
@@ -630,10 +623,6 @@ static class display_scene_test_t : public display_scene_t
                 set(i, data);
         }
     public:
-        // Конструктор по умолчанию
-        neon_source_t(void)
-        { }
-        
         // Разрешение вывода неонок
         void allow(void)
         {
@@ -745,10 +734,6 @@ static class display_scene_test_t : public display_scene_t
             }
         }
     public:
-        // Конструктор по умолчанию
-        led_source_t(void)
-        { }
-        
         // К следующему состоянию
         bool next(void)
         {
@@ -769,7 +754,7 @@ static class display_scene_test_t : public display_scene_t
     // Фильтр смены состояния неонок
     display_neon_smooth_filter_t neon_smooth;
     // Фильтр смены цифр в самом начале
-    display_nixie_smooth_val_filter_t nixie_start_smooth_val;
+    display_nixie_smooth_filter_t nixie_smooth_start;
 protected:
     // Получает, нужно ли отобразить сцену
     virtual bool show_required(void) override final
@@ -786,7 +771,7 @@ protected:
         // Сброс номера фрймов
         frame.reset();
         // Выставление фильтров
-        nixie.attach(nixie_start_smooth_val);
+        nixie.attach(nixie_smooth_start);
         // Указываем, что тест уже выводили
         shown = true;
     }
@@ -812,7 +797,7 @@ protected:
         if (half_second == 1)
         {
             // Убираем эффект появления
-            nixie.detach(nixie_start_smooth_val);
+            nixie.detach(nixie_smooth_start);
             // Разрешаем вывод неонок
             neon_source.allow();
             return;
@@ -848,6 +833,179 @@ public:
     }
 } display_scene_test;
 
+// Сцена начального теста
+static class display_scene_ip_report_t : public display_scene_t
+{
+    // Источник данных для лмап
+    class nixie_source_t : public nixie_model_t::source_t
+    {
+        // Установка октета
+        void octet_set(hmi_rank_t rank, uint8_t value)
+        {
+            set(rank + 0, nixie_data_t(HMI_SAT_MAX, value / 100 % 10, true));
+            set(rank + 1, nixie_data_t(HMI_SAT_MAX, value / 10 % 10));
+            set(rank + 2, nixie_data_t(HMI_SAT_MAX, value / 1 % 10));
+        }
+    public:
+        // Установка адреса
+        void address_set(const wifi_ip_t &value)
+        {
+            octet_set(0, value.o[2]);
+            octet_set(3, value.o[3]);
+        }
+    } nixie_source;
+    
+    // Источник данных для неонок
+    class neon_source_t : public neon_model_t::source_t
+    {
+    public:
+        // Установка интерфейса
+        void intf_set(wifi_intf_t intf)
+        {
+            bool station;
+            switch (intf)
+            {
+                case WIFI_INTF_STATION:
+                    station = true;
+                    break;
+                    
+                case WIFI_INTF_SOFTAP:
+                    station = false;
+                    break;
+                    
+                default:
+                    assert(false);
+                    return;
+            }
+            
+            set(0, neon_data_t(station ? HMI_SAT_MIN : HMI_SAT_MAX));
+            set(2, neon_data_t(station ? HMI_SAT_MIN : HMI_SAT_MAX));
+            
+            set(1, neon_data_t(station ? HMI_SAT_MAX : HMI_SAT_MIN));
+            set(3, neon_data_t(station ? HMI_SAT_MAX : HMI_SAT_MIN));
+        }
+    } neon_source;
+    
+    // Источник данных для светодиодов
+    class led_source_t : public led_model_t::source_t
+    {
+    public:
+        // Установка интерфейса
+        void intf_set(wifi_intf_t intf)
+        {
+            bool station;
+            switch (intf)
+            {
+                case WIFI_INTF_STATION:
+                    station = true;
+                    break;
+                    
+                case WIFI_INTF_SOFTAP:
+                    station = false;
+                    break;
+                    
+                default:
+                    assert(false);
+                    return;
+            }
+            
+            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                set(i,  station ? HMI_COLOR_RGB_RED : HMI_COLOR_RGB_GREEN);
+        }
+    } led_source;
+    
+    // Данные по интерфейсам
+    struct
+    {
+        // IP адрес
+        wifi_ip_t ip;
+        // Признак показа
+        bool show = false;
+    } intf[WIFI_INTF_COUNT];
+    // Контроллер фреймов
+    hmi_frame_controller_t frame;
+    // Фильтр смены цвета светодиодов
+    display_led_smooth_filter_t led_smooth;
+protected:
+    // Получает, нужно ли отобразить сцену
+    virtual bool show_required(void) override final
+    {
+        for (auto i = 0; i < WIFI_INTF_COUNT; i++)
+            if (intf[i].show)
+                return true;
+        
+        return false;
+    }
+    
+    // Событие установки сцены на дисплей
+    virtual void activated(void) override final
+    {
+        // Базовый метод
+        screen_scene_t::activated();
+
+        // Сброс номера фрймов
+        frame.reset();
+        
+        for (auto i = 0; i < WIFI_INTF_COUNT; i++)
+            if (intf[i].show)
+            {
+                intf[i].show = false;
+                
+                // Неонки
+                nixie_source.address_set(intf[i].ip);
+                neon_source.intf_set((wifi_intf_t)i);
+                led_source.intf_set((wifi_intf_t)i);
+                return;
+            }
+        
+        assert(false);
+    }
+    
+    // Обновление сцены
+    virtual void refresh(void) override final
+    {
+        // Базовый метод
+        screen_scene_t::refresh();
+        
+        // Обработка фрейма
+        frame++;
+        
+        // Задержка показа
+        if (frame.seconds_get() < 3)
+            return;
+        
+        // Активация если есть что показывать
+        if (show_required())
+        {
+            activated();
+            return;
+        }
+        
+        // Конец сцены
+        display_scene_set_default();
+    }
+public:
+    // Конструктор по умолчанию
+    display_scene_ip_report_t(void)
+    {
+        // Лампы
+        nixie.attach(nixie_source);
+        // Неонки
+        neon.attach(neon_source);
+        //neon.attach(neon_smooth);
+        // Светодиоды
+        led.attach(led_source);
+        //led.attach(led_smooth);
+    }
+    
+    // Запрос на показ
+    void show(wifi_intf_t i, const wifi_ip_t &ip)
+    {
+        intf[i].ip = ip;
+        intf[i].show = true;
+    }
+} display_scene_ip_report;
+
 // Сцена вывода часов
 static class display_scene_clock_t : public display_scene_t
 {
@@ -861,8 +1019,8 @@ public:
         // Смена части (час, минута или секунда)
         void out(hmi_rank_t index, uint8_t value)
         {
-            set(index + 0, nixie_data_t(HMI_SAT_MAX, value / 10, true));
-            set(index + 1, nixie_data_t(HMI_SAT_MAX, value % 10, true));
+            set(index + 0, nixie_data_t(HMI_SAT_MAX, value / 10));
+            set(index + 1, nixie_data_t(HMI_SAT_MAX, value % 10));
         }
     protected:
         // Событие присоединения к цепочке
@@ -922,10 +1080,6 @@ public:
             // Дата
             KIND_DATE,
         } kind = KIND_TIME;
-
-        // Конструктор по умолчанию
-        nixie_source_t(void)
-        { }
 
         // Секундное событие
         void second(void)
@@ -1072,10 +1226,6 @@ public:
             TOGGLE_KIND_VERT,
         } toggle_kind = TOGGLE_KIND_FULL;
         
-        // Конструктор по умолчанию
-        neon_source_t(void)
-        { }
-
         // Секундное событие
         void second(void)
         {
@@ -1087,7 +1237,7 @@ public:
     } neon_source;    
     
     // Фильтр смены цифр ламп
-    display_nixie_smooth_val_filter_t nixie_smooth_val;
+    display_nixie_smooth_filter_t nixie_smooth;
     // Фильтр смены состояния неонок
     display_neon_smooth_filter_t neon_smooth;
     
@@ -1101,7 +1251,7 @@ public:
     {
         // Лампы
         nixie.attach(nixie_source);
-        nixie.attach(nixie_smooth_val);
+        nixie.attach(nixie_smooth);
         // Неонки
         neon.attach(neon_source);
         neon.attach(neon_smooth);
@@ -1129,254 +1279,6 @@ protected:
         display_scene_set_default();
     }
 } display_scene_clock;
-
-/*
-
-#include "light.h"
-
-// Сцена вывода освещенности
-static class display_scene_light_t : public display_scene_t
-{
-    static hmi_sat_t light_sat_get(void)
-    {
-        static const xmath_point2d_t<float32_t, hmi_sat_t> POINTS[] =
-        {
-            { 10.0f,  40 },
-            { 20.0f,  75 },
-            { 30.0f,  110 },
-            { 40.0f,  145 },
-            { 50.0f,  180 },
-            { 60.0f,  215 },
-            { 70.0f,  255 },
-        };
-        
-        const auto value = light_current_get();
-        
-        return value != SENSOR_VALUE_EMPTY ?
-            xmath_linear_interpolation(value, POINTS, ARRAY_SIZE(POINTS)) :
-            HMI_SAT_MAX;
-    }
-
-    class nixie_light_t : public nixie_filter_t
-    {
-    public:
-        // Конструктор по умолчанию
-        nixie_light_t(void) : nixie_filter_t(HMI_FILTER_PURPOSE_INSTANT_SAT)
-        { }
-        
-        hmi_sat_t last_sat = HMI_SAT_MAX;
-        
-    protected:
-        // Обновление данных
-        virtual void refresh(void) override final
-        {
-            // Базовый метод
-            nixie_filter_t::refresh();
-            
-            // Нужно ли обновлять данные
-            auto cur_sat = light_sat_get();
-            if (last_sat == cur_sat)
-                return;
-            last_sat = cur_sat;
-            // Передача дальше
-            reprocess();
-        }
-
-        // Событие обработки новых данных
-        virtual void process(hmi_rank_t index, nixie_data_t &data) override final
-        {
-            data.sat = xmath_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, last_sat, HMI_SAT_MAX);
-            // Базовый метод
-            nixie_filter_t::process(index, data);
-        }
-        
-    } nixie_light;
-    
-    // Фильтр смены цифр ламп
-    display_nixie_change_filter_t nixie_change;
-public:
-    // Управление лампами
-    class nixie_source_t : public nixie_filter_t
-    {
-        // Текущее покзаание
-        sensor_value_t last_value;
-        
-        // Обновление покзаания на экране
-        void update(sensor_value_t value)
-        {
-            last_value = value;
-            if (value == SENSOR_VALUE_EMPTY)
-            {
-                // Нет данных
-                for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
-                    change_full(i, NIXIE_DIGIT_SPACE);
-                return;
-            }
-            
-            auto round = (uint32_t)(value * 10);
-            uint32_t rank = 1;
-            for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++, rank *= 10)
-                change_full(NIXIE_COUNT - i - 1, (uint8_t)((round / rank) % 10));
-        }
-    protected:
-        // Обновление данных
-        virtual void refresh(void) override final
-        {
-            // Базовый метод
-            nixie_filter_t::refresh();
-            
-            // Текущее покзаание
-            const auto current_value = light_current_get();
-            if (current_value != last_value)
-                update(current_value);
-        }
-                
-        // Событие присоединения к цепочке
-        virtual void attached(void) override final
-        {
-            // Базовый метод
-            nixie_filter_t::attached();
-            // Обновление
-            update(light_current_get());
-        }
-    public:
-        // Конструктор по умолчанию
-        nixie_source_t(void) : nixie_filter_t(HMI_FILTER_PURPOSE_SOURCE)
-        { }
-    } nixie_source;    
-
-    // Управление неонками
-    class neon_source_t : public neon_filter_t
-    {
-    protected:
-        // Событие присоединения к цепочке
-        virtual void attached(void) override final
-        {
-            // Базовый метод
-            neon_filter_t::attached();
-            
-            // Всё включаем
-            for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
-                state_set(i, false);
-        }
-        
-        // Обновление данных
-        virtual void refresh(void) override final
-        {
-            // Базовый метод
-            neon_filter_t::refresh();
-        }
-    public:
-        // Конструктор по умолчанию
-        neon_source_t(void) : neon_filter_t(HMI_FILTER_PURPOSE_SOURCE)
-        { }
-    } neon_source;    
-    
-    // Конструктор по умолчанию
-    display_scene_light_t(void)
-    {
-        nixie_change.kind = display_nixie_change_filter_t::KIND_SWITCH_DEPTH_OUT;
-        // Лампы
-        nixie.attach(nixie_source);
-        nixie.attach(nixie_change);
-        nixie.attach(nixie_light);
-        // Неонки
-        neon.attach(neon_source);
-    }
-
-protected:
-    // Получает, нужно ли отобразить сцену
-    virtual bool show_required(void) override final
-    {
-        // Всегда нужно показывать
-        return true;
-    }
-} display_scene_light;
-
-// Тествая сцена
-static class display_scene_testing_t : public display_scene_t
-{
-    class led_source_t : public led_filter_t
-    {
-    public:
-        // Конструктор по умолчанию
-        led_source_t(void) : led_filter_t(HMI_FILTER_PURPOSE_SOURCE)
-        { }
-        
-        uint32_t prescaler = 0;
-        hmi_sat_t value = 0;
-        
-    protected:
-        // Обновление данных
-        virtual void refresh(void) override final
-        {
-            // Базовый метод
-            led_filter_t::refresh();
-            
-            if (++prescaler < 2)
-                return;
-            prescaler = 0;
-            value++;
-            
-            reprocess();
-        }
-
-        // Событие обработки новых данных
-        virtual void process(hmi_rank_t index, hmi_rgb_t &data) override final
-        {
-            data = hmi_hsv_t(0, 255, value).to_rgb();
-            
-            // Базовый метод
-            led_filter_t::process(index, data);
-        }
-        
-    } led_source;
-public:
-    // Конструктор по умолчанию
-    display_scene_testing_t(void)
-    {
-        led.attach(led_source);
-    }
-
-protected:
-    // Получает, нужно ли отобразить сцену
-    virtual bool show_required(void) override final
-    {
-        // Всегда нужно показывать
-        return true;
-    }
-} display_scene_testing;
-
-// Тестовый вывод на дисплей
-static class display_nixie_source_test_t : public nixie_filter_t
-{
-    uint8_t frame = 0;
-protected:
-    // Событие присоединения к цепочке
-    virtual void attached(void) override final
-    {
-        frame = 0;
-    }
-    
-    // Обнвление данных
-    virtual void refresh() override final
-    {
-        if (frame > 0)
-        {
-            frame--;
-            return;
-        }
-        frame = HMI_FRAME_RATE;
-        for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
-            change_full(i, rand() % 10);
-    }
-public:
-    // Конструктор по умолчанию
-    display_nixie_source_test_t(void) : nixie_filter_t(HMI_FILTER_PURPOSE_SOURCE)
-    { }
-} display_nixie_source_test;
-
-*/
 
 #include "light.h"
 
@@ -1525,11 +1427,14 @@ static void display_scene_set_default(void)
     // Список известных сцен
     static display_scene_t * const SCENES[] =
     {
+        // Тестирование
         &display_scene_test,
-        //&display_scene_light,
-        //&display_scene_testing,
+        // Репортирование о смене IP
+        &display_scene_ip_report,
+        // Основные часы
         &display_scene_clock
     };
+    
     // Обход известных сцен
     for (uint8_t i = 0; i < ARRAY_SIZE(SCENES); i++)
         if (SCENES[i]->show_required())
@@ -1537,6 +1442,7 @@ static void display_scene_set_default(void)
             screen.scene_set(SCENES[i]);
             return;
         }
+    
     // Такое недопустимо
     assert(false);
 }
@@ -1544,6 +1450,10 @@ static void display_scene_set_default(void)
 void display_init(void)
 {
     display_ambient_service_t::setup();
-    
     display_scene_set_default();
+}
+
+void display_show_ip(const wifi_intf_t &intf, wifi_ip_t ip)
+{
+    display_scene_ip_report.show(intf, ip);
 }

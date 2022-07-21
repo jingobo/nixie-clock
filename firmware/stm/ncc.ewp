@@ -224,7 +224,7 @@
                 </option>
                 <option>
                     <name>CCDefines</name>
-                    <state>DEBUG</state>
+                    <state>NDEBUG</state>
                     <state>STM32F103xB</state>
                 </option>
                 <option>
@@ -1106,6 +1106,9 @@
         </file>
         <file>
             <name>$PROJ_DIR$\source\typedefs.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\common\source\wifi_types.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\source\xmath.h</name>

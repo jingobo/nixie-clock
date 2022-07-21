@@ -179,7 +179,7 @@ extern "C" void app_main(void)
     // Вывод информации о памяти
     LOGH();
     // Отчистка карты маршрутизации
-    memset(core_route_map, 0, sizeof(core_route_map));
+    MEMORY_CLEAR_ARR(core_route_map);
 
     // Инициализация модулей
     io_init();

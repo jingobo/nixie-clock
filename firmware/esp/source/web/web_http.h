@@ -228,6 +228,7 @@ public:
     {
         clear();
     }
+
     // Конструктор с указанием аллокатора WebSocket
     web_http_handler_t(web_slot_handler_allocator_t &ws) : ws(&ws)
     {
