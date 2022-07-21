@@ -20,6 +20,7 @@
 ![Основная плата сверху](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/pcb_primary_top.jpg?raw=true)
 ![Основная плата снизу](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/pcb_primary_bottom.jpg?raw=true)
 ![Вторичная плата в 3D](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/pcb_secondary_3d.jpg?raw=true)
+![Корпус из оргстекла](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/case_perspective.jpg?raw=true)
 ## Статус проекта
 PCB не финальные, есть небольшой TODO список по доработкам, но схема и размеры меняться не будут).
 - [x] Платы закончены
@@ -31,4 +32,6 @@ PCB не финальные, есть небольшой TODO список по 
 - [x] SNTP реализован, время синхронизируется
 - [x] Web сервер со внутреннй файловой системой
 - [x] Web сокеты реализованы, протокол проброшен
-- [ ] Web панель на этапе верстки (Bootstrap)
+- [x] Web панель настроек времени
+- [x] Web панель настроек WiFi
+- [ ] Web панель настроек дисплея
