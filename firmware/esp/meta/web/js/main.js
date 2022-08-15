@@ -1299,7 +1299,7 @@ app.page =
         // Инициализация страницы
         this.init = () =>
         {
-            stations = app.dom.wifi.sta.list.templatedList("wifi-sta-info", "wifi-sta-pass");
+            stations = app.dom.wifi.sta.list.templateList("wifi-sta-info", "wifi-sta-pass");
             
             // Обработчик клика по кнопке обновления списка сетей
             app.dom.wifi.sta.find.click(searcher.start);
@@ -1395,7 +1395,7 @@ app.page =
         // Инициализация страницы
         this.init = () =>
         {
-            $('.color-picker').colorPicker();
+            $(".color-picker").colorPicker();
         };        
         
         // Загрузка страницы

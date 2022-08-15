@@ -398,19 +398,36 @@ jQuery.fn.extend(
         this.children("div").visible(state);
     },
     
-    // Инициализация списочного элемента с шаблоном
-    templatedList()
+    // Инициализация шаблоного элемента
+    template()
     {
         // Текущий идентификатор
         let id = 0;
+        // Список суффиксов замены
+        const suffixes = [...arguments];
+        // Текстовый шаблон элемента
+        const template = this.html();
+        
+        // Создание элемента из шаблона
+        return () =>
+        {
+            id++;
+            let html = template;
+            suffixes.forEach(suffix =>
+                html = html.replaceAll(suffix, suffix + "-" + id));
+            return $(html);
+        };
+    },
+    
+    // Инициализация списочного элемента с шаблоном
+    templateList()
+    {
         // Список элементов
         const items = [];
         // Родительский контейнер
         const parent = this;
-        // Список суффиксов замены
-        const suffixes = [].slice.call(arguments);
         // Текстовый шаблон элемента
-        const template = this.children("template").html();
+        const template = this.children("template").template(...arguments);
         
         // Готовим результат
         const result = 
@@ -421,15 +438,7 @@ jQuery.fn.extend(
             // Метод создания
             create()
             {
-                // Создание элемента из шаблона
-                id++;
-                let html = template;
-                for (let i = 0; i < suffixes.length; i++)
-                {
-                    let suffix = suffixes[i];
-                    html = html.replaceAll(suffix, suffix + "-" + id);
-                }
-                const item = $(html).last();
+                const item = template();
                 
                 // Объект управления списком
                 item.list =
