@@ -1388,6 +1388,37 @@ app.page =
         // Получает, готова ли страница к отображению
         this.ready = () => loadCounter.ready;
     },
+    
+    // Страница настроек дисплея
+    display: new function ()
+    {
+        // Инициализация страницы
+        this.init = () =>
+        {
+            $('.color-picker').colorPicker();
+        };        
+        
+        // Загрузка страницы
+        this.loaded = () =>
+        {
+            
+        };  
+
+        // Загрузка страницы
+        this.loaded = () =>
+        {
+            
+        };  
+        
+        // Выгрузка страницы
+        this.unloaded = () =>
+        {
+            
+        };
+
+        // Получает, готова ли страница к отображению
+        this.ready = () => true;
+    },
 };
 
 // Страницы
@@ -1398,6 +1429,7 @@ app.pages = new function ()
     [ 
         app.page.time,
         app.page.wifi,
+        app.page.display,
     ];
         
     // Инициализация страниц

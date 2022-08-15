@@ -4,6 +4,7 @@ html, body
     padding: 0;
     height: 100%;
 }
+
 svg
 {
     height: 1rem;
@@ -21,6 +22,8 @@ template
 {
     display: none;
 }
+
+/* Common */
 
 #display 
 { 
@@ -196,6 +199,8 @@ button > .spinner-inline
     margin: auto;
 }
 
+/* Loader */
+
 .loader 
 {
     width: 4rem;
@@ -268,6 +273,8 @@ button > .spinner-inline
     }
 }
 
+/* DateTime */
+
 #date-manual-tm span
 {
     padding: 0.375rem 0.5rem;
@@ -278,6 +285,8 @@ button > .spinner-inline
 {
     width: auto;
 }
+
+/* WiFi */
 
 .accordion button.list-group-item-action
 {
@@ -365,6 +374,8 @@ button > .spinner-inline
     text-transform: uppercase;
 }
 
+/* Overlay */
+
 #overlay > div
 {
     padding: 1rem;
@@ -408,7 +419,111 @@ button > .spinner-inline
     content: "!";
 }
 
+/* Color Picker */
+
+.color-picker
+{
+    position: relative;
+    width: 3rem;
+    height: 3rem;
+    margin: 0.5rem;
+    border-radius: 1rem;    
+    transition: box-shadow .15s ease-in-out;
+}
+
+.color-picker::after
+{
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 1rem;
+    box-shadow: 0 0 0.15rem 0 #686868 inset;
+}
+
+.color-picker:focus
+{
+    box-shadow: rgb(0 123 255 / 25%) 0px 0px 0px 0.2rem;    
+}
+
+/* White theme, no alpha, mobile */
+
+.cp-color-picker .cp-alpha
+{
+    margin: 0;
+    height: 0;
+}
+
+.cp-color-picker
+{
+    border: 1px solid #999; 
+    padding:10px 10px 0;
+    background:#eee; 
+    overflow:visible; 
+    border-radius:3px;
+}
+
+.cp-color-picker:after
+{
+    content:""; 
+    display:block; 
+    position:absolute; 
+    top:-15px; 
+    left:12px; 
+    border:8px solid #eee;
+    border-color: transparent transparent #eee
+}
+
+.cp-color-picker:before
+{
+    content:""; 
+    display:block;
+    position:absolute; 
+    top:-16px; 
+    left:12px; 
+    border:8px solid #eee;
+    border-color: transparent transparent #999
+}
+
+.cp-xy-slider:active
+{
+    cursor:none;
+}
+
+.cp-xy-slider
+{
+    border: 1px solid #999; 
+    margin-bottom:10px;
+    width:200px; 
+    height:200px;
+}
+
+.cp-xy-cursor
+{
+    width:16px; 
+    height:16px; 
+    border-width:2px; 
+    margin:-8px
+}
+
+.cp-z-slider
+{
+    margin-left:10px;
+    border:1px solid #999;
+    height:200px; 
+    width:40px;
+}
+
+.cp-z-cursor
+{
+    border-width:8px; 
+    margin-top:-8px;
+}
+
 /* Medium */
+
 @media (min-width: 768px)
 {
     .container
@@ -421,7 +536,6 @@ button > .spinner-inline
         width: 700px;
     }
 }
-
 
 
 
