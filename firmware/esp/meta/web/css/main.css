@@ -97,11 +97,6 @@ template
     margin-bottom: 0.5rem;
 }
 
-.card-body
-{
-    padding: 1rem;
-}
-
 .tab-pane .alert
 {
     padding: .45rem 0.9rem;
@@ -199,6 +194,14 @@ button > .spinner-inline
     margin: auto;
 }
 
+.accordion button.list-group-item-action
+{
+    margin: 0;
+    border: 0;
+    outline: 0;
+    border-radius: 0;
+}
+
 /* Loader */
 
 .loader 
@@ -288,12 +291,9 @@ button > .spinner-inline
 
 /* WiFi */
 
-.accordion button.list-group-item-action
+#tab-wifi .card-body
 {
-    margin: 0;
-    border: 0;
-    outline: 0;
-    border-radius: 0;
+    padding: 1rem;
 }
 
 #tab-wifi a,
@@ -374,6 +374,18 @@ button > .spinner-inline
     text-transform: uppercase;
 }
 
+/* Display */
+
+#tab-disp .card-body
+{
+    padding: 1rem 1rem 0.5rem 1rem;
+}
+
+#tab-disp .card-body > .row
+{
+    margin: 0 -15px 0.5rem -15px;
+}
+
 /* Overlay */
 
 #overlay > div
@@ -421,14 +433,24 @@ button > .spinner-inline
 
 /* Color Picker */
 
+.color-picker-carrier
+{
+    margin-left: 0;
+    margin-right: 0;
+}
+
 .color-picker
 {
     position: relative;
-    width: 3rem;
     height: 3rem;
-    margin: 0.5rem;
+    margin: 0 0 0 0.5rem;
     border-radius: 1rem;    
     transition: box-shadow .15s ease-in-out;
+}
+
+.color-picker.first
+{
+    margin: 0;
 }
 
 .color-picker::after
@@ -463,28 +485,6 @@ button > .spinner-inline
     background:#eee; 
     overflow:visible; 
     border-radius:3px;
-}
-
-.cp-color-picker:after
-{
-    content:""; 
-    display:block; 
-    position:absolute; 
-    top:-15px; 
-    left:12px; 
-    border:8px solid #eee;
-    border-color: transparent transparent #eee
-}
-
-.cp-color-picker:before
-{
-    content:""; 
-    display:block;
-    position:absolute; 
-    top:-16px; 
-    left:12px; 
-    border:8px solid #eee;
-    border-color: transparent transparent #999
 }
 
 .cp-xy-slider:active

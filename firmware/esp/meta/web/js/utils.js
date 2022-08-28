@@ -334,6 +334,18 @@ Array.prototype.insert = function (index, item)
     this.splice(index, 0, item);
 };
 
+// Перемешивание массива
+Array.prototype.shuffle = function() 
+{
+    for (let i = this.length - 1; i > 0; i--) 
+    {
+        const j = Math.floor(Math.random() * (i + 1));
+        [this[i], this[j]] = [this[j], this[i]];
+    }
+    
+    return this;
+}
+
 // Awaitable задерка в миллисекундах
 // TODO: может не нужна
 function delay(mills)
@@ -399,7 +411,7 @@ jQuery.fn.extend(
     },
     
     // Инициализация шаблоного элемента
-    template()
+    makeTemplate()
     {
         // Текущий идентификатор
         let id = 0;
@@ -420,14 +432,14 @@ jQuery.fn.extend(
     },
     
     // Инициализация списочного элемента с шаблоном
-    templateList()
+    makeTemplateList()
     {
         // Список элементов
         const items = [];
         // Родительский контейнер
         const parent = this;
         // Текстовый шаблон элемента
-        const template = this.children("template").template(...arguments);
+        const template = this.children("template").makeTemplate(...arguments);
         
         // Готовим результат
         const result = 
@@ -438,7 +450,7 @@ jQuery.fn.extend(
             // Метод создания
             create()
             {
-                const item = template();
+                const item = template().last();
                 
                 // Объект управления списком
                 item.list =

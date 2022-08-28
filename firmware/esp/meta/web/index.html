@@ -8,7 +8,7 @@
         <meta name="description" content="Nixie Clock admin panel">
         <meta name="theme-color" content="#317EFB"/>
         <link rel="manifest" crossorigin="use-credentials" href="/manifest.json">
-        <link rel="shortcut icon" type="image/x-icon" href="favicon.ico">
+        <link rel="shortcut icon" href="favicon.svg">
     </head>
     <body>
         <!-- CSS -->
@@ -354,7 +354,75 @@
                 </div>
                 <!-- Вкладка настроек дисплея -->
                 <div class="tab-pane fade active show" id="tab-disp">
-                    <div tabindex="0" class="color-picker" value="#B6BD79" />
+                    <template id="disp-template-color">
+                        <!-- Кнопки цветов -->
+                        <div class="row align-items-center">
+                            <!-- Метка -->
+                            <label class="col-md-2 col-form-label">Цвета</label>
+                            <!-- Список -->
+                            <div class="row col-md-10 justify-content-around color-picker-carrier">
+                                <div tabindex="0" class="col color-picker first"></div>
+                                <div tabindex="0" class="col color-picker"></div>
+                                <div tabindex="0" class="col color-picker"></div>
+                                <div tabindex="0" class="col color-picker"></div>
+                                <div tabindex="0" class="col color-picker"></div>
+                                <div tabindex="0" class="col color-picker"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Управление -->
+                        <div class="row align-items-center">
+                            <!-- Объединение -->
+                            <div class="col-md-6">
+                                <div class="custom-control custom-switch col-form-label">
+                                    <input type="checkbox" class="custom-control-input" id="disp-one-color">
+                                    <label class="custom-control-label" for="disp-one-color">Один цвет на все</label>
+                                </div>
+                            </div>
+                            <!-- Рандомизация -->
+                            <div class="col-md-6">
+                                <button type="button" class="btn btn-info btn-block">
+                                    Случайные цвета
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <div class="row form-part">Отображение времени</div>
+                    <div class="accordion" id="display-test">
+                        <div class="card">
+                            <!-- Заголовок -->
+                            <div class="card-header p-0">
+                                <!-- Кнопка заголовка -->
+                                <button class="list-group-item list-group-item-action collapsed" type="button" data-toggle="collapse" data-target="#display-test2">
+                                    Лампы
+                                </button>
+                            </div>
+
+                            <!-- Враппер аккардиона -->
+                            <div id="display-test2" class="collapse" data-parent="#display-test">
+                                <div class="card-body">
+
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <!-- Заголовок -->
+                            <div class="card-header p-0">
+                                <!-- Кнопка заголовка -->
+                                <button class="list-group-item list-group-item-action collapsed" type="button" data-toggle="collapse" data-target="#display-test3">
+                                    Неонки
+                                </button>
+                            </div>
+
+                            <!-- Враппер аккардиона -->
+                            <div id="display-test3" class="collapse" data-parent="#display-test">
+                                <div class="card-body">
+                                </div>
+                            </div>
+                        </div>                        
+                    </div>
                 </div>
             </div>
         </div>
