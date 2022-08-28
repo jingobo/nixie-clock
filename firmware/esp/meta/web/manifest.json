@@ -1,16 +1,15 @@
 {
     "short_name": "Nixie Clock",
     "name": "Nixie Clock admin panel",
-    "icons": 
+    "icons":
     [
         {
-            "src": "/images/icons-192.png",
-            "type": "image/png",
+            "src": "/favicon.svg",
             "sizes": "192x192"
         }
     ],
     "start_url": "/index.html",
     "background_color": "#3367D6",
-    "display": "standalone",
+    "display": "fullscreen",
     "theme_color": "#3367D6"
 }
