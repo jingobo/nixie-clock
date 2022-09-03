@@ -204,7 +204,25 @@ app.dom = new function ()
         {
             template:
             {
+                neon: "#disp-template-neon",
                 color: "#disp-template-color",
+            },
+            
+            time:
+            {
+                nixie:
+                {
+                    container: "#disp-time-nixie .card-body",
+                    effect: "#disp-time-nixie-effect",
+                    mode: "#disp-time-nixie-mode",
+                    speed: "#disp-time-nixie-speed",
+                },
+                
+                neon:
+                {
+                    container: "#disp-time-neon .card-body",
+                    freq: "#disp-time-neon-freq",
+                },
             },
         },
     };
@@ -1400,242 +1418,375 @@ app.page =
     // Страница настроек дисплея
     display: new function ()
     {
+        // Счетчик загруженных пакетов
+        const loadCounter = new LoadCounter(8);
+        
+        // Класс панели цветов
+        function ColorSelector()
+        {
+            // Инициализация DOM
+            this.dom = app.page.display.colorTemplate();
+            
+            // Обработчик события изменения
+            this.onchange;
+            
+            // Чекбокс одного цвета
+            const oneColor = this.dom.find("input");
+            
+            // Обработчик вызова события изменения
+            const fire = () => this.onchange();
+
+            // Начальный цвет
+            const initialColor = new Colors({ color: "#FFFFFF"});
+            // Инициализация разрядов
+            const ranks = this.dom
+                .find(".color-picker")
+                .toArray()
+                .map(element =>
+                {
+                    // Биндинг пипетки
+                    const picker = $(element).colorPicker(
+                        {
+                            GPU: true,
+                            opacity: false,
+                            animationSpeed: 150,
+                            renderCallback()
+                            {
+                                // Установка цвета всем разрядам если выбран режим
+                                if (oneColor.checked())
+                                    ranks.forEach(r => r.color = this.color);
+                                
+                                // Генерация события
+                                fire();
+                            }
+                        });
+                    
+                    // Подготовка объекта разряда
+                    const result = { };
+                    
+                    // Свойство цвета
+                    Object.defineProperty(result, "color", 
+                        {
+                            get: () => new Colors({ color: picker.css("background-color") }),
+                            set: value => picker.css({"background-color": element.value = value.toString("rgb", false) }),
+                            configurable: false
+                        });
+                        
+                    result.color = initialColor;
+                    
+                    // Свойство видимости
+                    Object.defineProperty(result, "visible", 
+                        {
+                            get: () => picker.visible(),
+                            set: value => picker.visible(value),
+                            configurable: false
+                        });
+                    
+                    return result;
+                });
+                
+            // Кнопка случайных цветов
+            const randomColors = this.dom.find("button");
+            randomColors.click(() =>
+                {
+                    // Для сокращения
+                    const r = Math.random;
+                    // Буфер цвета
+                    const colorBuffer = new Colors();
+                    // Рандом [75...100]
+                    const r75 = () => 75 + r() * 35;
+                    
+                    // Обработчик совсем случайных цветов
+                    function rand()
+                    {
+                        ranks.forEach(rank => 
+                                {
+                                    // Установка цвета
+                                    colorBuffer.setColor({ h: r() * 360, s: r75(), v: r75() }, "hsv");
+                                    rank.color = colorBuffer;
+                                });
+                    }
+                    
+                    // Обработчик комплиментарных случайных цветов
+                    function comp()
+                    {
+                        // Начальные составляющие
+                        let h = r() * 60;
+                        const s = r75();
+                        const v = r75();
+                        
+                        // Перемешка индексов разрядов
+                        range(ranks.length)
+                            .shuffle()
+                            .forEach(i =>
+                                {
+                                    // Установка цвета
+                                    colorBuffer.setColor({ h: h, s: s, v: v }, "hsv");
+                                    ranks[i].color = colorBuffer;
+                                    
+                                    // Следующий комплиментарный цвет
+                                    h += 60;
+                                });
+                    }
+                    
+                    // Случайно выбираем обработчик рандомизации
+                    if (r() > 0.5)
+                        comp();
+                    else
+                        rand();
+                    
+                    // Генерация события
+                    fire();
+                });
+            
+            // Обработчик изменения режим одного цвета
+            oneColor.change(() =>
+                {
+                    // Новое состояние
+                    const state = oneColor.checked();
+                    // Применение режима
+                    const visible = !state;
+                    randomColors.visible(visible);
+                    
+                    // Расчет среднего цвета
+                    const avgColor = new Colors();
+                    if (state)
+                    {
+                        const rgb = ranks.reduce((prev, cur) =>
+                            {
+                                cur = cur.color.colors.RND.rgb;
+                                prev.r += cur.r;
+                                prev.g += cur.g;
+                                prev.b += cur.b;
+                                return prev;
+                            }, { r: 0, g: 0, b: 0 });
+                        
+                        rgb.r /= ranks.length;
+                        rgb.g /= ranks.length;
+                        rgb.b /= ranks.length;
+                        
+                        avgColor.setColor(rgb, "rgb");
+                    }
+                    
+                    // Обход разрядов
+                    for (let i = 0; i < ranks.length; i++)
+                    {
+                        const rank = ranks[i];
+                        
+                        // Применение среднего цвета
+                        if (state)
+                            rank.color = avgColor;
+
+                        // Применение видимости не первого разряда
+                        if (i > 0)
+                            rank.visible = visible;
+                    }
+                    
+                    // Генерация события
+                    fire();
+                });
+
+            // Чтение данных из пакета
+            this.read = data =>
+            {
+                // Чтение RGB данных
+                const colorBuffer = new Colors();
+                ranks.forEach(rank =>
+                    {
+                        const r = data.uint8();
+                        const g = data.uint8();
+                        const b = data.uint8();
+                        colorBuffer.setColor({r: r, g: g, b: b}, "rgb");
+                        rank.color = colorBuffer;
+                    });
+                
+                // Определение и применение режима одного цвета
+                oneColor.checked(ranks.findIndex(r => r.color.colors.HEX != colorBuffer.colors.HEX) < 0);
+            };
+                            
+            // Запись данных в пакет
+            this.write = data => 
+                ranks.forEach(rank =>
+                    {
+                        var rgb = rank.color.colors.RND.rgb;
+                        data.uint8(rgb.r);
+                        data.uint8(rgb.g);
+                        data.uint8(rgb.b);
+                    });
+        };
+
+        // Класс настроек неонок
+        function NeonSettings()
+        {
+            // Инициализация DOM
+            this.dom = app.page.display.neonTemplate();
+            
+            // Обработчик события изменения
+            this.onchange;
+            
+            // Обработчик события изменения
+            const fire = () => this.onchange();
+            
+            // Биндинг чекбоксов
+            const swoothCheck = this.dom.find("input");
+            swoothCheck.change(fire);
+            
+            // Биндинг комбобокса
+            const modeCombo = this.dom.find("select");
+            modeCombo.change(fire);
+            
+            // Чтение данных из пакета
+            this.read = data =>
+            {
+                swoothCheck.checked(data.bool());
+                modeCombo.val(data.uint8());
+            };
+                            
+            // Запись данных в пакет
+            this.write = data => 
+            {
+                data.bool(swoothCheck.checked());
+                data.uint8(modeCombo.val());
+            };
+        }
+        
+        // Класс отправителя пакета при изменениях
+        function Packeting(receive, transmit)
+        {
+            // Обработчик передачи
+            let transmitTimeout;
+            let transmitLock = false;
+            this.transmit = () =>
+            {
+                // Если передача заблокирована
+                if (transmitLock)
+                    return;
+                
+                log.info("fired");
+                
+                // Перезапуск таймаута
+                clearTimeout(transmitTimeout);
+                transmitTimeout = setTimeout(async () =>
+                {
+                    return;
+                    // Заполнение пакета
+                    const packet = new Packet(transmit.code, transmit.name);
+                    transmit.processing(packet.data);
+                    
+                    // Запрос
+                    await app.session.transmit(packet);
+                }, 100);
+            };
+            
+            // Обработчик приёма
+            this.receive = async () =>
+            {
+                return;
+                // Запрос
+                const data = await app.session.transmit(new Packet(receive.code, receive.name), loadCounter);
+                if (data == null)
+                    return;
+                
+                // Парсинг
+                transmitLock = true;
+                try
+                {
+                    receive.processing(data);
+                }
+                finally
+                {
+                    transmitLock = false;
+                }
+            };
+        }
+        
+        // Сцена времени
+        const timeScene = new function ()
+        {
+            // Инициализация сцены
+            this.init = () =>
+            {
+                // Цвета ламп
+                const nixieColors = new ColorSelector();
+                app.dom.disp.time.nixie.container.prepend(nixieColors.dom);
+                
+                // Настройки неонок
+                const neonSettings = new NeonSettings();
+                app.dom.disp.time.neon.container.prepend(neonSettings.dom);
+                
+                // Пакетная передача
+                const packeting = new Packeting(
+                    // Приём
+                    {
+                        code: 0x30,
+                        name: "запрос настроек сцены времени",
+                        processing(data)
+                        {
+                            // Лампы
+                            nixieColors.read(data);
+                            app.dom.disp.time.nixie.mode.val(data.uint8());
+                            app.dom.disp.time.nixie.effect.val(data.uint8());
+                            app.dom.disp.time.nixie.speed.val(data.uint8());
+                            
+                            // Неонки
+                            neonSettings.read(data);
+                            app.dom.disp.time.neon.freq.val(data.uint8());
+                        }
+                    },
+                    // Передача
+                    {
+                        code: 0x30,
+                        name: "применение настроек сцены времени",
+                        processing(data)
+                        {
+                            // Лампы
+                            nixieColors.write(data);
+                            data.uint8(app.dom.disp.time.nixie.mode.val());
+                            data.uint8(app.dom.disp.time.nixie.effect.val());
+                            data.uint8(app.dom.disp.time.nixie.speed.val());
+                            
+                            // Неонки
+                            neonSettings.write(data);
+                            data.uint8(app.dom.disp.time.neon.freq.val());
+                        }
+                    });
+                    
+                // Загрузка сцены
+                this.load = () => packeting.receive();
+                
+                // Подписка на события
+                nixieColors.onchange = packeting.transmit;
+                neonSettings.onchange = packeting.transmit;
+                app.dom.disp.time.neon.freq.change(packeting.transmit);
+                app.dom.disp.time.nixie.speed.on("input", packeting.transmit);
+                app.dom.disp.time.nixie.effect.change(packeting.transmit);
+                app.dom.disp.time.nixie.mode.change(() =>
+                    {
+                        nixieColors.dom.find("*").disabled(app.dom.disp.time.nixie.mode.val() != 0);
+                        packeting.transmit();
+                    });
+            };
+        };
+        
         // Инициализация страницы
         this.init = () =>
         {
             // Шаблон панели цветов
-            const colorTemplate = app.dom.disp.template.color.makeTemplate("disp-one-color");
+            this.colorTemplate = app.dom.disp.template.color.makeTemplate("disp-lamp-one-color");
+             // Шаблон настроек неонок
+            this.neonTemplate = app.dom.disp.template.neon.makeTemplate("disp-neon-smooth", "disp-neon-mode");
             
-            // Класс панели цветов
-            function ColorSelector()
-            {
-                // Инициализация DOM
-                this.dom = colorTemplate();
-                
-                // Обработчик события изменения
-                this.onchange;
-                
-                // Чекбокс одного цвета
-                const oneColor = this.dom.find("input");
-                
-                // Обработчик отложенного вызова события изменения
-                let fireTimeout;
-                const fire = () =>
-                {
-                    // Рестарт таймаута
-                    clearTimeout(fireTimeout);
-                    fireTimeout = setTimeout(this.onchange);
-                }
-
-                // Начальный цвет
-                const initialColor = new Colors({ color: "#FFFFFF"});
-                // Инициализация разрядов
-                const ranks = this.dom
-                    .find(".color-picker")
-                    .toArray()
-                    .map(element =>
-                    {
-                        // Биндинг пипетки
-                        const picker = $(element).colorPicker(
-                            {
-                                GPU: true,
-                                opacity: false,
-                                animationSpeed: 150,
-                                renderCallback()
-                                {
-                                    // Установка цвета всем разрядам если выбран режим
-                                    if (oneColor.checked())
-                                        ranks.forEach(r => r.color = this.color);
-                                    
-                                    // Генерация события
-                                    fire();
-                                }
-                            });
-                        
-                        // Подготовка объекта разряда
-                        const result = { };
-                        
-                        // Свойство цвета
-                        Object.defineProperty(result, "color", 
-                            {
-                                get: () => new Colors({ color: picker.css("background-color") }),
-                                set: value => picker.css({"background-color": element.value = value.toString("rgb", false) }),
-                                configurable: false
-                            });
-                            
-                        result.color = initialColor;
-                        
-                        // Свойство видимости
-                        Object.defineProperty(result, "visible", 
-                            {
-                                get: () => picker.visible(),
-                                set: value => picker.visible(value),
-                                configurable: false
-                            });
-                        
-                        return result;
-                    });
-                    
-                // Кнопка случайных цветов
-                const randomColors = this.dom.find("button");
-                randomColors.click(() =>
-                    {
-                        // Для сокращения
-                        const r = Math.random;
-                        // Буфер цвета
-                        const colorBuffer = new Colors();
-                        // Рандом [75...100]
-                        const r75 = () => 75 + r() * 35;
-                        
-                        // Обработчик совсем случайных цветов
-                        function rand()
-                        {
-                            ranks.forEach(rank => 
-                                    {
-                                        // Установка цвета
-                                        colorBuffer.setColor({ h: r() * 360, s: r75(), v: r75() }, "hsv");
-                                        rank.color = colorBuffer;
-                                    });
-                        }
-                        
-                        // Обработчик комплиментарных случайных цветов
-                        function comp()
-                        {
-                            // Начальные составляющие
-                            let h = r() * 60;
-                            const s = r75();
-                            const v = r75();
-                            
-                            // Перемешка индексов разрядов
-                            range(ranks.length)
-                                .shuffle()
-                                .forEach(i =>
-                                    {
-                                        // Установка цвета
-                                        colorBuffer.setColor({ h: h, s: s, v: v }, "hsv");
-                                        ranks[i].color = colorBuffer;
-                                        
-                                        // Следующий комплиментарный цвет
-                                        h += 60;
-                                    });
-                        }
-                        
-                        // Случайно выбираем обработчик рандомизации
-                        if (r() > 0.5)
-                            comp();
-                        else
-                            rand();
-                        
-                        // Генерация события
-                        fire();
-                    });
-                
-                // Признак пользовательского изменения
-                let userChanging = true;
-                
-                // Обработчик изменения режим одного цвета
-                oneColor.change(() =>
-                    {
-                        // Применение режима
-                        const state = !oneColor.checked();
-                        randomColors.visible(state);
-                        
-                        // Расчет среднего цвета
-                        const avgColor = new Colors();
-                        if (userChanging)
-                        {
-                            const rgb = ranks.reduce((prev, cur) =>
-                                {
-                                    cur = cur.color.colors.RND.rgb;
-                                    prev.r += cur.r;
-                                    prev.g += cur.g;
-                                    prev.b += cur.b;
-                                    return prev;
-                                }, { r: 0, g: 0, b: 0 });
-                            
-                            rgb.r /= ranks.length;
-                            rgb.g /= ranks.length;
-                            rgb.b /= ranks.length;
-                            
-                            avgColor.setColor(rgb, "rgb");
-                        }
-                        
-                        // Обход разрядов
-                        for (let i = 0; i < ranks.length; i++)
-                        {
-                            const rank = ranks[i];
-                            
-                            // Применение среднего цвета
-                            if (userChanging)
-                                rank.color = avgColor;
-
-                            // Применение видимости не первого разряда
-                            if (i > 0)
-                                rank.visible = state;
-                        }
-                        
-                        // Генерация события
-                        if (userChanging)
-                            fire();
-                    });
-
-                // Чтение данных из пакета
-                this.read = data =>
-                {
-                    // Чтение RGB данных
-                    const colorBuffer = new Colors();
-                    ranks.forEach(rank =>
-                        {
-                            const r = data.uint8();
-                            const g = data.uint8();
-                            const b = data.uint8();
-                            colorBuffer.setColor({r: r, g: g, b: b}, "rgb");
-                            rank.color = colorBuffer;
-                        });
-                    
-                    // Определение и применение режима одного цвета
-                    userChanging = false;
-                    try
-                    {
-                        oneColor.checked(ranks.findIndex(r => r.color.colors.HEX != colorBuffer.colors.HEX) < 0);
-                    }
-                    finally
-                    {
-                        userChanging = true;
-                    }
-                };
-                                
-                // Запись данных в пакет
-                this.write = data => 
-                    ranks.forEach(rank =>
-                        {
-                            var rgb = rank.color.colors.RND.rgb;
-                            data.uint8(rgb.r);
-                            data.uint8(rgb.g);
-                            data.uint8(rgb.b);
-                        });
-            };
-            
-            const colorSelector = new ColorSelector();
-            colorSelector.onchange = () => log.info("fired");
-            $("#display-test2 .card-body").append(colorSelector.dom);
-            
-            const colorSelector2 = new ColorSelector();
-            colorSelector2.onchange = () => log.info("fired2");
-            $("#display-test3 .card-body").append(colorSelector2.dom);
-            
+            // Инициализация сцен
+            timeScene.init();
         };
         
         // Загрузка страницы
         this.loaded = () =>
         {
+            loadCounter.reset();
             
-        };  
-
-        // Загрузка страницы
-        this.loaded = () =>
-        {
-            
+            // Загрузка сцен
+            timeScene.load();
         };  
         
         // Выгрузка страницы

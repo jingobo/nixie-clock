@@ -386,6 +386,16 @@ button > .spinner-inline
     margin: 0 -15px 0.5rem -15px;
 }
 
+#tab-disp .card-body > .row-tiny
+{
+    margin-bottom: 0;
+}
+
+#tab-disp .custom-range
+{
+    margin: 0.45rem 0;
+}
+
 /* Overlay */
 
 #overlay > div
@@ -534,6 +544,11 @@ button > .spinner-inline
     #display 
     {
         width: 700px;
+    }
+    
+    #tab-disp .card-body > .row-tiny
+    {
+        margin-bottom: 0.5rem;
     }
 }
 
