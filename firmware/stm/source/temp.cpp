@@ -209,7 +209,7 @@ static void temp_timeout_timer_cb(void)
 static void temp_current_linearization(void)
 {
     // Точка для линеаризации (взято из графика в даташите)
-    static const xmath_point2d_t<float_t, float_t> POINTS[] =
+    static const math_point2d_t<float_t, float_t> POINTS[] =
     {
         { 0.0f,     0.15f },
         { 10.0f,    0.18f },
@@ -221,7 +221,7 @@ static void temp_current_linearization(void)
         { 70.0f,    -0.14f },
     };
     
-    temp_current += xmath_linear_interpolation(temp_current, POINTS, ARRAY_SIZE(POINTS));
+    temp_current += math_linear_interpolation(temp_current, POINTS, ARRAY_SIZE(POINTS));
 }
 
 // Обработчик события завершения передачи по DMA

@@ -137,7 +137,7 @@ static void light_level_update(void)
     light_level_update_prescaler = 0;
     
     // Точки линеаризации
-    static const xmath_point2d_t<float_t, light_level_t> POINTS[] =
+    static const math_point2d_t<float_t, light_level_t> POINTS[] =
     {
         { 0.0f,     0 },
         { 5.0f,     20 },
@@ -149,7 +149,7 @@ static void light_level_update(void)
     
     // Интерполяция
     light_current_lux = light_max_lux;
-    light_current_level = xmath_linear_interpolation(light_current_lux, POINTS, ARRAY_SIZE(POINTS));
+    light_current_level = math_linear_interpolation(light_current_lux, POINTS, ARRAY_SIZE(POINTS));
     light_max_lux = 0.0f;
 }
 

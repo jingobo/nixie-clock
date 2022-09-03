@@ -1468,10 +1468,10 @@
             <name>$PROJ_DIR$\source\typedefs.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\common\source\wifi_types.h</name>
+            <name>$PROJ_DIR$\source\xmath.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\source\xmath.h</name>
+            <name>$PROJ_DIR$\..\common\source\xwifi.h</name>
         </file>
     </group>
     <group>

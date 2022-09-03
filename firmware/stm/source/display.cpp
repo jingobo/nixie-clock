@@ -82,12 +82,12 @@ class display_nixie_smooth_filter_t : public nixie_filter_t
             // Фреймы исчезновения старой цифры
             if (e.frame < DISPLAY_SMOOTH_FRAME_COUNT_HALF)
             {
-                data.sat = xmath_value_ratio<hmi_sat_t>(data.sat, HMI_SAT_MIN, e.frame, DISPLAY_SMOOTH_FRAME_COUNT_HALF);
+                data.sat = math_value_ratio<hmi_sat_t>(data.sat, HMI_SAT_MIN, e.frame, DISPLAY_SMOOTH_FRAME_COUNT_HALF);
                 data.digit = e.digit_from;
             }
             // Фреймы появления новой цифры
             else if (e.frame < DISPLAY_SMOOTH_FRAME_COUNT)
-                data.sat = xmath_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, e.frame - DISPLAY_SMOOTH_FRAME_COUNT_HALF, DISPLAY_SMOOTH_FRAME_COUNT_HALF);
+                data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, e.frame - DISPLAY_SMOOTH_FRAME_COUNT_HALF, DISPLAY_SMOOTH_FRAME_COUNT_HALF);
             else
                 // Завершение эффекта
                 e.stop();
@@ -115,7 +115,7 @@ class display_nixie_smooth_filter_t : public nixie_filter_t
             // Фреймы смены цифры
             if (e.frame < DISPLAY_SMOOTH_FRAME_COUNT)
             {
-                auto sat = xmath_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, e.frame, DISPLAY_SMOOTH_FRAME_COUNT);
+                auto sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, e.frame, DISPLAY_SMOOTH_FRAME_COUNT);
                 if (e.frame & 1)
                 {
                     data.sat = sat;
@@ -127,8 +127,8 @@ class display_nixie_smooth_filter_t : public nixie_filter_t
             // Фреймы довода насыщенности
             else if (e.frame < DISPLAY_SMOOTH_FRAME_COUNT + 5)
             {
-                auto sat = xmath_value_ratio<hmi_sat_t>(180, HMI_SAT_MAX, e.frame - DISPLAY_SMOOTH_FRAME_COUNT, 5);
-                data.sat = xmath_value_ratio<hmi_sat_t>(HMI_SAT_MIN, sat, data.sat, HMI_SAT_MAX);
+                auto sat = math_value_ratio<hmi_sat_t>(180, HMI_SAT_MAX, e.frame - DISPLAY_SMOOTH_FRAME_COUNT, 5);
+                data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, sat, data.sat, HMI_SAT_MAX);
             }
             else
                 // Завершение эффекта
@@ -355,7 +355,7 @@ protected:
             
             // Смена насыщенности относительно текущего фрейма
             auto data = get(i);
-            data.sat = xmath_value_ratio<hmi_sat_t>(e.sat_from, e.sat_to, e.frame, DISPLAY_SMOOTH_FRAME_COUNT);
+            data.sat = math_value_ratio<hmi_sat_t>(e.sat_from, e.sat_to, e.frame, DISPLAY_SMOOTH_FRAME_COUNT);
             set(i, data);
             
             // Инкремент фрейма, и проверка на завершение эффекта
@@ -451,9 +451,9 @@ protected:
             
             // Расчет текущего цвета по фрейму
             auto data = get(i);
-            data.r = xmath_value_ratio<hmi_sat_t>(e.color_from.r, e.color_to.r, e.frame, frame_count);
-            data.g = xmath_value_ratio<hmi_sat_t>(e.color_from.g, e.color_to.g, e.frame, frame_count);
-            data.b = xmath_value_ratio<hmi_sat_t>(e.color_from.b, e.color_to.b, e.frame, frame_count);
+            data.r = math_value_ratio<hmi_sat_t>(e.color_from.r, e.color_to.r, e.frame, frame_count);
+            data.g = math_value_ratio<hmi_sat_t>(e.color_from.g, e.color_to.g, e.frame, frame_count);
+            data.b = math_value_ratio<hmi_sat_t>(e.color_from.b, e.color_to.b, e.frame, frame_count);
             set(i, data);
             
             // Инкремент фрейма и проверка на завершение эффекта
@@ -1312,7 +1312,7 @@ class display_ambient_service_t
             
             // Преобразование
             constexpr const light_level_t DX = 19;
-            data.sat = xmath_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, light_level + DX, LIGHT_LEVEL_MAX + DX);
+            data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, light_level + DX, LIGHT_LEVEL_MAX + DX);
         }
     } nixie_control;
 
@@ -1340,7 +1340,7 @@ class display_ambient_service_t
             
             // Преобразование
             constexpr const light_level_t DX = 17;
-            data.sat = xmath_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, light_level + DX, LIGHT_LEVEL_MAX + DX);
+            data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, light_level + DX, LIGHT_LEVEL_MAX + DX);
         }
     } neon_control;
     
@@ -1378,9 +1378,9 @@ class display_ambient_service_t
             
             // Преобразование
             constexpr const light_level_t DX = 10;
-            data.r = xmath_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.r, light_level + DX, LIGHT_LEVEL_MAX + DX);
-            data.g = xmath_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.g, light_level + DX, LIGHT_LEVEL_MAX + DX);
-            data.b = xmath_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.b, light_level + DX, LIGHT_LEVEL_MAX + DX);
+            data.r = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.r, light_level + DX, LIGHT_LEVEL_MAX + DX);
+            data.g = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.g, light_level + DX, LIGHT_LEVEL_MAX + DX);
+            data.b = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.b, light_level + DX, LIGHT_LEVEL_MAX + DX);
         }
     } led_control;
     

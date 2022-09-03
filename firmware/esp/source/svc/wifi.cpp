@@ -2,13 +2,13 @@
 #include <log.h>
 #include <core.h>
 #include "wifi.h"
+#include <xwifi.h>
 #include <tool.h>
 #include <system.h>
 #include <esp_wifi.h>
 #include <tcpip_adapter.h>
 #include <esp_event_loop.h>
 
-#include <wifi_types.h>
 #include <proto/wifi.inc>
 
 // Имя модуля для логирования

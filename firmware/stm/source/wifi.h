@@ -1,7 +1,7 @@
 ﻿#ifndef __WIFI_H
 #define __WIFI_H
 
-#include <wifi_types.h>
+#include <xwifi.h>
 
 // Инициализация модуля
 void wifi_init(void);

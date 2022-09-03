@@ -5,7 +5,7 @@
 
 // Структура 2D точки
 template <typename X, typename Y>
-struct xmath_point2d_t
+struct math_point2d_t
 {
     // Координаты точки
     X x;
@@ -14,7 +14,7 @@ struct xmath_point2d_t
 
 // Функция линейной интерполяции
 template <typename X, typename Y>
-inline Y xmath_linear_interpolation(X input_x, const xmath_point2d_t<X, Y> *points, size_t point_count)
+inline Y math_linear_interpolation(X input_x, const math_point2d_t<X, Y> *points, size_t point_count)
 {
     assert(point_count > 0);
     
@@ -52,7 +52,7 @@ inline Y xmath_linear_interpolation(X input_x, const xmath_point2d_t<X, Y> *poin
 
 // Функция приведения числа из from в to в соответствии с отношением
 template <typename VALUE>
-inline VALUE xmath_value_ratio(VALUE value_from, VALUE value_to, uint32_t ratio, uint32_t ratio_max)
+inline VALUE math_value_ratio(VALUE value_from, VALUE value_to, uint32_t ratio, uint32_t ratio_max)
 {
     assert(ratio_max > 0);
     
