@@ -487,9 +487,7 @@ protected:
 
                     memcpy(record.ssid, ap.ssid, sizeof(ap.ssid));
                     record.rssi = ap.rssi;
-                    record.priv = (ap.authmode != WIFI_AUTH_OPEN) ?
-                        IPC_BOOL_TRUE :
-                        IPC_BOOL_FALSE;
+                    record.priv = ap.authmode != WIFI_AUTH_OPEN;
                 }
                 break;
 

@@ -40,7 +40,7 @@ RAM void ipc_slots_t::free(ipc_slot_t &slot)
 
 void ipc_slots_t::clear(void)
 {
-    phase = IPC_BOOL_FALSE;
+    phase = false;
     while (!used.empty())
         free(*used.last());
 }
@@ -66,10 +66,10 @@ bool ipc_processor_t::data_split(ipc_processor_t &processor, ipc_opcode_t opcode
         
         // Заполнение длинны и опций
         packet.dll.length = len;
-        packet.dll.more = more ? IPC_BOOL_TRUE : IPC_BOOL_FALSE;
+        packet.dll.more = more;
         
         // Полезные данные
-        memcpy(&packet.apl, src, len);
+        memcpy(packet.apl, src, len);
         
         // Переход к следующим данным
         size -= len;
@@ -187,8 +187,8 @@ bool ipc_link_t::packet_input(const ipc_packet_t &packet)
     if (packet.dll.opcode == IPC_OPCODE_FLOW)
     {
         // Декодирование
-        auto reason = (reset_reason_t)packet.apl.u8[0];
-        if (packet.dll.more != IPC_BOOL_FALSE ||
+        auto reason = (reset_reason_t)packet.apl[0];
+        if (packet.dll.more ||
             packet.dll.dir != IPC_DIR_REQUEST ||
             packet.dll.length != sizeof(reason) ||
             reason >= RESET_REASON_COUNT)
@@ -467,7 +467,7 @@ bool ipc_handler_host_t::packet_process(const ipc_packet_t &packet, const args_t
     // Запись в буффер
     auto buffer = (uint8_t *)command.buffer_pointer(dir);
     assert(buffer != NULL || args.size <= 0);
-    memcpy(buffer + processing.offset, packet.apl.u8, len);
+    memcpy(buffer + processing.offset, packet.apl, len);
     
     // Смещение указателей
     processing.offset += len;

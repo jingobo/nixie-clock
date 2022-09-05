@@ -26,7 +26,6 @@
 #define DATETIME_YEAR_BASE      2000
 
 // Календарная дата/время
-ALIGN_FIELD_8
 struct datetime_t
 {
     // Дата
@@ -86,6 +85,5 @@ struct datetime_t
         return month_day_count(month, leap());
     }
 };
-ALIGN_FIELD_DEF
 
 #endif // __DATETIME_H

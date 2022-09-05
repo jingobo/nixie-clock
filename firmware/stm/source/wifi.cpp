@@ -11,14 +11,14 @@ static wifi_settings_t wifi_settings @ STORAGE_SECTION =
     {
         // WIFI_INTF_STATION
         {
-            .use = IPC_BOOL_TRUE,
+            .use = true,
             .ssid = "Vidikon45",
             .password = "89156137267"
         },
         
         // WIFI_INTF_SOFTAP
         {
-            .use = IPC_BOOL_TRUE,
+            .use = true,
             .ssid = "NixieClock",
             .password = "",
         }
@@ -61,6 +61,7 @@ protected:
     {
         if (idle)
             return;
+        
         // Заполняем ответ
         command.response = wifi_settings;
         // Передача ответа
@@ -77,6 +78,7 @@ protected:
     {
         if (idle)
             return;
+        
         // Чтение данных
         wifi_settings = command.request;
         storage_modified();
@@ -120,5 +122,5 @@ void wifi_init(void)
 
 bool wifi_has_internet_get(void)
 {
-    return wifi_settings.intf[WIFI_INTF_STATION].use != IPC_BOOL_FALSE;
+    return wifi_settings.intf[WIFI_INTF_STATION].use;
 }

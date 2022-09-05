@@ -29,42 +29,45 @@ typedef hmi_sat_t hmi_sat_table_t[HMI_SAT_COUNT];
 // Тип для хранения цвета в формате RGB
 union hmi_rgb_t
 {
-    uint32_t raw;
     // Порядок компонент из-за специфики светодиодов WS2812B
     struct
     {
         hmi_sat_t g;
         hmi_sat_t r;
         hmi_sat_t b;
-        // Для прозрачности (не используется)
-        hmi_sat_t a;
     };
-    uint8_t grba[4];
+    uint8_t grb[3];
     
     // Конструктор по умолчанеию
-    hmi_rgb_t(void) : raw(0)
+    hmi_rgb_t(void) : r(0), g(0), b(0)
     { }
     
     // Конструктор с указанием компонент
-    hmi_rgb_t(hmi_sat_t _r, hmi_sat_t _g, hmi_sat_t _b) : r(_r), g(_g), b(_b), a(0) 
+    hmi_rgb_t(hmi_sat_t _r, hmi_sat_t _g, hmi_sat_t _b) : r(_r), g(_g), b(_b)
     { }
 
     // Оператор равенства
-    bool operator == (const hmi_rgb_t& a) const
+    bool operator == (const hmi_rgb_t &a) const
     { 
-        return raw == a.raw; 
+        return r == a.r &&
+               g == a.g &&
+               b == a.b; 
     }
 
     // Оператор не равенства
-    bool operator != (const hmi_rgb_t& a) const
+    bool operator != (const hmi_rgb_t &a) const
     { 
-        return raw != a.raw; 
+        return r != a.r ||
+               g != a.g ||
+               b != a.b; 
     }
 
     // Оператор присваивания
-    hmi_rgb_t & operator = (const hmi_rgb_t& source)
+    hmi_rgb_t & operator = (const hmi_rgb_t &source)
     {
-        raw = source.raw;
+        r = source.r;
+        g = source.g;
+        b = source.b;
         return *this;
     }
 
@@ -80,42 +83,45 @@ union hmi_rgb_t
 // Тип для хранения цвета в формате HSV
 union hmi_hsv_t
 {
-    uint32_t raw;
     struct
     {
         hmi_sat_t h;
         hmi_sat_t s;
         hmi_sat_t v;
-        // Для прозрачности (не используется)
-        hmi_sat_t a;
     };
-    uint8_t hsva[4];
+    uint8_t hsv[3];
     
     // Конструктор по умолчанеию
-    hmi_hsv_t(void) : raw(0)
+    hmi_hsv_t(void) : h(0), s(0), v(0)
     { }
 
     // Конструктор с указанием компонент
     hmi_hsv_t(hmi_sat_t _h, hmi_sat_t _s = HMI_SAT_MAX, hmi_sat_t _v = HMI_SAT_MAX) 
-        : h(_h), s(_s), v(_v), a(0) 
+        : h(_h), s(_s), v(_v) 
     { }
     
     // Оператор равенства
-    bool operator == (const hmi_hsv_t& a) const
-    { 
-        return raw == a.raw;
+    bool operator == (const hmi_hsv_t &a) const
+    {
+        return h == a.h &&
+               s == a.s &&
+               v == a.v; 
     }
 
     // Оператор не равенства
-    bool operator != (const hmi_hsv_t& a) const
-    { 
-        return raw != a.raw;
+    bool operator != (const hmi_hsv_t &a) const
+    {
+        return h != a.h ||
+               s != a.s ||
+               v != a.v; 
     }
     
     // Оператор присваивания
-    hmi_hsv_t & operator = (const hmi_hsv_t& source)
+    hmi_hsv_t & operator = (const hmi_hsv_t &source)
     {
-        raw = source.raw;
+        h = source.h;
+        s = source.s;
+        v = source.v;
         return *this;
     }
     

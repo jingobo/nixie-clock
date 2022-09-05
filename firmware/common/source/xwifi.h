@@ -43,7 +43,7 @@ union wifi_ip_t
 };
 
 // Перечисление интерфейса
-enum wifi_intf_t
+enum wifi_intf_t : uint8_t
 {
     // Подключение к точке
     WIFI_INTF_STATION = 0,

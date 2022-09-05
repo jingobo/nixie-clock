@@ -395,8 +395,8 @@ app.display = new function ()
         // Данные подсветки
         nixies.forEach(tube =>
             {
-                const r = data.uint8();
                 const g = data.uint8();
+                const r = data.uint8();
                 const b = data.uint8();
                 
                 tube.led.rSmooth.start(r);
@@ -1593,8 +1593,8 @@ app.page =
                 const colorBuffer = new Colors();
                 ranks.forEach(rank =>
                     {
-                        const r = data.uint8();
                         const g = data.uint8();
+                        const r = data.uint8();
                         const b = data.uint8();
                         colorBuffer.setColor({r: r, g: g, b: b}, "rgb");
                         rank.color = colorBuffer;
@@ -1609,8 +1609,8 @@ app.page =
                 ranks.forEach(rank =>
                     {
                         var rgb = rank.color.colors.RND.rgb;
-                        data.uint8(rgb.r);
                         data.uint8(rgb.g);
+                        data.uint8(rgb.r);
                         data.uint8(rgb.b);
                     });
         };

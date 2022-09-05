@@ -1,11 +1,10 @@
 ﻿// Данные ответа запроса синхронизации даты/времени
-ALIGN_FIELD_8
 struct time_command_sync_response_t
 {
     // Дата/время (возможно не валидная)
     datetime_t value;
     // Состояние
-    enum
+    enum : uint8_t
     {
         // Дата/время валидны
         STATUS_SUCCESS = 0,
@@ -13,7 +12,7 @@ struct time_command_sync_response_t
         STATUS_FAILED,
         // Нет списка хостов
         STATUS_HOSTLIST,
-    } status : 8;
+    } status;
     
     // Провера полей
     bool check(void) const
@@ -23,7 +22,6 @@ struct time_command_sync_response_t
         return status > STATUS_SUCCESS || value.check();
     }
 };
-ALIGN_FIELD_DEF
 
 // Команда синхронизации даты/времени
 class time_command_sync_t : public ipc_command_get_t<time_command_sync_response_t>
@@ -99,7 +97,6 @@ static inline bool time_hosts_empty(const time_hosts_data_t source)
 }
 
 // Данные запроса команды записи хостов
-ALIGN_FIELD_8
 struct time_command_hostlist_set_request_t
 {
     // Список хостов
@@ -111,7 +108,6 @@ struct time_command_hostlist_set_request_t
         return time_hosts_data_check(hosts);
     }
 };
-ALIGN_FIELD_DEF
 
 // Команда записи списка серверов
 class time_command_hostlist_set_t : public ipc_command_set_t<time_command_hostlist_set_request_t>
@@ -123,7 +119,6 @@ public:
 };
 
 // Структура ответа команды чтения текущей даты/времени
-ALIGN_FIELD_8
 struct time_command_current_get_response_t
 {
     struct
@@ -133,18 +128,18 @@ struct time_command_current_get_response_t
         // Последнее время синхронизации
         datetime_t sync;
     } time;
+    
     // Можно ли запустить синхронизацию
-    ipc_bool_t sync_allow : 8;
+    bool sync_allow;
 
     // Проверка полей
     bool check(void) const
     {
-        return sync_allow <= IPC_BOOL_TRUE &&
+        return ipc_bool_check(sync_allow) &&
                time.current.check() &&
                (time.sync.check() || time.sync.empty());
     }
 };
-ALIGN_FIELD_DEF
 
 // Команда чтения текущей даты/времени
 class time_command_current_get_t : public ipc_command_get_t<time_command_current_get_response_t>
@@ -165,11 +160,10 @@ public:
 };
 
 // Структура настроек даты/времени
-ALIGN_FIELD_8
 struct time_sync_settings_t
 {
     // Включена ли синхронизация
-    ipc_bool_t sync : 8;
+    bool sync : 8;
     // Часовой пояс
     int8_t timezone;
     // Смещение часа
@@ -186,13 +180,12 @@ struct time_sync_settings_t
     // Проверка полей
     bool check(void) const
     {
-        return sync <= IPC_BOOL_TRUE &&
+        return ipc_bool_check(sync) &&
                timezone >= -24 && timezone <= 26 &&
                offset >= -24 && offset <= 24 &&
                time_hosts_data_check(hosts);
     }
 };
-ALIGN_FIELD_DEF
 
 // Команда чтения настроек даты/времени
 class time_command_settings_get_t : public ipc_command_get_t<time_sync_settings_t>
@@ -213,17 +206,16 @@ public:
 };
 
 // Данные запроса команды запуска синхронизации даты/времени
-ALIGN_FIELD_8
 struct time_command_sync_start_request_t
 {
     // Действие
-    enum
+    enum : uint8_t
     {
         // Запуск
         ACTION_START = 0,
         // Проверка результата
         ACTION_CHECK,
-    } action : 8;
+    } action;
     
     // Провера полей
     bool check(void) const
@@ -231,14 +223,12 @@ struct time_command_sync_start_request_t
         return action <= ACTION_CHECK;
     }
 };
-ALIGN_FIELD_DEF
 
 // Данные ответа команды запуска синхронизации даты/времени
-ALIGN_FIELD_8
 struct time_command_sync_start_response_t
 {
     // Статус обработки
-    enum
+    enum : uint8_t
     {
         // Синхронизация выполнена
         STATUS_SUCCESS = 0,
@@ -246,7 +236,7 @@ struct time_command_sync_start_response_t
         STATUS_FAILED,
         // Синхронизация в обработке
         STATUS_PENDING,
-    } status : 8;
+    } status;
     
     // Провера полей
     bool check(void) const
@@ -254,7 +244,6 @@ struct time_command_sync_start_response_t
         return status <= STATUS_PENDING;
     }
 };
-ALIGN_FIELD_DEF
 
 // Команда запуска синхронизации даты/времени
 class time_command_sync_start_t : public ipc_command_fixed_t<time_command_sync_start_request_t, time_command_sync_start_response_t>

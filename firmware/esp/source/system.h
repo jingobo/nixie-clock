@@ -11,7 +11,5 @@
 
 // Размер регистра в батйах
 #define SYSTEM_REG_SIZE             4
-// Барьер компилятора
-#define SYSTEM_COMPILER_BARRIER()   asm volatile("" ::: "memory")
 
 #endif // __SYSTEM_H

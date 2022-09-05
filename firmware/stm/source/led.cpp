@@ -71,8 +71,8 @@ protected:
             for (auto i = 0; i < LED_RGB_BIT_DEPTH; i++)
                 for (auto j = 0; j < LED_RGB_COM_COUNT; j++)
                 {
-                    buf[j][i] = (rgb.grba[j] & 0x80) ? LED_LINE_BIT_HIGH : LED_LINE_BIT_LOW;
-                    rgb.grba[j] <<= 1;
+                    buf[j][i] = (rgb.grb[j] & 0x80) ? LED_LINE_BIT_HIGH : LED_LINE_BIT_LOW;
+                    rgb.grb[j] <<= 1;
                 }
             // Копирование в буфер DMA
             memcpy(--dest, buf, sizeof(rgb_t));

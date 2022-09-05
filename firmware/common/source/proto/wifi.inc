@@ -17,14 +17,13 @@ static inline bool wifi_password_check(const wifi_password_t password)
 }
 
 // Структура настроек WIFI
-ALIGN_FIELD_8
 struct wifi_settings_t
 {
 	// Интерфейсы
 	struct intf_t
 	{
 	    // Включена ли точка доступа
-	    ipc_bool_t use : 8;
+	    bool use;
 	    // Канал
 	    uint8_t channel;
 	    // Имя
@@ -50,7 +49,7 @@ struct wifi_settings_t
 	    // Провера полей
 	    bool check(void) const
 	    {
-	        return use <= IPC_BOOL_TRUE &&
+	        return ipc_bool_check(use) &&
 	               channel <= 13 &&
 	               (!use || wifi_ssid_check(ssid)) &&
 	               (!use || wifi_password_check(password));
@@ -60,7 +59,7 @@ struct wifi_settings_t
 	    void clear(void)
 	    {
 	        channel = 0;
-	        use = IPC_BOOL_FALSE;
+	        use = false;
 	        ssid[0] = password[0] = '\0';
 	    }
 	} intf[WIFI_INTF_COUNT];
@@ -82,7 +81,6 @@ struct wifi_settings_t
     		intf[i].clear();
     }
 };
-ALIGN_FIELD_DEF
 
 // Команда чтения настроек
 class wifi_command_settings_get_t : public ipc_command_get_t<wifi_settings_t>
@@ -111,7 +109,6 @@ public:
     { }
 };
 
-ALIGN_FIELD_8
 // Данные запроса на поиск сетей с опросом
 struct wifi_command_search_pool_request_t
 {
@@ -122,13 +119,13 @@ struct wifi_command_search_pool_request_t
 	};
 
     // Команда
-    enum
+    enum : uint8_t
     {
         // Опрос состояния
         COMMAND_POOL = 0,
         // Запуск поиска
         COMMAND_START,
-    } command : 8;
+    } command;
     
     // Индекс сети
     uint8_t index;
@@ -140,14 +137,12 @@ struct wifi_command_search_pool_request_t
         		index <= MAX_INDEX;
     }
 };
-ALIGN_FIELD_DEF
 
-ALIGN_FIELD_8
 // Данные ответа на поиск сетей с опросом
 struct wifi_command_search_pool_response_t
 {
     // Статус
-    enum
+    enum : uint8_t
     {
         // Простой (или конец списка)
         STATUS_IDLE = 0,
@@ -155,7 +150,7 @@ struct wifi_command_search_pool_response_t
         STATUS_RUNNING,
         // Информация о сети
         STATUS_RECORD,
-    } status : 8;
+    } status;
     
     // Информация о сети
     struct
@@ -165,7 +160,7 @@ struct wifi_command_search_pool_response_t
         // Уровень сигнала
         int8_t rssi;
         // Признак приватности
-        ipc_bool_t priv : 8;
+        bool priv;
     } record;
     
     // Провера полей
@@ -179,10 +174,9 @@ struct wifi_command_search_pool_response_t
         
         return wifi_ssid_check(record.ssid) && 
                record.rssi < 0 &&
-               record.priv <= IPC_BOOL_TRUE;
+               ipc_bool_check(record.priv);
     }
 };
-ALIGN_FIELD_DEF
 
 // Команда поиска сетей с опросом состояния
 class wifi_command_search_pool_t : public ipc_command_fixed_t<wifi_command_search_pool_request_t, wifi_command_search_pool_response_t>
@@ -194,7 +188,7 @@ public:
 };
 
 // Перечисление состояния интерфейса
-enum wifi_intf_state_t
+enum wifi_intf_state_t : uint8_t
 {
 	// Простой
 	WIFI_INTF_STATE_IDLE = 0,
@@ -206,7 +200,6 @@ enum wifi_intf_state_t
 	WIFI_INTF_STATE_ERROR
 };
 
-ALIGN_FIELD_8
 // Структура информации о интерфейсах
 struct wifi_info_t
 {
@@ -214,7 +207,7 @@ struct wifi_info_t
     struct intf_t
     {
         // Состояние
-        wifi_intf_state_t state : 8;
+        wifi_intf_state_t state;
         // IP
         wifi_ip_t ip;
         
@@ -233,7 +226,6 @@ struct wifi_info_t
         return true;
     }
 };
-ALIGN_FIELD_DEF
 
 // Команда чтения информации о сети
 class wifi_command_info_get_t : public ipc_command_get_t<wifi_info_t>
@@ -244,14 +236,13 @@ public:
     { }
 };
 
-ALIGN_FIELD_8
 // Данные запроса репортировании о присвоении IP адреса
 struct wifi_ip_report_request_t
 {
     // IP
     wifi_ip_t ip;
 	// Интерфейс
-	wifi_intf_t intf : 8;
+	wifi_intf_t intf;
     
     // Провера полей
     bool check(void) const
@@ -259,7 +250,6 @@ struct wifi_ip_report_request_t
         return intf < WIFI_INTF_COUNT;
     }
 };
-ALIGN_FIELD_DEF
 
 // Команда репортировании о присвоении IP адреса
 class wifi_command_ip_report_t : public ipc_command_set_t<wifi_ip_report_request_t>

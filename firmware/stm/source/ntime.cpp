@@ -9,7 +9,7 @@
 static time_sync_settings_t ntime_sync_settings @ STORAGE_SECTION =
 {
     // Синхронизация включена
-    .sync = IPC_BOOL_TRUE,
+    .sync = true,
     // UTC +03:00
     .timezone = 6,
     // Стандартное время
@@ -59,6 +59,7 @@ public:
             try_count = 0;
             return true;
         }
+        
         request_timer.stop();
         return false;
     }
@@ -77,6 +78,7 @@ protected:
     {
         if (idle)
             return;
+        
         switch (command.request.action)
         {
             // Запуск
@@ -118,6 +120,7 @@ protected:
     {
         if (idle)
             return;
+        
         // При получении ответа - синхронизация
         ntime_command_handler_time_sync.go();
     }
@@ -135,6 +138,7 @@ public:
         // Если список не пуст
         if (time_hosts_empty(ntime_sync_settings.hosts))
             return false;
+        
         // Подготовка списка
         time_hosts_data_copy(command.request.hosts, ntime_sync_settings.hosts);
         // Передача
@@ -198,6 +202,7 @@ void ntime_command_handler_time_sync_t::work(bool idle)
                 // Если список хостов отправить не удалось - на этом всё
                 ntime_command_handler_time_sync_start.report(false);
             break;
+            
         default:
             assert(false);
             break;
@@ -213,12 +218,11 @@ protected:
     {
         if (idle)
             return;
+        
         // Заполняем ответ
         command.response.time.sync = ntime_sync_time;
         rtc_datetime_get(command.response.time.current);
-        command.response.sync_allow = ntime_sync_allow() ? 
-            IPC_BOOL_TRUE : 
-            IPC_BOOL_FALSE;
+        command.response.sync_allow = ntime_sync_allow();
         // Передача ответа
         transmit();
     }
@@ -233,6 +237,7 @@ protected:
     {
         if (idle)
             return;
+        
         // Установка даты/времени
         rtc_datetime_set(command.request);
         // Сброс даты синхронизации
@@ -251,6 +256,7 @@ protected:
     {
         if (idle)
             return;
+        
         // Заполняем ответ
         command.response = ntime_sync_settings;
         // Передача ответа
@@ -267,9 +273,11 @@ protected:
     {
         if (idle)
             return;
+        
         // Установка настроек
         ntime_sync_settings = command.request;
         storage_modified();
+        
         // Передача подтверждения
         transmit();
         // Передача списка хостов

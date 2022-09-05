@@ -64,21 +64,12 @@ enum ipc_opcode_t : uint8_t
 };
 
 // Тип направления
-enum ipc_dir_t
+enum ipc_dir_t // : uint8_t
 {
     // Запрос
     IPC_DIR_REQUEST = 0,
     // Ответ
     IPC_DIR_RESPONSE
-};
-
-// Тип для булевы
-enum ipc_bool_t
-{
-    // Ложь
-    IPC_BOOL_FALSE = 0,
-    // Истина
-    IPC_BOOL_TRUE
 };
 
 // Структура пакета [32 байта]
@@ -99,23 +90,18 @@ struct ipc_packet_t
             ipc_dir_t dir : 1;
             
             // Есть ли еще данные для этой команды
-            ipc_bool_t more : 1;
+            bool more : 1;
             // Длинна текущих данных
             uint8_t length : 5;
             
             // Фаза передачи (для контроля пропущенного пакета)
-            ipc_bool_t phase : 1;
+            bool phase : 1;
         };
         ALIGN_FIELD_DEF
     } dll;
     
     // Прикладной слой
-    union
-    {
-        uint8_t u8[IPC_APL_SIZE / sizeof(uint8_t)];
-        uint16_t u16[IPC_APL_SIZE / sizeof(uint16_t)];
-        uint32_t u32[IPC_APL_SIZE / sizeof(uint32_t)];
-    } apl;
+    uint8_t apl[IPC_APL_SIZE];
     
     // Подсчет контрольной суммы
     uint16_t checksum_get(void) const;
@@ -159,7 +145,7 @@ class ipc_slots_t
         ipc_packet_t packet;
     } slots[IPC_SLOT_COUNT];
     // Фаза передачи
-    ipc_bool_t phase = IPC_BOOL_FALSE;
+    bool phase = false;
 public:
     // Списки свободных и используемых слотов
     list_template_t<ipc_slot_t> unused, used;
@@ -181,10 +167,10 @@ public:
     }
 
     // Смена фазы передачи, возвращает старое значение
-    ipc_bool_t phase_switch(void)
+    bool phase_switch(void)
     {
         auto result = phase;
-        phase = phase ? IPC_BOOL_FALSE : IPC_BOOL_TRUE;
+        phase = !phase;
         return result;
     }
 };
@@ -733,6 +719,25 @@ public:
     // Обработка пакета (склеивание в команду)
     virtual bool packet_process(const ipc_packet_t &packet, const args_t &args) override final;
 };
+
+// Валидация булевы на этапе компиляции
+STATIC_ASSERT(true == 1);
+STATIC_ASSERT(sizeof(bool) == 1);
+
+// Валидация булевы на этапе выполнения
+inline bool ipc_bool_check(bool value)
+{
+    // Промежуточная структура
+    const union
+    {
+        // Как булева
+        bool b;
+        // Как число
+        uint8_t u8;
+    } u = { value };
+    
+    return u.u8 < 2;
+}
 
 // Возвращает количество символов
 int16_t ipc_string_length(const char *s, size_t size);

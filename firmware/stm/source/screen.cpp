@@ -30,13 +30,7 @@ protected:
     // Оповещение о сохранении данных
     virtual void data_store(hmi_rank_t index, const nixie_data_t &data) override final
     {
-        auto & dest = screen_command_handler_state_get.command.response.nixie[index];
-        
-        dest.sat = data.sat;
-        dest.digit = data.digit;
-        dest.dot = data.dot ?
-            IPC_BOOL_TRUE :
-            IPC_BOOL_FALSE;
+        screen_command_handler_state_get.command.response.nixie[index] = data;
     }
 } screen_nixie_source_hook;
 
@@ -47,11 +41,7 @@ protected:
     // Оповещение о сохранении данных
     virtual void data_store(hmi_rank_t index, const hmi_rgb_t &data) override final
     {
-        auto & dest = screen_command_handler_state_get.command.response.led[index];
-        
-        dest.r = data.r;
-        dest.g = data.g;
-        dest.b = data.b;
+        screen_command_handler_state_get.command.response.led[index] = data;
     }
 } screen_led_source_hook;
 
@@ -62,9 +52,7 @@ protected:
     // Оповещение о сохранении данных
     virtual void data_store(hmi_rank_t index, const neon_data_t &data) override final
     {
-        auto & dest = screen_command_handler_state_get.command.response.neon[index];
-        
-        dest.sat = data.sat;
+        screen_command_handler_state_get.command.response.neon[index] = data;
     }
 } screen_neon_source_hook;
 

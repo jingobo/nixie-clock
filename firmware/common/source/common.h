@@ -55,8 +55,6 @@ typedef float32_t float_t;
 // --- Выравнивание полей --- //
 
 #define ALIGN_FIELD_8           PRAGMA(pack(1))
-#define ALIGN_FIELD_16          PRAGMA(pack(2))
-#define ALIGN_FIELD_32          PRAGMA(pack(4))
 #define ALIGN_FIELD_DEF         PRAGMA(pack())
 
 // --- Работа с памятью --- //
