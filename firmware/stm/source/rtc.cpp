@@ -36,6 +36,15 @@ static void rtc_wait_operation_off(void)
         rtc_halt();
 }
 
+// Начальная нормализация значения частоты для регистра RTC_PRL
+#define RTC_PRL(f)      ((f) - 1)
+// Конечное усечение значения для части регистра RTC_PRL
+#define RTC_PRLS(v)     ((uint16_t)(v))
+// Расчет значения регистра RTC_PRLL от заданной частоты
+#define RTC_PRLL(f)     RTC_PRLS((RTC_PRL(f) & 0xFFFF))
+// Расчет значения регистра RTC_PRLР от заданной частоты
+#define RTC_PRLH(f)     RTC_PRLS((RTC_PRL(f) >> 16))
+
 void rtc_init(void)
 {
     RCC->APB1ENR |= RCC_APB1ENR_PWREN | RCC_APB1ENR_BKPEN;                      // Power, backup interface clock enable
@@ -55,8 +64,10 @@ void rtc_init(void)
             // Конфигурирование RTC
             rtc_wait_operation_off();
                 RTC->CRL |= RTC_CRL_CNF;                                        // Enter cfg mode
-                    RTC->PRLL = 0x7FFF;                                         // /32768
-                    RTC->PRLH = 0;
+                    // Реальная частота LSE
+                    const auto FLSE = 32773;
+                    RTC->PRLL = RTC_PRLL(FLSE);                                 // Prescaler (low)
+                    RTC->PRLH = RTC_PRLH(FLSE);                                 // Prescaler (high)
                     RTC->CNTL = 0;                                              // Clear counter
                     RTC->CNTH = 0;
                     RTC->CRH = RTC_CRH_SECIE;                                   // Second IRQ enable
