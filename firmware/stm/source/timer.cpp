@@ -30,7 +30,6 @@ static timer_period_t timer_ccr = 0;
 event_callback_t timer_base_t::call_event(call_event_cb);
 
 // Установка нового значения для регистра захвата/сравнения
-OPTIMIZE_SPEED
 static void timer_ccr_inc(timer_period_t delta)
 {
     delta += (timer_period_t)TIM3->CNT;
@@ -108,7 +107,6 @@ void timer_base_t::raise(void)
     timer_ccr_inc(TIMER_PERIOD_MIN);
 }
 
-OPTIMIZE_SPEED
 void timer_base_t::call_event_cb(void)
 {
     // Отключаем все прерывания

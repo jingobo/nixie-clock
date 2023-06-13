@@ -22,22 +22,6 @@ const hmi_sat_table_t HMI_GAMMA_TABLE =
     223,225,227,229,231,233,235,238,240,242,244,246,248,251,253,255
 };
 
-// Цвета HSV
-const hmi_hsv_t 
-    HMI_COLOR_HSV_BLACK,
-    HMI_COLOR_HSV_RED(HMI_SAT_MIN),
-    HMI_COLOR_HSV_GREEN(85),
-    HMI_COLOR_HSV_BLUE(170),
-    HMI_COLOR_HSV_WHITE(HMI_SAT_MIN, HMI_SAT_MIN, HMI_SAT_MAX);
-
-// Цвета RGB
-const hmi_rgb_t 
-    HMI_COLOR_RGB_BLACK,
-    HMI_COLOR_RGB_RED(HMI_SAT_MAX, HMI_SAT_MIN, HMI_SAT_MIN),
-    HMI_COLOR_RGB_GREEN(HMI_SAT_MIN, HMI_SAT_MAX, HMI_SAT_MIN),
-    HMI_COLOR_RGB_BLUE(HMI_SAT_MIN, HMI_SAT_MIN, HMI_SAT_MAX),
-    HMI_COLOR_RGB_WHITE(HMI_SAT_MAX, HMI_SAT_MAX, HMI_SAT_MAX);
-
 hmi_rgb_t hmi_hsv_t::to_rgb(void) const
 {
     auto h = (float_t)this->h / HMI_SAT_MAX;
@@ -61,8 +45,10 @@ hmi_rgb_t hmi_hsv_t::to_rgb(void) const
         case 5: r = v, g = p, b = q; break;
     }
 
-    return hmi_rgb_t(
+    const hmi_rgb_t result = HMI_RGB_INIT(
         (hmi_sat_t)(r * HMI_SAT_MAX),
         (hmi_sat_t)(g * HMI_SAT_MAX),
         (hmi_sat_t)(b * HMI_SAT_MAX));
+    
+    return result;
 }

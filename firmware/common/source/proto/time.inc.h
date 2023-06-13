@@ -44,7 +44,7 @@ typedef char time_hosts_data_t[TIME_HOSTANME_CHARS_MAX * 4];
  * Строка должна состоять из символов ['a'..'z', 'A'..'Z', '0'..'9', '.', '-'],
  * содержать минимум 3 симвыоли и не более 64. Строки разделены символом '\n',
  * заканчиваться на символ '\0'. */
-static inline bool time_hosts_data_check(const time_hosts_data_t hosts)
+static bool time_hosts_data_check(const time_hosts_data_t hosts)
 {
     // Проверка аргументов
     assert(hosts != NULL);
@@ -82,7 +82,7 @@ static inline bool time_hosts_data_check(const time_hosts_data_t hosts)
 }
 
 // Копирование списка хостов
-static inline void time_hosts_data_copy(time_hosts_data_t dest, const time_hosts_data_t source)
+static void time_hosts_data_copy(time_hosts_data_t dest, const time_hosts_data_t source)
 {
     // Проверка аргументов
     assert(dest != NULL && source != NULL);
@@ -91,7 +91,7 @@ static inline void time_hosts_data_copy(time_hosts_data_t dest, const time_hosts
 }
 
 // Проверяет, пуст ли список хостов
-static inline bool time_hosts_empty(const time_hosts_data_t source)
+static bool time_hosts_empty(const time_hosts_data_t source)
 {
     return source[0] == '\0';
 }

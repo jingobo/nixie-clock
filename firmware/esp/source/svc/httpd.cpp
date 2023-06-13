@@ -197,11 +197,13 @@ static class httpd_server_task_t : public os_task_base_t
     {
         // Привязка к адресу
         sockaddr_in sa;
-        MEMORY_CLEAR(sa);
+        memory_clear(&sa, sizeof(sa));
+
         // Инициализация адреса
         sa.sin_family = AF_INET;
         sa.sin_port = htons(80);
         sa.sin_addr.s_addr = htonl(INADDR_ANY);
+
         // Привязка
         if (lwip_bind(server_fd, (sockaddr *)&sa, sizeof(sa)) < 0)
         {
@@ -212,13 +214,15 @@ static class httpd_server_task_t : public os_task_base_t
             // Если уже занят адрес - не решаемая на данный момент проблема
             esp_restart();
         }
+
         // Старт прослушки порта
-        if (lwip_listen(server_fd, MIN(HTTPD_MAX_HTTP_SOCKETS, 2)) < 0)
+        if (lwip_listen(server_fd, minimum(HTTPD_MAX_HTTP_SOCKETS, 2)) < 0)
         {
             LOGE("Listen failed: %d", errno);
             return;
         }
         LOGI("Started...");
+
         // Получение клиентов
         for (;;)
         {
@@ -233,12 +237,14 @@ static class httpd_server_task_t : public os_task_base_t
                 dealy();
                 continue;
             }
+
             // Установка не блокирующего режима
             if (!lwip_socket_nbio(client_fd))
             {
                 lwip_close(client_fd);
                 return;
             }
+
             // Добавление нового сокета
             httpd_client_task.new_client(client_fd);
         }

@@ -5,9 +5,9 @@
 #include "system.h"
 
 // Смещение насыщенности для сброс PWM после UEV
-#define NEON_SAT_DX                     1
+constexpr const hmi_sat_t NEON_SAT_DX = 1;
 // Частота мультиплексирования неонок [Гц]
-#define NEON_MUX_HZ                     (HMI_FRAME_RATE * NEON_COUNT)
+constexpr const uint32_t NEON_MUX_HZ = HMI_FRAME_RATE * NEON_COUNT;
 
 // Сброс адресной линии анодов
 static void neon_sel_reset(void)
@@ -33,6 +33,7 @@ static class neon_display_t : public neon_model_t::display_t
         // Для определения обновления
         bool unchanged = false;
     } out[NEON_COUNT];
+    
     // Индекс выводимой дампы (мультиплексирование)
     uint8_t nmi = 0;
 protected:
@@ -44,7 +45,6 @@ protected:
     }
     
     // Обновление состояния неонок
-    OPTIMIZE_SPEED
     virtual void refresh(void) override final
     {
         // Базовый метод
@@ -58,12 +58,16 @@ protected:
             out[i].unchanged = true;
             
             // Пересчет ширины импульса из насыщенности
-            irq[i].pw = HMI_SAT_MAX - HMI_GAMMA_TABLE[get(i).sat];
+            const auto pw = HMI_SAT_MAX - HMI_GAMMA_TABLE[in_get(i).sat];
+            
+            // Перенос данных с запретом прерываний
+            IRQ_SAFE_ENTER();
+                irq[i].pw = pw;
+            IRQ_SAFE_LEAVE();
         }
     }
 public:
     // Мультиплексирование
-    OPTIMIZE_SPEED
     void mux(void)
     {
         // Установка анодного напряжения

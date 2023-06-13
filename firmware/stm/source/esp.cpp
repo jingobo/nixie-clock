@@ -50,7 +50,7 @@ static class esp_link_t : public ipc_link_t
         // Два кэшированных пакета
         ipc_packet_t packet[2];
         // Индекс передаваемого пакета
-        uint8_t index = ARRAY_SIZE(packet);
+        uint8_t index = array_length(packet);
     } retry;
     
     // Счетчик ошибок фаз
@@ -97,7 +97,7 @@ protected:
     // Сброс прикладного уровня
     virtual void reset_layer(reset_reason_t reason, bool internal) override final
     {
-        retry.index = ARRAY_SIZE(retry.packet);
+        retry.index = array_length(retry.packet);
         // Базовый метод
         ipc_link_t::reset_layer(reason, internal);
         // Обработка счетчика ошибок передачи
@@ -109,7 +109,7 @@ public:
     // Получение пакета к выводу
     virtual void packet_output(ipc_packet_t &packet) override final
     {
-        if (retry.index < ARRAY_SIZE(retry.packet))
+        if (retry.index < array_length(retry.packet))
         {
             // Переотправляем
             packet = retry.packet[retry.index++];

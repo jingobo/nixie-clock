@@ -204,25 +204,12 @@ app.dom = new function ()
         {
             template:
             {
-                neon: "#disp-template-neon",
-                color: "#disp-template-color",
+                opts: "#disp-opts-template",
             },
             
             time:
             {
-                nixie:
-                {
-                    container: "#disp-time-nixie .card-body",
-                    effect: "#disp-time-nixie-effect",
-                    mode: "#disp-time-nixie-mode",
-                    speed: "#disp-time-nixie-speed",
-                },
-                
-                neon:
-                {
-                    container: "#disp-time-neon .card-body",
-                    freq: "#disp-time-neon-freq",
-                },
+                holder: "#tab-disp > div:eq(0)",
             },
         },
     };
@@ -391,6 +378,12 @@ app.display = new function ()
                 tube.satSmooth.start(data.uint8());
                 tube.dot = data.bool();
             });
+        
+        // Данные неонок
+        neons.forEach(neon => 
+            neon.satSmooth.start(data.uint8() > 127 ? 
+                255 : 
+                0));
 
         // Данные подсветки
         nixies.forEach(tube =>
@@ -405,10 +398,7 @@ app.display = new function ()
                 
                 tube.led.aSmooth.start(Math.max(r, g, b) * 0.65);
             });
-        
-        // Данные неонок
-        neons.forEach(neon => neon.satSmooth.start(data.uint8() > 0 ? 255 : 0));
-        
+                
         // Перезапрос
         requestTimeout = setTimeout(request, 100);
     };
@@ -1421,90 +1411,100 @@ app.page =
         // Счетчик загруженных пакетов
         const loadCounter = new LoadCounter(8);
         
-        // Класс панели цветов
-        function ColorSelector()
+        // Класс основных настроек дисплея
+        function DisplaySettings()
         {
             // Инициализация DOM
-            this.dom = app.page.display.colorTemplate();
+            this.dom = app.page.display.optsTemplate();
             
             // Обработчик события изменения
-            this.onchange;
-            
-            // Чекбокс одного цвета
-            const oneColor = this.dom.find("input");
+            this.onchange = () => { };
             
             // Обработчик вызова события изменения
             const fire = () => this.onchange();
 
+            // Инициализация слейдеров времени
+            this.dom.find(".duration-slider").setupDurationSlider();
+            
+            // Режим эффекта цифр
+            const digitEffect = this.dom.find(".disp-class-digit-effect");
+            digitEffect.change(fire);
+            
             // Начальный цвет
-            const initialColor = new Colors({ color: "#FFFFFF"});
-            // Инициализация разрядов
-            const ranks = this.dom
+            const ledInitialColor = new Colors({ color: "#FFFFFF"});
+            // Инициализация разрядов цветов подсветки
+            const ledRanks = this.dom
                 .find(".color-picker")
                 .toArray()
                 .map(element =>
-                {
-                    // Биндинг пипетки
-                    const picker = $(element).colorPicker(
-                        {
-                            GPU: true,
-                            opacity: false,
-                            animationSpeed: 150,
-                            renderCallback()
+                    {
+                        // Биндинг пипетки
+                        const picker = $(element).colorPicker(
                             {
-                                // Установка цвета всем разрядам если выбран режим
-                                if (oneColor.checked())
-                                    ranks.forEach(r => r.color = this.color);
-                                
-                                // Генерация события
-                                fire();
-                            }
-                        });
-                    
-                    // Подготовка объекта разряда
-                    const result = { };
-                    
-                    // Свойство цвета
-                    Object.defineProperty(result, "color", 
-                        {
-                            get: () => new Colors({ color: picker.css("background-color") }),
-                            set: value => picker.css({"background-color": element.value = value.toString("rgb", false) }),
-                            configurable: false
-                        });
+                                GPU: true,
+                                opacity: false,
+                                animationSpeed: 150,
+                                renderCallback()
+                                {
+                                    // Установка цвета всем разрядам если выбран режим
+                                    if (ledOneColor.checked())
+                                        ledRanks.forEach(r => r.color = this.color);
+                                    
+                                    // Генерация события
+                                    fire();
+                                }
+                            });
                         
-                    result.color = initialColor;
-                    
-                    // Свойство видимости
-                    Object.defineProperty(result, "visible", 
-                        {
-                            get: () => picker.visible(),
-                            set: value => picker.visible(value),
-                            configurable: false
-                        });
-                    
-                    return result;
-                });
+                        // Подготовка объекта разряда
+                        const result = { };
+                        
+                        // Свойство цвета
+                        Object.defineProperty(result, "color", 
+                            {
+                                get: () => new Colors({ color: picker.css("background-color") }),
+                                set: value => picker.css({"background-color": element.value = value.toString("rgb", false) }),
+                                configurable: false
+                            });
+                            
+                        result.color = ledInitialColor;
+                        
+                        // Свойство видимости
+                        Object.defineProperty(result, "visible", 
+                            {
+                                get: () => picker.visible(),
+                                set: value => picker.visible(value),
+                                configurable: false
+                            });
+                        
+                        return result;
+                    });
                 
+            // Надпись разрядов подсветки
+            const ledPickerLabel = this.dom.find(".color-picker-label");
+            
+            // Оверлей разрядов подсветки
+            const ledPickerOverlay = this.dom.find(".color-picker-overlay");            
+            
             // Кнопка случайных цветов
-            const randomColors = this.dom.find("button");
-            randomColors.click(() =>
+            const ledRandomColors = this.dom.find(".disp-class-led-rnd-color");
+            ledRandomColors.click(() =>
                 {
                     // Для сокращения
                     const r = Math.random;
                     // Буфер цвета
                     const colorBuffer = new Colors();
                     // Рандом [75...100]
-                    const r75 = () => 75 + r() * 35;
+                    const rr = () => 75 + r() * 15;
                     
                     // Обработчик совсем случайных цветов
                     function rand()
                     {
-                        ranks.forEach(rank => 
-                                {
-                                    // Установка цвета
-                                    colorBuffer.setColor({ h: r() * 360, s: r75(), v: r75() }, "hsv");
-                                    rank.color = colorBuffer;
-                                });
+                        ledRanks.forEach(rank => 
+                            {
+                                // Установка цвета
+                                colorBuffer.setColor({ h: r() * 360, s: rr(), v: 100 }, "hsv");
+                                rank.color = colorBuffer;
+                            });
                     }
                     
                     // Обработчик комплиментарных случайных цветов
@@ -1512,17 +1512,17 @@ app.page =
                     {
                         // Начальные составляющие
                         let h = r() * 60;
-                        const s = r75();
-                        const v = r75();
+                        const s = rr();
+                        const v = 100;
                         
                         // Перемешка индексов разрядов
-                        range(ranks.length)
+                        range(ledRanks.length)
                             .shuffle()
                             .forEach(i =>
                                 {
                                     // Установка цвета
                                     colorBuffer.setColor({ h: h, s: s, v: v }, "hsv");
-                                    ranks[i].color = colorBuffer;
+                                    ledRanks[i].color = colorBuffer;
                                     
                                     // Следующий комплиментарный цвет
                                     h += 60;
@@ -1538,116 +1538,235 @@ app.page =
                     // Генерация события
                     fire();
                 });
+                
+            // Обновление включенности кнопки рандомизации цвета
+            const updateLedRandomColorsEnabled = () =>
+                ledRandomColors.disabled(ledOneColor.checked() || ledModeUsingRandom());
             
-            // Обработчик изменения режим одного цвета
-            oneColor.change(() =>
+            // Чекбокс одного цвета
+            const ledOneColor = this.dom.find(".disp-class-led-one-color");
+            const ledOneColorChanged = () =>
+            {
+                // Новое состояние
+                const state = ledOneColor.checked();
+                // Применение режима
+                const visible = !state;
+                ledEffect.disabled(state);
+                if (state)
+                    ledEffect.val(0).change();
+                updateLedRandomColorsEnabled();
+                
+                // Расчет среднего цвета
+                const avgColor = ledRanks[(Math.random() * 5).toFixed()].color;
+                
+                // Обход разрядов
+                for (let i = 0; i < ledRanks.length; i++)
                 {
-                    // Новое состояние
-                    const state = oneColor.checked();
-                    // Применение режима
-                    const visible = !state;
-                    randomColors.visible(visible);
+                    const rank = ledRanks[i];
                     
-                    // Расчет среднего цвета
-                    const avgColor = new Colors();
+                    // Применение среднего цвета
                     if (state)
-                    {
-                        const rgb = ranks.reduce((prev, cur) =>
-                            {
-                                cur = cur.color.colors.RND.rgb;
-                                prev.r += cur.r;
-                                prev.g += cur.g;
-                                prev.b += cur.b;
-                                return prev;
-                            }, { r: 0, g: 0, b: 0 });
-                        
-                        rgb.r /= ranks.length;
-                        rgb.g /= ranks.length;
-                        rgb.b /= ranks.length;
-                        
-                        avgColor.setColor(rgb, "rgb");
-                    }
-                    
-                    // Обход разрядов
-                    for (let i = 0; i < ranks.length; i++)
-                    {
-                        const rank = ranks[i];
-                        
-                        // Применение среднего цвета
-                        if (state)
-                            rank.color = avgColor;
+                        rank.color = avgColor;
 
-                        // Применение видимости не первого разряда
-                        if (i > 0)
-                            rank.visible = visible;
-                    }
-                    
-                    // Генерация события
+                    // Применение видимости не первого разряда
+                    if (i > 0)
+                        rank.visible = visible;
+                }
+            };
+            ledOneColor.change(ledOneColorChanged);
+
+            // Надпись режима подсветки
+            const ledModeLabel = this.dom.find(".disp-class-led-mode-label");
+                
+            // Режим подсветки
+            const ledMode = this.dom.find(".disp-class-led-mode");
+            const ledModeChanged = () =>
+            {
+                // Выбор цветов разрешен если выбраны указанные цвета
+                const state = ledModeUsingRandom();
+                // Установка состояния
+                ledOneColor.disabled(state);
+                updateLedRandomColorsEnabled();
+                ledPickerLabel.setClass("disabled-label", state);
+                ledPickerOverlay.visible(state);
+            };
+            ledMode.change(() =>
+                {
+                    ledModeChanged();
+                    fire();
+                });
+            
+            // Получает признак режима совсем случайных цветов
+            const ledModeUsingRandom = () => ledMode.val() > 1;
+
+            // Надпись плавности подсветки
+            const ledSmoothLabel = this.dom.find(".disp-class-led-smooth-label");
+                
+            // Плавность подсветки
+            const ledSmooth = this.dom.find(".disp-class-led-smooth");
+            ledSmooth.on("input", fire);
+                
+            // Эффект подсветки
+            const ledEffect = this.dom.find(".disp-class-led-effect");
+            const ledEffectChanged = () =>
+            {
+                // Плавность и режим можно выбирать если эффект выбран
+                const state = ledEffect.val() == 0;
+                ledMode.disabled(state);
+                ledModeLabel.setClass("disabled-label", state);
+                ledSmooth.disabled(state);
+                ledSmoothLabel.setClass("disabled-label", state);
+                // Если эффект отсутствует, то только выбранные цвета
+                if (state && ledModeUsingRandom())
+                    ledMode.val(0).change();
+            };
+            ledEffect.change(() =>
+                {
+                    ledEffectChanged();
                     fire();
                 });
 
-            // Чтение данных из пакета
-            this.read = data =>
-            {
-                // Чтение RGB данных
-                const colorBuffer = new Colors();
-                ranks.forEach(rank =>
-                    {
-                        const g = data.uint8();
-                        const r = data.uint8();
-                        const b = data.uint8();
-                        colorBuffer.setColor({r: r, g: g, b: b}, "rgb");
-                        rank.color = colorBuffer;
-                    });
                 
-                // Определение и применение режима одного цвета
-                oneColor.checked(ranks.findIndex(r => r.color.colors.HEX != colorBuffer.colors.HEX) < 0);
+            // Инициализация состояний неонок
+            const neonStates = this.dom
+                .find(".disp-class-neon-state")
+                .toArray()
+                .map(e => $(e));
+                
+            // Подписка на изменение
+            neonStates.forEach(e => e.change(fire));
+            
+            // Плавность неонок
+            const neonSmooth = this.dom.find(".disp-class-neon-smooth");
+            neonSmooth.on("input", fire);
+                
+            // Период неонок
+            const neonPeriod = this.dom.find(".disp-class-neon-period");
+            neonPeriod.on("input", fire);
+            
+            // Инверсия состояния
+            const neonInversion = this.dom.find(".disp-class-neon-inversion");
+            neonInversion.change(fire);
+            
+            // Маски по разрядам неонок
+            const neonMasks = [0x01, 0x04, 0x02, 0x08];
+               
+            // Обработчик оповещения изменения всех полей
+            const fieldsChanged = () =>
+            {
+                ledOneColorChanged();
+                ledModeChanged();
+                ledEffectChanged();
             };
-                            
-            // Запись данных в пакет
-            this.write = data => 
-                ranks.forEach(rank =>
-                    {
-                        var rgb = rank.color.colors.RND.rgb;
-                        data.uint8(rgb.g);
-                        data.uint8(rgb.r);
-                        data.uint8(rgb.b);
-                    });
-        };
 
-        // Класс настроек неонок
-        function NeonSettings()
-        {
-            // Инициализация DOM
-            this.dom = app.page.display.neonTemplate();
-            
-            // Обработчик события изменения
-            this.onchange;
-            
-            // Обработчик события изменения
-            const fire = () => this.onchange();
-            
-            // Биндинг чекбоксов
-            const swoothCheck = this.dom.find("input");
-            swoothCheck.change(fire);
-            
-            // Биндинг комбобокса
-            const modeCombo = this.dom.find("select");
-            modeCombo.change(fire);
-            
+            fieldsChanged();
+                
             // Чтение данных из пакета
             this.read = data =>
             {
-                swoothCheck.checked(data.bool());
-                modeCombo.val(data.uint8());
+                // Подсветка
+                {
+                    // Эффект
+                    ledEffect.val(data.uint8());
+                    
+                    // Плавность и режим
+                    {
+                        const temp = data.uint8();
+                        ledSmooth.valds(temp & 0x3F); // Младшие 6 бит
+                        ledMode.val(temp >> 6); // Старшие 2 бит
+                    }
+                    
+                    // Цвета по разрядам
+                    const colorBuffer = new Colors();
+                    ledRanks.forEach(rank =>
+                        {
+                            const g = data.uint8();
+                            const r = data.uint8();
+                            const b = data.uint8();
+                            colorBuffer.setColor({r: r, g: g, b: b}, "rgb");
+                            rank.color = colorBuffer;
+                        });
+                    
+                    // Определение и применение режима одного цвета
+                    ledOneColor.checked(ledRanks.findIndex(r => r.color.colors.HEX != colorBuffer.colors.HEX) < 0);
+                }
+                
+                // Неонки
+                {
+                    // Состояния
+                    {
+                        const mask = data.uint8();
+                        for (let i = 0; i < neonStates.length; i++)
+                            neonStates[i].checked((mask & neonMasks[i]) != 0);
+                    }
+                    
+                    // Период
+                    neonPeriod.valds(data.uint8());
+                    // Плавность
+                    neonSmooth.valds(data.uint8());
+                    // Инверсия
+                    neonInversion.checked(data.bool());
+                }
+
+                // Цифры
+                {
+                    // Эффект
+                    digitEffect.val(data.uint8());
+                }
+                
+                fieldsChanged();
             };
                             
             // Запись данных в пакет
-            this.write = data => 
+            this.write = data =>
             {
-                data.bool(swoothCheck.checked());
-                data.uint8(modeCombo.val());
-            };
+                // Подсветка
+                {
+                    // Эффект
+                    data.uint8(ledEffect.val());
+                    
+                    // Плавность и режим
+                    {
+                        let temp = ledSmooth.val(); // Младшие 6 бит
+                        temp |= ledMode.val() << 6; // Старшие 2 бит
+                        data.uint8(temp);
+                    }
+                    
+                    // Цвета по разрядам
+                    ledRanks.forEach(rank =>
+                        {
+                            var rgb = rank.color.colors.RND.rgb;
+                            data.uint8(rgb.g);
+                            data.uint8(rgb.r);
+                            data.uint8(rgb.b);
+                        });
+                }
+                
+                // Неонки
+                {
+                    // Состояния
+                    {
+                        let mask = 0;
+                        for (let i = 0; i < neonStates.length; i++)
+                            if (neonStates[i].checked())
+                                mask |= neonMasks[i];
+                        data.uint8(mask);
+                    }
+                    
+                    // Период
+                    data.uint8(neonPeriod.val());
+                    // Плавность
+                    data.uint8(neonSmooth.val());
+                    // Инверсия
+                    data.bool(neonInversion.checked());
+                }
+
+                // Цифры
+                {
+                    // Эффект
+                    data.uint8(digitEffect.val());
+                }
+            }
         }
         
         // Класс отправителя пакета при изменениях
@@ -1656,32 +1775,34 @@ app.page =
             // Обработчик передачи
             let transmitTimeout;
             let transmitLock = false;
-            this.transmit = () =>
+            let transmitCount = 0;
+            
+            this.transmit = async () =>
             {
                 // Если передача заблокирована
                 if (transmitLock)
                     return;
                 
-                log.info("fired");
-                
-                // Перезапуск таймаута
                 clearTimeout(transmitTimeout);
-                transmitTimeout = setTimeout(async () =>
-                {
+                if (++transmitCount > 1)
                     return;
-                    // Заполнение пакета
-                    const packet = new Packet(transmit.code, transmit.name);
-                    transmit.processing(packet.data);
-                    
-                    // Запрос
-                    await app.session.transmit(packet);
-                }, 100);
+                
+                // Заполнение пакета
+                const packet = new Packet(transmit.code, transmit.name);
+                transmit.processing(packet.data);
+                
+                // Запрос
+                await app.session.transmit(packet);
+
+                // Перезапуск таймаута
+                if (transmitCount > 1)
+                    transmitTimeout = setTimeout(this.transmit);
+                transmitCount = 0;
             };
             
             // Обработчик приёма
             this.receive = async () =>
             {
-                return;
                 // Запрос
                 const data = await app.session.transmit(new Packet(receive.code, receive.name), loadCounter);
                 if (data == null)
@@ -1706,75 +1827,46 @@ app.page =
             // Инициализация сцены
             this.init = () =>
             {
-                // Цвета ламп
-                const nixieColors = new ColorSelector();
-                app.dom.disp.time.nixie.container.prepend(nixieColors.dom);
-                
-                // Настройки неонок
-                const neonSettings = new NeonSettings();
-                app.dom.disp.time.neon.container.prepend(neonSettings.dom);
+                // Настройки дисплея
+                const dispSettings = new DisplaySettings();
+                app.dom.disp.time.holder.after(dispSettings.dom);
                 
                 // Пакетная передача
                 const packeting = new Packeting(
                     // Приём
                     {
-                        code: 0x30,
+                        code: 0x0B,
                         name: "запрос настроек сцены времени",
-                        processing(data)
-                        {
-                            // Лампы
-                            nixieColors.read(data);
-                            app.dom.disp.time.nixie.mode.val(data.uint8());
-                            app.dom.disp.time.nixie.effect.val(data.uint8());
-                            app.dom.disp.time.nixie.speed.val(data.uint8());
-                            
-                            // Неонки
-                            neonSettings.read(data);
-                            app.dom.disp.time.neon.freq.val(data.uint8());
-                        }
+                        processing: data => dispSettings.read(data),
                     },
                     // Передача
                     {
-                        code: 0x30,
+                        code: 0x0C,
                         name: "применение настроек сцены времени",
-                        processing(data)
-                        {
-                            // Лампы
-                            nixieColors.write(data);
-                            data.uint8(app.dom.disp.time.nixie.mode.val());
-                            data.uint8(app.dom.disp.time.nixie.effect.val());
-                            data.uint8(app.dom.disp.time.nixie.speed.val());
-                            
-                            // Неонки
-                            neonSettings.write(data);
-                            data.uint8(app.dom.disp.time.neon.freq.val());
-                        }
+                        processing: data => dispSettings.write(data),
                     });
                     
                 // Загрузка сцены
                 this.load = () => packeting.receive();
                 
                 // Подписка на события
-                nixieColors.onchange = packeting.transmit;
-                neonSettings.onchange = packeting.transmit;
-                app.dom.disp.time.neon.freq.change(packeting.transmit);
-                app.dom.disp.time.nixie.speed.on("input", packeting.transmit);
-                app.dom.disp.time.nixie.effect.change(packeting.transmit);
-                app.dom.disp.time.nixie.mode.change(() =>
-                    {
-                        nixieColors.dom.find("*").disabled(app.dom.disp.time.nixie.mode.val() != 0);
-                        packeting.transmit();
-                    });
+                dispSettings.onchange = packeting.transmit;
             };
         };
         
         // Инициализация страницы
         this.init = () =>
         {
-            // Шаблон панели цветов
-            this.colorTemplate = app.dom.disp.template.color.makeTemplate("disp-lamp-one-color");
-             // Шаблон настроек неонок
-            this.neonTemplate = app.dom.disp.template.neon.makeTemplate("disp-neon-smooth", "disp-neon-mode");
+             // Шаблон настроек дисплея
+            this.optsTemplate = app.dom.disp.template.opts.makeTemplate(
+                "disp-opts-parent", "disp-opts-lamps",
+                "disp-opts-neons", "disp-opts-digit-effect",
+                "disp-opts-led-one-color", "disp-opts-led-mode",
+                "disp-opts-led-effect", "disp-opts-led-speed",
+                "disp-opts-neon-state-lt", "disp-opts-neon-state-rt",
+                "disp-opts-neon-state-lb", "disp-opts-neon-state-rb",
+                "disp-opts-neon-smooth", "disp-opts-neon-period", 
+                "disp-opts-neon-inversion");
             
             // Инициализация сцен
             timeScene.init();

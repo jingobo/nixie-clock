@@ -6,8 +6,7 @@
 #include <core.h>
 #include "wifi.h"
 #include "ntime.h"
-
-#include <proto/time.inc>
+#include <proto/time.inc.h>
 
 // Имя модуля для логирования
 LOG_TAG_DECL("NTIME");

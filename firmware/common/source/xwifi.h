@@ -12,7 +12,7 @@ union wifi_ip_t
     // Конструктор по умолчанию
     wifi_ip_t(void)
     {
-        MEMORY_CLEAR_ARR(o);
+        memory_clear(o, sizeof(o));
     }
     
     // Оператор равенства
@@ -52,6 +52,6 @@ enum wifi_intf_t : uint8_t
 };
 
 // Количество интерфейсов
-static constexpr const uint8_t WIFI_INTF_COUNT = WIFI_INTF_SOFTAP + 1;
+constexpr const uint8_t WIFI_INTF_COUNT = WIFI_INTF_SOFTAP + 1;
 
 #endif // __WIFI_TYPES_H

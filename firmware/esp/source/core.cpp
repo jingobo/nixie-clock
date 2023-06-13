@@ -132,9 +132,10 @@ RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet
 
         case IPC_DIR_RESPONSE:
             // Определяем кому разослать
-            for (auto dest = CORE_LINK_SIDE_ESP; dest < CORE_LINK_SIDE_COUNT; dest = ENUM_VALUE_NEXT(dest))
+            for (auto i = 0; i < CORE_LINK_SIDE_COUNT; i++)
             {
                 // Пропускаем того кто отвечает
+            	const auto dest = (core_link_side_t)i;
                 if (dest == side)
                     continue;
 
@@ -179,7 +180,7 @@ extern "C" void app_main(void)
     // Вывод информации о памяти
     LOGH();
     // Отчистка карты маршрутизации
-    MEMORY_CLEAR_ARR(core_route_map);
+    memory_clear(core_route_map, sizeof(core_route_map));
 
     // Инициализация модулей
     io_init();

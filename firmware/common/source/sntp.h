@@ -106,9 +106,9 @@ struct sntp_packet_t
     } time;
 
     // Конструктор по умолчанию
-    sntp_packet_t()
+    sntp_packet_t(void)
     {
-        MEMORY_CLEAR_PTR(this);
+		memory_clear(this, sizeof(sntp_packet_t));
         mode = SNTP_MODE_CLIENT;
         version = 3;
     }

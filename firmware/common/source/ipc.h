@@ -5,14 +5,14 @@
 #include "list.h"
 
 // Размер полей канального слоя
-#define IPC_DLL_SIZE            4
+constexpr const size_t IPC_DLL_SIZE = 4;
 // Максимальный размер прикладного слоя
-#define IPC_APL_SIZE            28
+constexpr const size_t IPC_APL_SIZE = 28;
 // Общий размер пакета
-#define IPC_PKT_SIZE            (IPC_DLL_SIZE + IPC_APL_SIZE)
+constexpr const size_t IPC_PKT_SIZE = IPC_DLL_SIZE + IPC_APL_SIZE;
 
 // Количество слотов пакетов в одну сторону
-#define IPC_SLOT_COUNT          10
+constexpr const auto IPC_SLOT_COUNT = 10;
 
 // TODO: конечная корректировка лимитов
 // Поддерживаемые коды команды
@@ -44,6 +44,11 @@ enum ipc_opcode_t : uint8_t
         
         // Получает состояние экрана
         IPC_OPCODE_STM_SCREEN_STATE_GET,
+        
+        // Запрос настроек сцены времени
+        IPC_OPCODE_STM_DISPLAY_TIME_GET,
+        // Установка настроек сцены времени
+        IPC_OPCODE_STM_DISPLAY_TIME_SET,
 
     // Не команда, база для команд, обрабатываемых модулем ESP8266
     IPC_OPCODE_ESP_HANDLE_BASE = 25,
@@ -64,7 +69,7 @@ enum ipc_opcode_t : uint8_t
 };
 
 // Тип направления
-enum ipc_dir_t // : uint8_t
+enum ipc_dir_t : bool
 {
     // Запрос
     IPC_DIR_REQUEST = 0,
@@ -81,23 +86,21 @@ struct ipc_packet_t
         // Контрольная сумма
         uint16_t checksum;
         // Параметры передачи
-        ALIGN_FIELD_8
+        //ALIGN_FIELD_8
         struct
         {
             // Код команды
             ipc_opcode_t opcode;
-            // Указывает направление (запрос/ответ)
-            ipc_dir_t dir : 1;
-            
-            // Есть ли еще данные для этой команды
-            bool more : 1;
             // Длинна текущих данных
             uint8_t length : 5;
-            
+            // Указывает направление (запрос/ответ)
+            ipc_dir_t dir : 1;
             // Фаза передачи (для контроля пропущенного пакета)
             bool phase : 1;
+            // Есть ли еще данные для этой команды
+            bool more : 1;
         };
-        ALIGN_FIELD_DEF
+        //ALIGN_FIELD_DEF
     } dll;
     
     // Прикладной слой

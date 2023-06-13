@@ -49,15 +49,34 @@ __noreturn void mcu_halt(mcu_halt_reason_t reason);
 
 // Получает текущее значение тиков в мС
 uint32_t mcu_tick_get(void);
-// Задержка в мС, не вызывать из прерываний
-void mcu_delay_ms(uint32_t delay = 1);
 // Обработка функций опроса, таймут в мС, не вызывать из прерываний
 bool mcu_pool_ms(mcu_pool_handler_ptr pool, uint32_t delay = 1);
 
 // Обновение участка бит регистра
-void mcu_reg_update_32(volatile uint32_t *reg, uint32_t value_bits, uint32_t valid_bits);
+inline void mcu_reg_update_32(volatile uint32_t *reg, uint32_t value_bits, uint32_t valid_bits)
+{
+    // Проверка указателя опущена
+    uint32_t buffer = *reg;
+    // Снимаем значащие биты
+    buffer &= ~valid_bits;
+    // Устанавливаем новые биты
+    buffer |= value_bits;
+    // Возвращаем в регистр
+    *reg = buffer;
+}
+
 // Установка указателей каналу DMA (переферия <-> память)
-void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, const void *mem);
+inline void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, const void *mem)
+{
+    // Проверка аргументов
+    assert(channel != NULL && mem != NULL);
+    // Инициализация канала
+    channel->CCR = 0;                                                           // Channel reset
+    WARNING_SUPPRESS(Pa039)
+        channel->CPAR = (uint32_t)&reg;                                         // Peripheral address
+        channel->CMAR = (uint32_t)mem;                                          // Memory address
+    WARNING_DEFAULT(Pa039)
+}
 
 // Обработчик прерывания системного таймера
 void mcu_interrupt_systick(void);

@@ -9,8 +9,8 @@
 #define STORAGE_SECTION_RO  ".storage_init"
 
 // Обявление секций
-SECTION_DECLARE(STORAGE_SECTION)
-SECTION_DECLARE(STORAGE_SECTION_RO)
+SECTION_DECL(STORAGE_SECTION)
+SECTION_DECL(STORAGE_SECTION_RO)
 
 // Адрес секции
 #define STORAGE_LOCATION_RW     __sfb(STORAGE_SECTION)
@@ -19,16 +19,12 @@ SECTION_DECLARE(STORAGE_SECTION_RO)
 #define STORAGE_SIZE            __sfs(STORAGE_SECTION)
 
 // Флаги стостояния
-static struct storage_state_t
+static struct
 {
     // В ожидании к сохранению
-    bool pending : 1;
+    bool pending = false;
     // В процессе сохранения
-    bool saving : 1;
-    
-    // Конструктор по умолчанию
-    storage_state_t(void) : pending(false), saving(false)
-    { }
+    bool saving = false;
 } storage_state;
 
 // Блокировка FPEC
@@ -55,8 +51,9 @@ static void storage_fpec_irq_clear(void)
 // Проверка ошибок по заврешению операций во Flash
 static void storage_fpec_check_errors(void)
 {
-    if (FLASH->SR & (FLASH_SR_WRPRTERR | FLASH_SR_PGERR) > 0)
+    if ((FLASH->SR & (FLASH_SR_WRPRTERR | FLASH_SR_PGERR)) != 0)
         mcu_halt(MCU_HALT_REASON_FLASH);
+    
     // Сброс флагов прерывания
     storage_fpec_irq_clear();
 }
@@ -80,7 +77,7 @@ static void storage_fpec_irq_disable(void)
 // Проверка флага занятости
 static bool storage_fpec_check_busy(void)
 {
-    return !(FLASH->SR & FLASH_SR_BSY);                                         // Check busy flag
+    return (FLASH->SR & FLASH_SR_BSY) == 0;                                     // Check busy flag
 }
 
 // Таймер отложенного обновления данных во Flash
@@ -92,6 +89,7 @@ static timer_callback_t storage_deffered_flush_timer([](void)
         storage_state.pending = true;
         return;
     }
+    
     // Начало сохранения
     storage_state.saving = true;
     storage_fpec_unlock();
@@ -111,19 +109,24 @@ static event_callback_t storage_page_erased_event([](void)
             auto dest = (volatile uint16_t *)STORAGE_LOCATION_RO;
             for (auto i = STORAGE_SIZE / sizeof(uint16_t); i > 0; i--, dest++, source ++)
                 *dest = *source;
+            
             // Ожидаем завершения операции
             if (!mcu_pool_ms(storage_fpec_check_busy, 1))
                 mcu_halt(MCU_HALT_REASON_FLASH);
+            
             // Проверка ошибок
             storage_fpec_check_errors();
-        FLASH->CR &= ~FLASH_CR_PG;                                      // End flash programming
+        
+        FLASH->CR &= ~FLASH_CR_PG;                                              // End flash programming
     storage_fpec_irq_enable();
     storage_fpec_lock();
+    
     // Завершение обновления хранилища
     storage_state.saving = false;
     if (!storage_state.pending)
         return;
     storage_state.pending = false;
+    
     // Запуск таймера
     storage_modified();
     // Принудительно обновляем данные снова
@@ -136,6 +139,7 @@ void storage_init(void)
     storage_fpec_unlock();
         storage_fpec_irq_enable();
     storage_fpec_lock();
+    
     // Инициализация прерывания FPEC
     nvic_irq_enable_set(FLASH_IRQn, true);                                      // Flash interrupt enable
     nvic_irq_priority_set(FLASH_IRQn, NVIC_IRQ_PRIORITY_LOWEST);                // Lowest Flash interrupt priority
@@ -143,8 +147,8 @@ void storage_init(void)
 
 void storage_modified(void)
 {
-    // 500 мС
-    storage_deffered_flush_timer.start_hz(2);
+    // 5 секунд
+    storage_deffered_flush_timer.start_us(XM(5));
 }
 
 IRQ_ROUTINE

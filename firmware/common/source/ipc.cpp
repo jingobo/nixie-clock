@@ -14,7 +14,7 @@ RAM uint16_t ipc_packet_t::checksum_get(void) const
 
 ipc_slots_t::ipc_slots_t(void)
 {
-    for (auto i = 0; i < ARRAY_SIZE(slots); i++)
+    for (auto i = 0; i < array_length(slots); i++)
         slots[i].link(unused);
 }
 
@@ -62,7 +62,7 @@ bool ipc_processor_t::data_split(ipc_processor_t &processor, ipc_opcode_t opcode
     do
     {
         auto more = size > IPC_APL_SIZE;
-        auto len = more ? IPC_APL_SIZE : (uint8_t)size;
+        auto len = (uint8_t)(more ? IPC_APL_SIZE : size);
         
         // Заполнение длинны и опций
         packet.dll.length = len;
@@ -277,7 +277,7 @@ bool ipc_link_t::packet_process(const ipc_packet_t &packet, const args_t &args)
     if (args.first)
     {
         // Проверяем, вместятся ли все данные
-        auto slot_count = (args.size <= 0) ? 1 : DIV_CEIL(args.size, IPC_APL_SIZE);
+        const auto slot_count = (args.size <= 0) ? 1 : div_ceil(args.size, IPC_APL_SIZE);
         if (tx.unused.count() < slot_count)
             return false;
         

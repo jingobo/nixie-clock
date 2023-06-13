@@ -431,6 +431,35 @@ jQuery.fn.extend(
         };
     },
     
+    // Инициализация слайдера времени
+    setupDurationSlider()
+    {
+        this.each(function ()
+            {
+                // Надпись значения
+                const label = $(this).find(".text-muted");
+                
+                // Настройка слайдера
+                const slider = $(this).find(".custom-range");
+                slider.prop("min", 0);
+                slider.prop("max", 60);
+                slider.prop("step", 1);
+                
+                // Обработчик изменения значения слайдера
+                const change = () => label.text((slider.val() / 4.0).toFixed(2) + "c");
+                slider.on("input change", change);
+                slider[0].fireChange = change;
+                change();
+            });        
+    },
+    
+    // Установка значения слайдеру времени
+    valds(value)
+    {
+        this.val(value);
+        this[0].fireChange();
+    },
+    
     // Инициализация списочного элемента с шаблоном
     makeTemplateList()
     {

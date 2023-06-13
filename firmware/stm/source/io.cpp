@@ -17,7 +17,6 @@
 // Установка состояния вывода
 #define IO_HIGH(out)            odr |= IO_MASK(out)
 
-OPTIMIZE_SIZE
 void io_init(void)
 {
     // Промежуточные буферы для формиорвания значений регистров

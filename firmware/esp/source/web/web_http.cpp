@@ -119,7 +119,7 @@ static sha1_t web_hhtp_sha1;
 
 const char * web_http_handler_t::http_status_text(http_status_t code)
 {
-    for (auto i = 0; i < ARRAY_SIZE(HTTP_STATUSES); i++)
+    for (auto i = 0; i < array_length(HTTP_STATUSES); i++)
         if (HTTP_STATUSES[i].code == code)
             return HTTP_STATUSES[i].text;
     // WTF?
@@ -129,7 +129,7 @@ const char * web_http_handler_t::http_status_text(http_status_t code)
 
 const char * web_http_handler_t::content_type_mime(const char *ext)
 {
-    for (auto i = 0; i < ARRAY_SIZE(CONTENT_TYPES); i++)
+    for (auto i = 0; i < array_length(CONTENT_TYPES); i++)
         if (!strcmp(ext, CONTENT_TYPES[i].ext))
             return CONTENT_TYPES[i].mime;
     return NULL;
@@ -348,7 +348,7 @@ size_t web_http_handler_t::response_t::send_str(web_slot_buffer_t dest, const ch
         total = size;
     // Определение количества передаваемых байт
     size -= offset;
-    size = MIN(sizeof(web_slot_buffer_t), size);
+    size = minimum(sizeof(web_slot_buffer_t), size);
     // Копирование части ответа
     memcpy(dest, source, size);
     return size;
@@ -433,7 +433,7 @@ size_t web_http_handler_t::response_t::process(web_slot_buffer_t dest)
                     return 0;
                 // Определение количества передаваемых байт
                 {
-                    auto size = MIN(sizeof(web_slot_buffer_t), total);
+                    auto size = minimum(sizeof(web_slot_buffer_t), total);
                     // Копирование части ответа
                     return file.read(dest, size) ? size : 0;
                 }

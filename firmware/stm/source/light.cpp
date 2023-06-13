@@ -4,11 +4,16 @@
 #include "timer.h"
 #include "xmath.h"
 #include "system.h"
+#include "screen.h"
+#include "random.h"
+
+// Максимальное значение уровня освещенности
+constexpr const uint8_t LIGHT_LEVEL_MAX = 100;
 
 // Количество измерений в секунду (не менять)
 constexpr const uint8_t LIGHT_MSR_PER_SECOND = 5;
 // Количество секунд обновления уровня освещенности
-constexpr const uint16_t LIGHT_LEVEL_UPDATE_SECONDS = 3;
+constexpr const uint16_t LIGHT_LEVEL_UPDATE_SECONDS = 5;
 
 // Генерация начала транзакции
 static bool light_wire_start(bool is_read)
@@ -28,7 +33,7 @@ static bool light_wire_start(bool is_read)
         I2C1->CR1 |= I2C_CR1_POS;                                               // NACK on 2nd byte
     if (!mcu_pool_ms([](void) -> bool
         {
-            return I2C1->SR1 & I2C_SR1_SB != 0;                                 // Check SB
+            return (I2C1->SR1 & I2C_SR1_SB) != 0;                               // Check SB
         }))
         return false;
     
@@ -123,7 +128,7 @@ static __no_init float_t light_max_lux;
 // Текущее покзаание в люксах
 static __no_init float_t light_current_lux;
 // Текущее показание уровня освещенности
-static __no_init light_level_t light_current_level;
+static __no_init uint8_t light_current_level;
 // Прескалер обновления уровня освещенности
 static __no_init uint16_t light_level_update_prescaler;
 
@@ -137,7 +142,7 @@ static void light_level_update(void)
     light_level_update_prescaler = 0;
     
     // Точки линеаризации
-    static const math_point2d_t<float_t, light_level_t> POINTS[] =
+    static const math_point2d_t<float_t, uint8_t> POINTS[] =
     {
         { 0.0f,     0 },
         { 5.0f,     20 },
@@ -149,7 +154,7 @@ static void light_level_update(void)
     
     // Интерполяция
     light_current_lux = light_max_lux;
-    light_current_level = math_linear_interpolation(light_current_lux, POINTS, ARRAY_SIZE(POINTS));
+    light_current_level = math_linear_interpolation(light_current_lux, POINTS, array_length(POINTS));
     light_max_lux = 0.0f;
 }
 
@@ -232,6 +237,9 @@ static void light_state_timer_cb(void)
                     break;
                 }
 
+                // В рандом младший бит
+                random_noise_bit((raw & 2) != 0);
+                
                 // Конвертирование
                 float_t lux;
                 {
@@ -277,6 +285,106 @@ static void light_state_timer_cb(void)
     RCC->APB1ENR &= ~RCC_APB1ENR_I2C1EN;                                        // I2C1 clock disable
 }
 
+
+// Класс захвата источника данных
+template <typename MODEL, hmi_sat_t DX>
+class light_data_control_t : public MODEL::transceiver_t
+{
+    // Псевдонимы
+    using model_t = MODEL;
+    using data_t = typename model_t::data_t;
+    using base_t = typename model_t::transceiver_t;
+
+    // Текущее значение яркости
+    uint8_t level = LIGHT_LEVEL_MAX;
+    
+    // Получает финальные данные относительно освещенности
+    data_t final_data_get(data_t source) const 
+    {
+        return data_t().smooth(source, level + DX, LIGHT_LEVEL_MAX + DX);
+    }
+    
+public:
+    // Контроллер плавного изменения
+    typename model_t::smoother_t smoother;
+    
+    // Конструктор по умолчанию
+    light_data_control_t(void)
+    {
+        // TODO: применять из настроек
+        smoother.time_set(2);
+    }
+    
+protected:
+    // Получает, можно ли слой переносить в другую модель
+    virtual bool moveable_get(void) const override final
+    {
+        // Перехватчика источника перемещать нельзя
+        return false;
+    }
+    
+    // Получает приоритет слоя
+    virtual uint8_t priority_get(void) const override final
+    {
+        // Низший приоритет
+        return model_t::PRIORITY_LIGHT;
+    }
+        
+    // Обработчик изменения стороны
+    virtual void side_changed(list_side_t side) override final
+    {
+        // Базовый метод
+        base_t::side_changed(side);
+        
+        // Передача напрямую если подключились перед нами
+        if (side == LIST_SIDE_PREV)
+            smoother.stop();
+    }
+    
+    // Обработчик изменения данных
+    virtual void data_changed(hmi_rank_t index, data_t &data) override final
+    {
+        // Базовый метод
+        base_t::out_set(index, final_data_get(data));
+    }
+    
+    // Обнвление данных
+    virtual void refresh(void) override final
+    {
+        // Базовый метод
+        base_t::refresh();
+        
+        // Если уровень освещения изменился
+        const bool start_effect = level != light_current_level;
+        if (start_effect)
+            level = light_current_level;
+        
+        // Обработка разрядов
+        for (hmi_rank_t i = 0; i < model_t::RANK_COUNT; i++)
+        {
+            // Если уровень освещения изменился
+            if (start_effect)
+                smoother.start(i, base_t::out_get(i));
+
+            // Конечные данные
+            const auto to = final_data_get(base_t::in_get(i));
+            
+            // Если эффект перехода активен
+            if (smoother.process_needed(i))
+                base_t::out_set(i, smoother.process(i, to));
+            else
+                base_t::out_set(i, to);
+        }
+    }
+};
+
+// Управление освещенности светодиодов
+static light_data_control_t<led_model_t, 10> light_led_control;
+// Управление освещенности неонок
+static light_data_control_t<neon_model_t, 17> light_neon_control;
+// Управление освещенности ламп
+static light_data_control_t<nixie_model_t, 19> light_nixie_control;
+
 void light_init(void)
 {
     // Изначально счтиаем что максимально
@@ -285,9 +393,9 @@ void light_init(void)
     light_measure_error();
     // Форсирование первого измерения
     light_state_retry();
-}
-
-light_level_t light_level_get(void)
-{
-    return light_current_level;
+    
+    // Монтирование управления в экран
+    screen.led.attach(light_led_control);
+    screen.neon.attach(light_neon_control);
+    screen.nixie.attach(light_nixie_control);
 }

@@ -8,8 +8,7 @@
 #include <esp_wifi.h>
 #include <tcpip_adapter.h>
 #include <esp_event_loop.h>
-
-#include <proto/wifi.inc>
+#include <proto/wifi.inc.h>
 
 // Имя модуля для логирования
 LOG_TAG_DECL("WIFI");
@@ -48,7 +47,7 @@ public:
         LOGI("[Finder] started...");
 
         wifi_scan_config_t config;
-        MEMORY_CLEAR(config);
+        memory_clear(&config, sizeof(config));
 
         // Не более 5 секунд
         config.scan_time.active.min = 100;
@@ -64,7 +63,7 @@ public:
             assert(running);
 
             // Получаем точки
-            count = ARRAY_SIZE(ap_records);
+            count = array_length(ap_records);
             ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&count, ap_records));
 
             // Снимаем признак
@@ -179,7 +178,7 @@ public:
     // Конструктор по умолчанию
     wifi_command_handler_ip_report_t(void) : ipc_requester_template_t(1000)
     {
-        MEMORY_CLEAR_ARR(changed);
+    	memory_clear(changed, sizeof(changed));
     }
 
     // Передача для указанного интерфейса
@@ -352,7 +351,7 @@ protected:
             const auto &intf = wifi_settings.intf[WIFI_INTF_SOFTAP];
             if (intf.use && softap_changed)
             {
-                MEMORY_CLEAR(config.ap);
+            	memory_clear(&config.ap, sizeof(config.ap));
 
                 // Имя, пароль
                 memcpy(config.ap.ssid, intf.ssid, sizeof(wifi_ssid_t));
@@ -385,7 +384,7 @@ protected:
             const auto &intf = wifi_settings.intf[WIFI_INTF_STATION];
             if (intf.use)
             {
-                MEMORY_CLEAR(config.sta);
+            	memory_clear(&config.sta, sizeof(config.sta));
 
                 // Имя, пароль
                 memcpy(config.sta.ssid, intf.ssid, sizeof(wifi_ssid_t));
@@ -458,7 +457,7 @@ protected:
             return;
 
         // Отчистка ответа
-        MEMORY_CLEAR(command.response);
+        memory_clear(&command.response, sizeof(command.response));
 
         // Разбор команды
         switch (command.request.command)
@@ -579,7 +578,7 @@ void wifi_init(void)
     core_handler_add(wifi_command_handler_settings_changed);
 
     // Таймер переподключения к точке доступа
-    MEMORY_CLEAR(wifi_station_reconnect_timer);
+    memory_clear(&wifi_station_reconnect_timer, sizeof(wifi_station_reconnect_timer));
     os_timer_setfn(&wifi_station_reconnect_timer, wifi_station_reconnect_handler, NULL);
 }
 

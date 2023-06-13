@@ -17,7 +17,7 @@ enum
 };
 
 // Текущий используемый режим группировки прерываний
-#define NVIC_PRIORITYGROUP      NVIC_PRIORITYGROUP_4
+constexpr const uint32_t NVIC_PRIORITYGROUP = NVIC_PRIORITYGROUP_4;
 
 // Имя секции стека
 #define NVIC_SECTION_STACK      "CSTACK"
@@ -41,13 +41,11 @@ void nvic_init(void)
     NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP);
 }
 
-OPTIMIZE_SIZE
 void nvic_irq_priority_set(IRQn_Type irq, nvic_irq_priority_t priority)
 {
     NVIC_SetPriority(irq, NVIC_EncodePriority(NVIC_PRIORITYGROUP, priority, NULL));
 }
 
-OPTIMIZE_SIZE
 nvic_irq_priority_t nvic_irq_priority_get(IRQn_Type irq)
 {
     uint32_t pri, sub;
@@ -55,7 +53,6 @@ nvic_irq_priority_t nvic_irq_priority_get(IRQn_Type irq)
     return (nvic_irq_priority_t)pri;
 }
 
-OPTIMIZE_SIZE
 void nvic_irq_enable_set(IRQn_Type irq, bool state)
 {
     assert(irq >= 0);
@@ -113,7 +110,7 @@ extern "C" void __iar_program_start(void);
 #include "storage.h"
 
 // Обявление сегмента для sfe
-SECTION_DECLARE(NVIC_SECTION_STACK)
+SECTION_DECL(NVIC_SECTION_STACK)
 
 // Имя не менять, это магическое значение для С-Spy
 extern "C" __root const nvic_vtbl_t __vector_table @ NVIC_SECTION_VTBL =

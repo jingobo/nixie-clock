@@ -30,7 +30,7 @@ void io_led_t::init(uint8_t index, uint32_t mux, uint8_t func, bool inverse)
     IO_ENA_SET(index, true);
     PIN_FUNC_SELECT(mux, func);
     // Инициализация таймера
-    MEMORY_CLEAR(blink_timer);
+    memory_clear(&blink_timer, sizeof(blink_timer));
     os_timer_setfn(&blink_timer, blink_timer_cb, this);
     // Установка состояния
     state_set(false);

@@ -10,36 +10,6 @@
 // Имя модуля для логирования
 LOG_TAG_DECL("STM");
 
-#if 0 && !defined NDEBUG
-    // Отладочный вывод содержимого SPI регистров
-    static void stm_spi_debug(void)
-    {
-        // Основные регистры
-        LOGI("SPI_CMD       [0x%08x]", READ_PERI_REG(SPI_CMD(STM_HSPI)));
-        LOGI("SPI_CTRL      [0x%08x]", READ_PERI_REG(SPI_CTRL(STM_HSPI)));
-        LOGI("SPI_CTRL2     [0x%08x]", READ_PERI_REG(SPI_CTRL2(STM_HSPI)));
-        LOGI("SPI_CLOCK     [0x%08x]", READ_PERI_REG(SPI_CLOCK(STM_HSPI)));
-        LOGI("SPI_USER      [0x%08x]", READ_PERI_REG(SPI_USER(STM_HSPI)));
-        LOGI("SPI_USER1     [0x%08x]", READ_PERI_REG(SPI_USER1(STM_HSPI)));
-        LOGI("SPI_USER2     [0x%08x]", READ_PERI_REG(SPI_USER2(STM_HSPI)));
-        LOGI("SPI_PIN       [0x%08x]", READ_PERI_REG(SPI_PIN(STM_HSPI)));
-        LOGI("SPI_SLAVE     [0x%08x]", READ_PERI_REG(SPI_SLAVE(STM_HSPI)));
-        LOGI("SPI_SLAVE1    [0x%08x]", READ_PERI_REG(SPI_SLAVE1(STM_HSPI)));
-        LOGI("SPI_SLAVE2    [0x%08x]", READ_PERI_REG(SPI_SLAVE2(STM_HSPI)));
-        // FIFO
-        for (auto i = 0; i < 16; ++i)
-        {
-            auto reg = SPI_W0(STM_HSPI) + i * 4;
-            LOGI("ADDR[0x%08x], Value[0x%08x]", reg, READ_PERI_REG(reg));
-        }
-    }
-    // Отладочный вывод
-    #define STM_SPI_DEBUG()     stm_spi_debug()
-#else // NDEBUG
-    // Отладочный вывод
-    #define STM_SPI_DEBUG()     EMPTY_BLOCK
-#endif // NDEBUG
-
 // Задача обслуживания SPI
 static class stm_task_t : public os_task_base_t
 {
@@ -207,9 +177,6 @@ void stm_init(void)
     WRITE_PERI_REG(SPI_SLAVE1(STM_HSPI), ((32 * 8 - 1) << SPI_SLV_BUF_BITLEN_S));
     // PIN (CPOL low, CS)
     WRITE_PERI_REG(SPI_PIN(STM_HSPI), BIT19);
-
-    // Отладочный вывод
-    STM_SPI_DEBUG();
 
     // Настройка прерывание HSPI
     _xt_isr_attach(ETS_SPI_INUM, stm_link_t::spi_isr, NULL);

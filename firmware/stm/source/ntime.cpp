@@ -3,7 +3,7 @@
 #include "wifi.h"
 #include "ntime.h"
 #include "storage.h"
-#include <proto/time.inc>
+#include <proto/time.inc.h>
 
 // Настройки синхронизации
 static time_sync_settings_t ntime_sync_settings @ STORAGE_SECTION =
@@ -24,7 +24,7 @@ __no_init static datetime_t ntime_sync_time;
 // Отчистка даты последней синхронизации
 static void ntime_sync_time_clear(void)
 {
-    MEMORY_CLEAR(ntime_sync_time);
+    memory_clear(&ntime_sync_time, sizeof(ntime_sync_time));
 }
 
 // Получает, можно ли запустить процедуру синхронизации
@@ -178,7 +178,7 @@ void ntime_command_handler_time_sync_t::work(bool idle)
             ntime_sync_time = command.response.value;
             // Устанавилваем новое время
             if (ntime_sync_settings.sync_allow())
-                rtc_datetime_set(command.response.value);
+                rtc_time = command.response.value;
             // Рапортирование автомату синхронизации
             ntime_command_handler_time_sync_start.report(true);
             break;
@@ -221,7 +221,7 @@ protected:
         
         // Заполняем ответ
         command.response.time.sync = ntime_sync_time;
-        rtc_datetime_get(command.response.time.current);
+        command.response.time.current = rtc_time;
         command.response.sync_allow = ntime_sync_allow();
         // Передача ответа
         transmit();
@@ -239,7 +239,7 @@ protected:
             return;
         
         // Установка даты/времени
-        rtc_datetime_set(command.request);
+        rtc_time = command.request;
         // Сброс даты синхронизации
         ntime_sync_time_clear();
         // Передача подтверждения

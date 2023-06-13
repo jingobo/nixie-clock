@@ -77,6 +77,11 @@ template
     color: #6c757d;
 }
 
+.disabled-label
+{
+    color: #6c757d;
+}
+
 .form-part label,
 .spinner-inline
 {
@@ -386,14 +391,88 @@ button > .spinner-inline
     margin: 0 -15px 0.5rem -15px;
 }
 
-#tab-disp .card-body > .row-tiny
+#tab-disp .card-body > .form-part
 {
-    margin-bottom: 0;
+    padding-top: 0;
+    text-transform: none;
+    margin-bottom: 0.5rem;
 }
 
 #tab-disp .custom-range
 {
     margin: 0.45rem 0;
+}
+
+#tab-disp .duration-slider .text-muted
+{
+    padding-right: 0;
+    padding-bottom: 0.125rem;
+}
+
+.disp-class-neon-state+label
+{
+    max-width: 9rem;
+    display: block;
+    height: 2.5rem;
+    margin: 0;
+}
+
+.disp-class-neon-state+label::before,
+.disp-class-neon-state+label::after
+{
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    border-radius: 1rem;
+    max-width: 10rem;
+    line-height: 2rem;
+    text-align: center;
+    vertical-align: middle;
+    color: gray;
+}
+
+.disp-class-neon-state+label::before
+{
+    content: 'ОТКЛ';
+}
+
+.disp-class-neon-state+label.first::after,
+.disp-class-neon-state+label.first::before
+{
+    right: 1rem;
+}
+
+.disp-class-neon-state+label::before 
+{
+    background-color: #f3f3f3;    
+    transition: box-shadow .15s ease-in-out, background-color 0.1s linear;
+}
+
+.disp-class-neon-state+label::after
+{
+    box-shadow: 0 0 0.15rem 0 #686868 inset;
+}
+
+.disp-class-neon-state:checked+label::before
+{
+    content: 'ВКЛ';
+    background-color: #ffc177;
+}
+
+/* стили для чекбокса, находящегося в фокусе */
+.disp-class-neon-state:focus+label::before 
+{
+    border-color: #0b76ef;
+    box-shadow: rgb(0 123 255 / 25%) 0px 0px 0px 0.2rem;    
+}
+
+/* стили для чекбокса, находящегося в состоянии disabled */
+.disp-class-neon-state:disabled+label::before 
+{
+    opacity: 0.5;
 }
 
 /* Overlay */
@@ -447,6 +526,23 @@ button > .spinner-inline
 {
     margin-left: 0;
     margin-right: 0;
+}
+
+.color-picker-carrier > .d-flex
+{
+    width: 100%;
+}
+
+.color-picker-overlay
+{
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    opacity: 0.5;
+    display: none;
 }
 
 .color-picker
@@ -544,11 +640,6 @@ button > .spinner-inline
     #display 
     {
         width: 700px;
-    }
-    
-    #tab-disp .card-body > .row-tiny
-    {
-        margin-bottom: 0.5rem;
     }
 }
 

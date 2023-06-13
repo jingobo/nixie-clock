@@ -8,8 +8,8 @@
 #define RTC_BKP_ACCESS_ALLOW()      PWR->CR |= PWR_CR_DBP                       // Disable backup domain write protection
 #define RTC_BKP_ACCESS_DENY()       PWR->CR &= ~PWR_CR_DBP                      // Enable backup domain write protection
 
-// Хранит локальное время
-/*__no_init*/ static datetime_t rtc_time;
+// Локальное время
+datetime_t rtc_time;
 
 // Проверка работы LSE
 static bool rtc_check_lse(void)
@@ -65,7 +65,7 @@ void rtc_init(void)
             rtc_wait_operation_off();
                 RTC->CRL |= RTC_CRL_CNF;                                        // Enter cfg mode
                     // Реальная частота LSE
-                    const auto FLSE = 32773;
+                    const auto FLSE = 32774;
                     RTC->PRLL = RTC_PRLL(FLSE);                                 // Prescaler (low)
                     RTC->PRLH = RTC_PRLH(FLSE);                                 // Prescaler (high)
                     RTC->CNTL = 0;                                              // Clear counter
@@ -91,17 +91,6 @@ void rtc_clock_output(bool enabled)
                 BKP->RTCCR &= ~BKP_RTCCR_CCO;                                   // ...disable
         RTC_BKP_ACCESS_DENY();
     IRQ_SAFE_LEAVE();
-}
-
-void rtc_datetime_get(datetime_t &dest)
-{
-    dest = rtc_time;
-}
-
-void rtc_datetime_set(const datetime_t &source)
-{
-    assert(source.check());
-    rtc_time = source;
 }
 
 // Список обработчиков секундных собюытий

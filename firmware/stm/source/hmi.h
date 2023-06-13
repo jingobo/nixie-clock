@@ -4,24 +4,39 @@
 #include "typedefs.h"
 #include <list.h>
 
-// Количество разрядов дисплея
-#define HMI_RANK_COUNT          6
-// Кадров в секунду (Гц)
-#define HMI_FRAME_RATE          120
-// Кадров в секунду (Гц) / 2
-#define HMI_FRAME_RATE_HALF     (HMI_FRAME_RATE / 2)
-
-// Минимальная насыщенность
-#define HMI_SAT_MIN             0
-// Максимальная насыщенность
-#define HMI_SAT_MAX             UINT8_MAX
-// Количество уровней насыщенности
-#define HMI_SAT_COUNT           (HMI_SAT_MAX + 1U)
-
 // Тип данных для индексации разряда
 typedef uint8_t hmi_rank_t;
+
+// Количество разрядов дисплея
+constexpr const hmi_rank_t HMI_RANK_COUNT = 6;
+
+// Кадров в секунду (Гц)
+constexpr const uint32_t HMI_FRAME_RATE = 120;
+
+// Тип данных для приведенного времени (0.25 сек)
+typedef uint8_t hmi_time_t;
+
+// Количество дискретов приведенного времени
+constexpr const hmi_time_t HMI_TIME_COUNT = 60;
+
+// Конвертирование приведенного времени в количество фреймов
+constexpr inline uint32_t hmi_time_to_frame_count(hmi_time_t time)
+{
+    return HMI_FRAME_RATE / 4 * time;
+}
+
+// Количество фреймов смены состояния по умолчанию
+constexpr const uint32_t HMI_SMOOTH_FRAME_COUNT = hmi_time_to_frame_count(1);
+
 // Тип данных для хранения насыщенности компоненты
 typedef uint8_t hmi_sat_t;
+
+// Минимальная насыщенность
+constexpr const hmi_sat_t HMI_SAT_MIN = 0;
+// Максимальная насыщенность
+constexpr const hmi_sat_t HMI_SAT_MAX = UINT8_MAX;
+// Количество уровней насыщенности
+constexpr const uint16_t HMI_SAT_COUNT = HMI_SAT_MAX + 1;
 
 // Таблица уровней насыщенности
 typedef hmi_sat_t hmi_sat_table_t[HMI_SAT_COUNT];
@@ -37,15 +52,7 @@ union hmi_rgb_t
         hmi_sat_t b;
     };
     uint8_t grb[3];
-    
-    // Конструктор по умолчанеию
-    hmi_rgb_t(void) : r(0), g(0), b(0)
-    { }
-    
-    // Конструктор с указанием компонент
-    hmi_rgb_t(hmi_sat_t _r, hmi_sat_t _g, hmi_sat_t _b) : r(_r), g(_g), b(_b)
-    { }
-
+     
     // Оператор равенства
     bool operator == (const hmi_rgb_t &a) const
     { 
@@ -62,15 +69,6 @@ union hmi_rgb_t
                b != a.b; 
     }
 
-    // Оператор присваивания
-    hmi_rgb_t & operator = (const hmi_rgb_t &source)
-    {
-        r = source.r;
-        g = source.g;
-        b = source.b;
-        return *this;
-    }
-
     // Применение коррекции
     void correction(const hmi_sat_table_t &table)
     {
@@ -79,6 +77,10 @@ union hmi_rgb_t
         b = table[b];
     }
 };
+
+// Статическая инициализация
+#define HMI_RGB_INIT(r, g, b)   \
+    { .grb = { (g), (r), (b) } }
 
 // Тип для хранения цвета в формате HSV
 union hmi_hsv_t
@@ -90,16 +92,7 @@ union hmi_hsv_t
         hmi_sat_t v;
     };
     uint8_t hsv[3];
-    
-    // Конструктор по умолчанеию
-    hmi_hsv_t(void) : h(0), s(0), v(0)
-    { }
-
-    // Конструктор с указанием компонент
-    hmi_hsv_t(hmi_sat_t _h, hmi_sat_t _s = HMI_SAT_MAX, hmi_sat_t _v = HMI_SAT_MAX) 
-        : h(_h), s(_s), v(_v) 
-    { }
-    
+        
     // Оператор равенства
     bool operator == (const hmi_hsv_t &a) const
     {
@@ -115,69 +108,14 @@ union hmi_hsv_t
                s != a.s ||
                v != a.v; 
     }
-    
-    // Оператор присваивания
-    hmi_hsv_t & operator = (const hmi_hsv_t &source)
-    {
-        h = source.h;
-        s = source.s;
-        v = source.v;
-        return *this;
-    }
-    
+        
     // Конвертирование HSV в RGB
     hmi_rgb_t to_rgb(void) const;
 };
 
-// Класс контроллера фреймов
-class hmi_frame_controller_t
-{
-    // Хранит номер фрейма
-    uint32_t frame = 0;
-public:
-    // Сброс фреймов
-    void reset(void)
-    {
-        frame = 0;
-    }
-    
-    // Оператор постинкремента
-    uint32_t operator ++ (int dx)
-    {
-        assert(dx == 0);
-        return ++frame;
-    }
-
-    // Оператор преинкремента
-    uint32_t operator ++ (void)
-    {
-        return ++frame;
-    }
-    
-    // Получает количество секунд
-    uint32_t seconds_get(void) const
-    {
-        return frame / HMI_FRAME_RATE;
-    }
-    
-    // Получает текущее значение периода секунды
-    uint32_t seconds_period_get(void) const
-    {
-        return frame % HMI_FRAME_RATE;
-    }
-    
-    // Получает количество полусекунд
-    uint32_t half_seconds_get(void) const
-    {
-        return frame / HMI_FRAME_RATE_HALF;
-    }
-    
-    // Получает текущее значение периода полусекунды
-    uint32_t half_seconds_period_get(void) const
-    {
-        return frame % HMI_FRAME_RATE_HALF;
-    }
-};
+// Статическая инициализация
+#define HMI_HSV_INIT(h, s, v)   \
+    { .hsv = { (h), (s), (v) } }
 
 // Класс модели фильтров
 template <typename DATA, hmi_rank_t COUNT>
@@ -189,17 +127,28 @@ class hmi_model_t
         assert(index < COUNT); 
     }
     
-    // Статические приортитеты
-    enum
-    {
-        // Приоритет источника
-        LAYER_PRIORITY_SOURCE = INT8_MIN,
-        // Приоритет перехватчика источника
-        LAYER_PRIORITY_SOURCE_HOOK,
-        // Приоритет дисплея
-        LAYER_PRIORITY_DISPLAY = INT8_MAX,
-    };
+    // Приоритет источника
+    static constexpr const uint8_t PRIORITY_SOURCE = 0;
+    // Приоритет дисплея
+    static constexpr const uint8_t PRIORITY_DISPLAY = UINT8_MAX;
 public:
+    // Тип данных
+    using data_t = DATA;
+    // Тип блока данных
+    using data_block_t = data_t[COUNT];
+    // Количество разрядов
+    static constexpr const hmi_rank_t RANK_COUNT = COUNT;
+
+    // Приоритет захвата источника
+    static constexpr const uint8_t PRIORITY_CAPTURE = PRIORITY_SOURCE + 1;
+    // Приоритет учёта освещенности
+    static constexpr const uint8_t PRIORITY_LIGHT = PRIORITY_DISPLAY - 1;
+    
+    // Минимальный приоритет фильтров
+    static constexpr const uint8_t PRIORITY_FILTER_MIN = PRIORITY_CAPTURE + 1;
+    // Максимальный приоритет фильтров
+    static constexpr const uint8_t PRIORITY_FILTER_MAX = PRIORITY_LIGHT - 1;
+
     // Базовый класс слоя данных
     class layer_t : protected list_item_t
     {
@@ -219,7 +168,7 @@ public:
         virtual bool moveable_get(void) const = 0;
         
         // Получает приоритет слоя
-        virtual int8_t priority_get(void) const = 0;
+        virtual uint8_t priority_get(void) const = 0;
 
         // Обработчик изменения стороны
         virtual void side_changed(list_side_t side) = 0;
@@ -228,7 +177,7 @@ public:
         virtual void data_changed(hmi_rank_t index, DATA &data) = 0;
         
         // Получсет данные по указанному разряду
-        DATA get(hmi_rank_t index) const
+        DATA in_get(hmi_rank_t index) const
         {
             index_check(index);
             return in[index];
@@ -241,6 +190,7 @@ public:
             // Изменились ли данные
             if (in[index] == data)
                 return;
+            
             // Обязательно скопировать
             auto next = data;
             // Обработка новых данных
@@ -262,35 +212,38 @@ public:
             return (layer_t *)list_item_t::next();
         }
         
-    protected:
         // Вывод данных
-        virtual void output(hmi_rank_t index, DATA &data)
+        void output(hmi_rank_t index, DATA data) const
         {
             index_check(index);
             
             // Полуение следующего слоя
-            auto next = next_layer();
+            const auto next = next_layer();
             if (next != NULL)
                 next->input(index, data);
         }
         
-    public:
         // Вывод данных
-        void reoutput(void)
+        void reoutput(void) const
         {
             for (hmi_rank_t i = 0; i < COUNT; i++)
-            {
-                auto data = out[i];
-                output(i, data);
-            }
+                output(i, out_get(i));
         }
-        
     protected:
-        // Установка данных
-        void set(hmi_rank_t index, DATA data)
+        // Установка выходных данных
+        void out_set(hmi_rank_t index, DATA data)
         {
+            index_check(index);
+            // Проверка на изменение не требуется
             out[index] = data;
             output(index, data);
+        }
+
+        // Получение выходных данных
+        DATA out_get(hmi_rank_t index) const
+        {
+            index_check(index);
+            return out[index];
         }
         
         // Обработчик события присоединения к цепочке
@@ -335,10 +288,10 @@ public:
         }
         
         // Получает приоритет слоя
-        virtual int8_t priority_get(void) const override final
+        virtual uint8_t priority_get(void) const override final
         {
             // Низший приоритет
-            return LAYER_PRIORITY_SOURCE;
+            return PRIORITY_SOURCE;
         }
         
         // Обработчик изменения стороны
@@ -356,88 +309,37 @@ public:
             }
         }
 
-        // Обработчик изменения данных
-        virtual void data_changed(hmi_rank_t index, DATA &data) override
+        // Обработчик изменения данных TODO: возможно оставить абстрактным
+        virtual void data_changed(hmi_rank_t index, DATA &data) override final
         {
             // По умолчанию нет реакции
             // В источник могут прилететь только данные предыдущей сцены
             index_check(index);
         }
-        
-        // Вывод данных
-        virtual void output(hmi_rank_t index, DATA &data) override final
-        {
-            // Просто запечатывание метода
-            transceiver_t::output(index, data);
-        }
     };
-    
-    // Базовый класс перехватчика источника данных
-    class source_hook_t : public transceiver_t
-    {
-    protected:
-        // Получает, можно ли слой переносить в другую модель
-        virtual bool moveable_get(void) const override final
-        {
-            // Перехватчика источника перемещать нельзя
-            return false;
-        }
         
-        // Получает приоритет слоя
-        virtual int8_t priority_get(void) const override final
-        {
-            // Низший приоритет
-            return LAYER_PRIORITY_SOURCE_HOOK;
-        }
-        
-        // Обработчик изменения стороны
-        virtual void side_changed(list_side_t side) override final
-        {
-            // Просто запечатывание метода
-            transceiver_t::side_changed(side);
-        }
-        
-        // Обработчик изменения данных
-        virtual void data_changed(hmi_rank_t index, DATA &data) override final
-        {
-            data_store(index, data);
-            // По умолчанию передача дальше
-            transceiver_t::set(index, data);
-        }
-        
-        // Вывод данных
-        virtual void output(hmi_rank_t index, DATA &data) override final
-        {
-            // Просто запечатывание метода
-            transceiver_t::output(index, data);
-        }
-        
-        // Оповещение о сохранении данных
-        virtual void data_store(hmi_rank_t index, const DATA &data) = 0;
-    };
-    
     // Базовый класс фильтра данных
     class filter_t : public transceiver_t
     {
         // Приоритет фильтра
-        const int8_t priority;
+        const uint8_t priority;
     protected:
         // Основой конструктор
-        filter_t(int8_t _priority) : priority(_priority)
+        filter_t(uint8_t _priority) : priority(_priority)
         {
-            assert(priority > LAYER_PRIORITY_SOURCE_HOOK);
-            assert(priority < LAYER_PRIORITY_DISPLAY);
+            assert(priority >= PRIORITY_FILTER_MIN);
+            assert(priority <= PRIORITY_FILTER_MAX);
         }
     
         // Получает, можно ли слой переносить в другую модель
-        virtual bool moveable_get(void) const override
+        virtual bool moveable_get(void) const override final
         {
             // Фильтр по умолчанию можно перемещать
             return true;
         }
         
         // Получает приоритет слоя
-        virtual int8_t priority_get(void) const override final
+        virtual uint8_t priority_get(void) const override final
         {
             // Указанный приоритет
             return priority;
@@ -454,22 +356,7 @@ public:
         virtual void data_changed(hmi_rank_t index, DATA &data) override
         {
             // По умолчанию передача дальше
-            transceiver_t::set(index, data);
-        }
-        
-        // Вывод данных
-        virtual void output(hmi_rank_t index, DATA &data) override final
-        {
-            // Трансформация
-            transform(index, data);
-            // Базовый метод
-            transceiver_t::output(index, data);
-        }
-        
-        // Трансформация данных
-        virtual void transform(hmi_rank_t index, DATA &data) const
-        {
-            // По умолчанию не реализованно (только для пассивных фильтров)
+            transceiver_t::out_set(index, data);
         }
     };
     
@@ -485,10 +372,10 @@ public:
         }
         
         // Получает приоритет слоя
-        virtual int8_t priority_get(void) const override final
+        virtual uint8_t priority_get(void) const override final
         {
             // Высший приоритет
-            return LAYER_PRIORITY_DISPLAY;
+            return PRIORITY_DISPLAY;
         }
         
         // Обработчик изменения стороны
@@ -503,6 +390,67 @@ public:
                 default:
                     assert(false);
             }
+        }
+    };
+
+    // Класс контроллера плавного изменения данных
+    class smoother_t
+    {
+        // Данные для эффекта
+        struct 
+        {
+            // Начальные данные
+            DATA from;
+            // Текущий фрейм
+            uint32_t frame = 0;
+        } ranks[COUNT];
+        
+        // Общее количество фреймов
+        uint32_t frame_count = 0;
+    public:
+        // Запуск на разряде
+        void start(hmi_rank_t index, DATA from)
+        {
+            index_check(index);
+            
+            ranks[index].from = from;
+            ranks[index].frame = 0;
+        }
+        
+        // Получает необходимость обработки разряда
+        bool process_needed(hmi_rank_t index) const
+        {
+            index_check(index);
+            return ranks[index].frame < frame_count;
+        }
+        
+        // Обработка разряда
+        DATA process(hmi_rank_t index, DATA to)
+        {
+            index_check(index);
+            assert(process_needed(index));
+            
+            // Инкремент фрейма
+            auto& frame = ranks[index].frame;
+            assert(frame < frame_count);
+            frame++;
+
+            // Обработка
+            return ranks[index].from.smooth(to, frame, frame_count);
+        }
+        
+        // Остановка на всех разрядах
+        void stop(void)
+        {
+            for (hmi_rank_t i = 0; i < COUNT; i++)
+                ranks[i].frame = frame_count;
+        }
+        
+        // Устанвливает длительность в дискретах приведенного времени
+        void time_set(hmi_time_t value)
+        {
+            frame_count = maximum<uint32_t>(hmi_time_to_frame_count(value), 1);
+            stop();
         }
     };
 private:
@@ -585,8 +533,8 @@ public:
         assert(list.contains(item));
         
         // Получаем стороны при удалении
-        auto prev = item.prev();
-        auto next = item.unlink(LIST_SIDE_NEXT);
+        const auto prev = item.prev();
+        const auto next = item.unlink(LIST_SIDE_NEXT);
         
         if (raise_event)
             // Оповещение сторон о смене слоёв
@@ -625,10 +573,10 @@ public:
         // Последние выводиме данные дисплея
         DATA data[COUNT];
         {
-            auto last = to.list.last();
+            const auto last = to.list.last();
             if (last != NULL)
                 for (hmi_rank_t i = 0; i < COUNT; i++)
-                    data[i] = last->get(i);
+                    data[i] = last->in_get(i);
         }
         
         // Перенос слоёв
@@ -651,7 +599,7 @@ public:
         
         // Применение последних данных
         {
-            auto head = to.list.head();
+            const auto head = to.list.head();
             if (head != NULL)
                 for (hmi_rank_t i = 0; i < COUNT; i++)
                     head->input(i, data[i]);
@@ -662,20 +610,12 @@ public:
 // Таблица коррекции гаммы (g = 2.2)
 extern const hmi_sat_table_t HMI_GAMMA_TABLE;
 
-// Цвета HSV
-extern const hmi_hsv_t 
-    HMI_COLOR_HSV_BLACK,
-    HMI_COLOR_HSV_RED,
-    HMI_COLOR_HSV_GREEN,
-    HMI_COLOR_HSV_BLUE,
-    HMI_COLOR_HSV_WHITE;
-
 // Цвета RGB
-extern const hmi_rgb_t 
-    HMI_COLOR_RGB_BLACK,
-    HMI_COLOR_RGB_RED,
-    HMI_COLOR_RGB_GREEN,
-    HMI_COLOR_RGB_BLUE,
-    HMI_COLOR_RGB_WHITE;
+constexpr const hmi_rgb_t 
+    HMI_COLOR_RGB_BLACK = HMI_RGB_INIT(HMI_SAT_MIN, HMI_SAT_MIN, HMI_SAT_MIN),
+    HMI_COLOR_RGB_RED = HMI_RGB_INIT(HMI_SAT_MAX, HMI_SAT_MIN, HMI_SAT_MIN),
+    HMI_COLOR_RGB_GREEN = HMI_RGB_INIT(HMI_SAT_MIN, HMI_SAT_MAX, HMI_SAT_MIN),
+    HMI_COLOR_RGB_BLUE = HMI_RGB_INIT(HMI_SAT_MIN, HMI_SAT_MIN, HMI_SAT_MAX),
+    HMI_COLOR_RGB_WHITE = HMI_RGB_INIT(HMI_SAT_MAX, HMI_SAT_MAX, HMI_SAT_MAX);
 
 #endif // __HMI_H

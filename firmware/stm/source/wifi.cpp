@@ -2,7 +2,7 @@
 #include "mcu.h"
 #include "wifi.h"
 #include "storage.h"
-#include <proto/wifi.inc>
+#include <proto/wifi.inc.h>
 
 // Настройки
 static wifi_settings_t wifi_settings @ STORAGE_SECTION =

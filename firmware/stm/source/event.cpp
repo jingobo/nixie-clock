@@ -21,6 +21,7 @@ void event_t::raise(void)
             IRQ_SAFE_LEAVE();
             return;
         }
+        
         // Блокирование
         pending = true;
         this->link(*event_list.active, LIST_SIDE_HEAD);
@@ -32,6 +33,7 @@ void event_t::process(void)
     // Проверяем, пустой ли список
     if (event_list.active->empty())
         return;
+    
     uint8_t i;
     IRQ_SAFE_ENTER();
         // Определяем какой список был активен
@@ -43,6 +45,7 @@ void event_t::process(void)
         event_list.active = event_list.item + (i ^ 1);
         assert(event_list.active->empty());
     IRQ_SAFE_LEAVE();
+    
     // Обработка очереди
     do
     {

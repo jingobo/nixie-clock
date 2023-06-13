@@ -1,18 +1,14 @@
-﻿#include <led.h>
-#include <neon.h>
-#include <nixie.h>
-
-// Структура ответа команды получения состояния экрана
+﻿// Структура ответа команды получения состояния экрана
 struct screen_command_state_get_response_t
 {
     // Данные ламп
-    nixie_data_t nixie[NIXIE_COUNT];
-
-    // Данные светодиодов
-    hmi_rgb_t led[LED_COUNT];
+    nixie_model_t::data_block_t nixie;
 
     // Данные неонок
-    neon_data_t neon[NEON_COUNT];
+    neon_model_t::data_block_t neon;
+
+    // Данные светодиодов
+    led_model_t::data_block_t led;
 
     // Проверка полей
     bool check(void) const

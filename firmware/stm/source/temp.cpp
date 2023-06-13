@@ -221,7 +221,7 @@ static void temp_current_linearization(void)
         { 70.0f,    -0.14f },
     };
     
-    temp_current += math_linear_interpolation(temp_current, POINTS, ARRAY_SIZE(POINTS));
+    temp_current += math_linear_interpolation(temp_current, POINTS, array_length(POINTS));
 }
 
 // Обработчик события завершения передачи по DMA

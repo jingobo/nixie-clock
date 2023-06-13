@@ -5,17 +5,15 @@
 #include <datetime.h>
 #include <callback.h>
 
+// Локальное время
+extern datetime_t rtc_time;
+
 // Инициализация модуля
 void rtc_init(void);
 // Вывод частоты RTC /64
 void rtc_clock_output(bool enabled);
 // Добавление обработчика секундного события 
 void rtc_second_event_add(callback_list_item_t &callback);
-
-// Получает текущую дату/время
-void rtc_datetime_get(datetime_t &dest);
-// Задает текущую дату/время
-void rtc_datetime_set(const datetime_t &source);
 
 // Обработчик секундного прерывания
 void rtc_interrupt_second(void);

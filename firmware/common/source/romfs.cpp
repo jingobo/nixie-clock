@@ -93,7 +93,8 @@ bool romfs_t::builder_t::file_finalize(void)
 {
     // Под пады
     pads_t dummy;
-    MEMORY_CLEAR_ARR(dummy);
+	memory_clear(dummy, sizeof(dummy));
+	
     // Запись
     return write(dummy, pads);
 }

@@ -355,147 +355,201 @@
                 
                 <!-- Вкладка настроек дисплея -->
                 <div class="tab-pane fade active show" id="tab-disp">
-                    <!-- Шаблон панели цветов -->
-                    <template id="disp-template-color">
-                        <!-- Кнопки цветов -->
-                        <div class="row align-items-center">
-                            <!-- Метка -->
-                            <label class="col-md-2 col-form-label">Цвета</label>
-                            <!-- Список -->
-                            <div class="row col-md-10 justify-content-around color-picker-carrier">
-                                <div tabindex="0" class="col color-picker first"></div>
-                                <div tabindex="0" class="col color-picker"></div>
-                                <div tabindex="0" class="col color-picker"></div>
-                                <div tabindex="0" class="col color-picker"></div>
-                                <div tabindex="0" class="col color-picker"></div>
-                                <div tabindex="0" class="col color-picker"></div>
-                            </div>
-                        </div>
-                        
-                        <!-- Управление -->
-                        <div class="row align-items-center">
-                            <!-- Объединение -->
-                            <div class="col-md-6">
-                                <div class="custom-control custom-switch col-form-label">
-                                    <input type="checkbox" class="custom-control-input" id="disp-lamp-one-color">
-                                    <label class="custom-control-label" for="disp-lamp-one-color">Один цвет на все разряды</label>
+                    <!-- Шаблон настроек ламп -->
+                    <template id="disp-opts-template">
+                        <!-- Аккордион настроек ламп -->
+                        <div class="accordion" id="disp-opts-parent">
+                            <!-- Лампы -->
+                            <div class="card">
+                                <!-- Заголовок -->
+                                <div class="card-header p-0">
+                                    <!-- Кнопка заголовка -->
+                                    <button data-target="#disp-opts-lamps" class="list-group-item list-group-item-action collapsed" type="button" data-toggle="collapse">
+                                        Лампы
+                                    </button>
                                 </div>
-                            </div>
-                            <!-- Рандомизация -->
-                            <div class="col-md-6">
-                                <button type="button" class="btn btn-info btn-block">
-                                    Случайные цвета
-                                </button>
-                            </div>
-                        </div>
-                    </template>
-                    
-                    <!-- Шаблон настроек неонок -->
-                    <template id="disp-template-neon">
-                        <!-- Булевы -->
-                        <div class="row row-tiny">
-                            <!-- Плавно -->
-                            <div class="col">
-                                <div class="custom-control custom-switch col-form-label">
-                                    <input type="checkbox" class="custom-control-input" id="disp-neon-smooth">
-                                    <label class="custom-control-label" for="disp-neon-smooth">Плавная смена состояния</label>
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Режим -->
-                        <div class="row">
-                            <label for="disp-neon-mode" class="col-md-2 col-form-label">Режим</label>
-                            <div class="col-md-10">
-                                <select class="custom-select" id="disp-neon-mode">
-                                    <option value="0">Отключено</option>
-                                    <option value="1">Верх/Низ</option>
-                                    <option value="2">Лево/Право</option>
-                                    <option value="3">По диагонали</option>
-                                    <option value="4">Все сразу</option>
-                                </select>
+                                <!-- Враппер аккардиона -->
+                                <div id="disp-opts-lamps" data-parent="#disp-opts-parent" class="collapse">
+                                    <div class="card-body">
+                                        <div class="form-part">Цифры</div>
+                                        <!-- Эффект -->
+                                        <div class="row">
+                                            <label for="disp-opts-digit-effect" class="col-md-2 col-form-label">Эффект</label>
+                                            <div class="col-md-10">
+                                                <select class="custom-select disp-class-digit-effect" id="disp-opts-digit-effect">
+                                                    <option value="0">Отсутствует</option>
+                                                    <option value="1">Плавно по очереди</option>
+                                                    <option value="2">Плавно одновременно</option>
+                                                    <option value="3">Переключение по цифрам</option>
+                                                    <option value="4">Переключение в глубину от себя</option>
+                                                    <option value="5">Переключение в глубину на себя</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="form-part">Подсветка</div>
+                                        <!-- Эффект -->
+                                        <div class="row">
+                                            <label for="disp-opts-led-effect" class="col-md-2 col-form-label">Эффект</label>
+                                            <div class="col-md-10">
+                                                <select class="custom-select disp-class-led-effect" id="disp-opts-led-effect">
+                                                    <option value="0">Отсутствует</option>
+                                                    <option value="1">Заливка</option>
+                                                    <option value="2">Вспышка</option>
+                                                    <option value="3">Влево</option>
+                                                    <option value="4">Вправо</option>
+                                                    <option value="5">К центру</option>
+                                                    <option value="6">От центра</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <!-- Плавность -->
+                                        <div class="row duration-slider">
+                                            <label for="disp-opts-led-smooth" class="col-md-2 col-form-label disp-class-led-smooth-label">Плавность</label>
+                                            <div class="row col-md-10">
+                                                <div class="col-sm-11 col-10">
+                                                    <input type="range" class="custom-range disp-class-led-smooth" id="disp-opts-led-smooth">                                            
+                                                </div>
+                                                <div class="row col align-items-center justify-content-center text-muted"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Режим -->
+                                        <div class="row">
+                                            <label for="disp-opts-led-mode" class="col-md-2 col-form-label disp-class-led-mode-label">Режим</label>
+                                            <div class="col-md-10">
+                                                <select class="custom-select disp-class-led-mode" id="disp-opts-led-mode">
+                                                    <option value="0">Указанные цвета по очереди</option>
+                                                    <option value="1">Указанные цвета случайно</option>
+                                                    <option value="2">Случайные цвета</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Кнопки цветов -->
+                                        <div class="row align-items-center">
+                                            <!-- Метка -->
+                                            <label class="col-md-2 col-form-label color-picker-label">Цвета</label>
+                                            <!-- Список -->
+                                            <div class="row col-md-10 color-picker-carrier">
+                                                <!-- Разряды -->
+                                                <div class="d-flex justify-content-around">
+                                                    <div tabindex="0" class="col color-picker first"></div>
+                                                    <div tabindex="0" class="col color-picker"></div>
+                                                    <div tabindex="0" class="col color-picker"></div>
+                                                    <div tabindex="0" class="col color-picker"></div>
+                                                    <div tabindex="0" class="col color-picker"></div>
+                                                    <div tabindex="0" class="col color-picker"></div>
+                                                </div>
+                                                
+                                                <!-- Оверлей затемнения -->
+                                                <div class="color-picker-overlay"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Управление -->
+                                        <div class="row align-items-center">
+                                            <!-- Объединение -->
+                                            <div class="col-md-6">
+                                                <div class="custom-control custom-switch col-form-label">
+                                                    <input type="checkbox" class="custom-control-input disp-class-led-one-color" id="disp-opts-led-one-color">
+                                                    <label class="custom-control-label" for="disp-opts-led-one-color">Один цвет на все разряды</label>
+                                                </div>
+                                            </div>
+                                            <!-- Рандомизация -->
+                                            <div class="col-md-6">
+                                                <button type="button" class="btn btn-info btn-block disp-class-led-rnd-color">
+                                                    Случайные цвета
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+                            
+                            <!-- Неонки -->
+                            <div class="card">
+                                <!-- Заголовок -->
+                                <div class="card-header p-0">
+                                    <!-- Кнопка заголовка -->
+                                    <button data-target="#disp-opts-neons" class="list-group-item list-group-item-action collapsed" type="button" data-toggle="collapse">
+                                        Неонки
+                                    </button>
+                                </div>
+
+                                <!-- Враппер аккардиона -->
+                                <div id="disp-opts-neons" data-parent="#disp-opts-parent" class="collapse">
+                                    <div class="card-body">
+                                         <!-- Состояния -->
+                                        <div class="row">
+                                            <!-- Метка -->
+                                            <label class="col-md-2 col-form-label disp-class-neon-state-label">Состояния</label>
+                                            <!-- Чекбоксы -->
+                                            <div class="col-md-10">
+                                                <div class="d-flex">
+                                                    <div class="col-6">
+                                                        <input type="checkbox" class="custom-control-input disp-class-neon-state" id="disp-opts-neon-state-lt">
+                                                        <label class="first" for="disp-opts-neon-state-lt"></label>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <input type="checkbox" class="custom-control-input disp-class-neon-state" id="disp-opts-neon-state-rt">
+                                                        <label for="disp-opts-neon-state-rt"></label>
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex mt-2">
+                                                    <div class="col-6">
+                                                        <input type="checkbox" class="custom-control-input disp-class-neon-state" id="disp-opts-neon-state-lb">
+                                                        <label class="first" for="disp-opts-neon-state-lb"></label>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <input type="checkbox" class="custom-control-input disp-class-neon-state" id="disp-opts-neon-state-rb">
+                                                        <label for="disp-opts-neon-state-rb"></label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Плавность -->
+                                        <div class="row duration-slider">
+                                            <label for="disp-opts-neon-smooth" class="col-md-2 col-form-label disp-class-neon-smooth-label">Плавность</label>
+                                            <div class="row col-md-10">
+                                                <div class="col-sm-11 col-10">
+                                                    <input type="range" class="custom-range disp-class-neon-smooth" id="disp-opts-neon-smooth">                                            
+                                                </div>
+                                                <div class="row col align-items-center justify-content-center text-muted"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Период -->
+                                        <div class="row duration-slider">
+                                            <label for="disp-opts-neon-period" class="col-md-2 col-form-label disp-class-neon-period-label">Период</label>
+                                            <div class="row col-md-10">
+                                                <div class="col-sm-11 col-10">
+                                                    <input type="range" class="custom-range disp-class-neon-period" id="disp-opts-neon-period">
+                                                </div>
+                                                <div class="row col align-items-center justify-content-center text-muted"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Булевы -->
+                                        <div class="row mb-0">
+                                            <!-- Инверсия -->
+                                            <div class="col">
+                                                <div class="custom-control custom-switch col-form-label">
+                                                    <input type="checkbox" class="custom-control-input disp-class-neon-inversion" id="disp-opts-neon-inversion">
+                                                    <label class="custom-control-label" for="disp-opts-neon-inversion">Инверсия состояния</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>                        
                         </div>
                     </template>
                     
                     <div class="row form-part">Отображение времени</div>
-                    <div class="accordion" id="disp-time">
-                        <div class="card">
-                            <!-- Заголовок -->
-                            <div class="card-header p-0">
-                                <!-- Кнопка заголовка -->
-                                <button class="list-group-item list-group-item-action collapsed" type="button" data-toggle="collapse" data-target="#disp-time-nixie">
-                                    Лампы
-                                </button>
-                            </div>
-
-                            <!-- Враппер аккардиона -->
-                            <div id="disp-time-nixie" class="collapse" data-parent="#disp-time">
-                                <div class="card-body">
-                                    <!-- Режим -->
-                                    <div class="row">
-                                        <label for="disp-time-nixie-mode" class="col-md-2 col-form-label">Режим</label>
-                                        <div class="col-md-10">
-                                            <select class="custom-select" id="disp-time-nixie-mode">
-                                                <option value="0">Указанные цвета</option>
-                                                <option value="1">Случайные цвета</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Эффект -->
-                                    <div class="row">
-                                        <label for="disp-time-nixie-effect" class="col-md-2 col-form-label">Эффект</label>
-                                        <div class="col-md-10">
-                                            <select class="custom-select" id="disp-time-nixie-effect">
-                                                <option value="0">Отсутствует</option>
-                                                <option value="1">Заливка</option>
-                                                <option value="2">Вспышка</option>
-                                                <option value="3">Влево</option>
-                                                <option value="4">Вправо</option>
-                                                <option value="5">К центру</option>
-                                                <option value="6">От центра</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Скорость -->
-                                    <div class="row">
-                                        <label for="disp-time-nixie-speed" class="col-md-2 col-form-label">Скорость</label>
-                                        <div class="col-md-10">
-                                            <input type="range" class="custom-range" min="0" max="5" step="0.5" id="disp-time-nixie-speed">                                            
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="card">
-                            <!-- Заголовок -->
-                            <div class="card-header p-0">
-                                <!-- Кнопка заголовка -->
-                                <button class="list-group-item list-group-item-action collapsed" type="button" data-toggle="collapse" data-target="#disp-time-neon">
-                                    Неонки
-                                </button>
-                            </div>
-
-                            <!-- Враппер аккардиона -->
-                            <div id="disp-time-neon" class="collapse" data-parent="#disp-time">
-                                <div class="card-body">
-                                    <!-- Частота -->
-                                    <div class="row">
-                                        <label for="disp-time-neon-freq" class="col-md-2 col-form-label">Частота</label>
-                                        <div class="col-md-10">
-                                            <select class="custom-select" id="disp-time-neon-freq">
-                                                <option value="0">1 раз в секунду</option>
-                                                <option value="1">2 раза в секунду</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>                        
-                    </div>
                 </div>
             </div>
         </div>
