@@ -81,7 +81,7 @@ static bool storage_fpec_check_busy(void)
 }
 
 // Таймер отложенного обновления данных во Flash
-static timer_callback_t storage_deffered_flush_timer([](void)
+static timer_t storage_deffered_flush_timer([](void)
 {
     // Проверка состояния
     if (storage_state.saving)
@@ -99,7 +99,7 @@ static timer_callback_t storage_deffered_flush_timer([](void)
 });
 
 // Событие завершения стирвания страницы Flash
-static event_callback_t storage_page_erased_event([](void)
+static event_t storage_page_erased_event([](void)
 {
     FLASH->CR &= ~FLASH_CR_PER;                                                 // Page erase end
     // Начало копирования данных из ОЗУ в ПЗУ

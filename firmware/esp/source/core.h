@@ -4,7 +4,6 @@
 #include "os.h"
 #include <ipc.h>
 #include "system.h"
-#include <callback.h>
 
 // Сторона обработки (порядок не менять)
 enum core_link_side_t

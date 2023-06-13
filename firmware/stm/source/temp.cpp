@@ -96,7 +96,7 @@ static __no_init float_t temp_current;
 static void temp_timeout_timer_cb(void);
 
 // Таймер таймаута операций ввода вывода
-static timer_callback_t temp_timeout_timer(temp_timeout_timer_cb);
+static timer_t temp_timeout_timer(temp_timeout_timer_cb);
 
 // Перезапуск таймера таймаута операций ввода вывода
 static void temp_timeout_timer_restart(void)
@@ -303,7 +303,7 @@ static void temp_dma_event_cb(void)
 }
 
 // Событие завершения передачи по DMA
-static event_callback_t temp_dma_event(temp_dma_event_cb);
+static event_t temp_dma_event(temp_dma_event_cb);
 
 void temp_init(void)
 {

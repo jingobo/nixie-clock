@@ -86,7 +86,6 @@ struct ipc_packet_t
         // Контрольная сумма
         uint16_t checksum;
         // Параметры передачи
-        //ALIGN_FIELD_8
         struct
         {
             // Код команды
@@ -100,7 +99,6 @@ struct ipc_packet_t
             // Есть ли еще данные для этой команды
             bool more : 1;
         };
-        //ALIGN_FIELD_DEF
     } dll;
     
     // Прикладной слой
@@ -364,6 +362,7 @@ protected:
                     return false;
                 break;
         }
+        
         // Возвращаем результат из базового метода
         return ipc_command_t::decode(dir, size);
     }

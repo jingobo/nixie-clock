@@ -163,7 +163,7 @@ static void esp_dma_channel_init(DMA_Channel_TypeDef *channel, uint32_t flags)
 }
 
 // Таймер начала ввода/вывода
-static timer_callback_t esp_io_begin_timer([](void)
+static timer_t esp_io_begin_timer([](void)
 {
     if (esp_io.active)
         return;
@@ -184,7 +184,7 @@ static timer_callback_t esp_io_begin_timer([](void)
 });
 
 // Событие завершения ввода/вывода
-static event_callback_t esp_io_complete_event([](void)
+static event_t esp_io_complete_event([](void)
 {
     esp_io.active = false;
     // Извлекаем пакет
@@ -205,7 +205,7 @@ static enum
 } esp_reset_state = ESP_RESET_STATE_IDLE;
 
 // Таймер обработки текущего состояния сброса
-static timer_callback_t esp_reset_timer([](void)
+static timer_t esp_reset_timer([](void)
 {
     switch (esp_reset_state)
     {

@@ -27,7 +27,7 @@ static struct
 static timer_period_t timer_ccr = 0;
 
 // Событие вызова обработчиков сработавших таймеров
-event_callback_t timer_base_t::call_event(call_event_cb);
+event_t timer_t::call_event(call_event_cb);
 
 // Установка нового значения для регистра захвата/сравнения
 static void timer_ccr_inc(timer_period_t delta)
@@ -39,10 +39,11 @@ static void timer_ccr_inc(timer_period_t delta)
     TIM3->SR &= ~TIM_SR_CC1IF;                                                  // Clear IRQ CC1 pending flag
 }
 
-void timer_base_t::start(uint32_t interval, timer_flag_t flags)
+void timer_t::start(uint32_t interval, timer_flag_t flags)
 {
     // Проверка аргументов
     assert(interval > 0);
+    
     // Отключаем все прерывания
     IRQ_SAFE_ENTER();
         // Добавление с общий список
@@ -50,6 +51,7 @@ void timer_base_t::start(uint32_t interval, timer_flag_t flags)
             active.link(timer_list.active, (flags & TIMER_FLAG_HEAD) ?
                 LIST_SIDE_HEAD :
                 LIST_SIDE_LAST);
+        
         // Периоды
         current = interval;
         reload = (flags & TIMER_FLAG_LOOP) ? interval : 0;
@@ -57,39 +59,40 @@ void timer_base_t::start(uint32_t interval, timer_flag_t flags)
         call_from_irq = (flags & TIMER_FLAG_CIRQ) > 0;
     // Восстановление прерываний
     IRQ_SAFE_LEAVE();
+    
     // Форсирование срабатывания прерывания
     timer_ccr_inc(TIMER_PERIOD_MIN);
 }
 
-void timer_base_t::start_hz(float_t hz, timer_flag_t flags)
+void timer_t::start_hz(float_t hz, timer_flag_t flags)
 {
     assert(hz >= TIMER_HZ_MIN);
     assert(hz <= TIMER_HZ_MAX);
     start((uint32_t)(TIMER_FREQUENCY_HZ / hz), flags);
 }
 
-void timer_base_t::start_us(uint32_t us, timer_flag_t flags)
+void timer_t::start_us(uint32_t us, timer_flag_t flags)
 {
     assert(us >= TIMER_US_MIN);
     // assert(us <= TIMER_US_MAX);
     start(us / TIMER_US_PER_TICK, flags);
 }
 
-bool timer_base_t::stop(void)
+bool timer_t::stop(void)
 {
-    bool result = false;
     // Отключаем все прерывания
     IRQ_SAFE_ENTER();
         // Удаление из списка обработки
-        result = active.linked();
+        const auto result = active.linked();
         if (result)
             active.unlink();
     // Восстановление прерываний
     IRQ_SAFE_LEAVE();
+    
     return result;
 }
 
-void timer_base_t::raise(void)
+void timer_t::raise(void)
 {
     // Отключаем все прерывания
     IRQ_SAFE_ENTER();
@@ -103,11 +106,12 @@ void timer_base_t::raise(void)
         current = 0;
     // Восстановление прерываний
     IRQ_SAFE_LEAVE();
+    
     // Форсирование срабатывания прерывания
     timer_ccr_inc(TIMER_PERIOD_MIN);
 }
 
-void timer_base_t::call_event_cb(void)
+void timer_t::call_event_cb(void)
 {
     // Отключаем все прерывания
     IRQ_CTX_SAVE();
@@ -119,7 +123,7 @@ void timer_base_t::call_event_cb(void)
             wrap = (timer_wrap_t *)wrap->unlink();
             // Обработка тика таймера
             IRQ_CTX_RESTORE();
-                timer.execute();
+                timer.callback();
             IRQ_CTX_DISABLE();
         }
     // Восстановление прерываний
@@ -127,14 +131,16 @@ void timer_base_t::call_event_cb(void)
 }
 
 IRQ_ROUTINE
-void timer_base_t::interrupt_htim(void)
+void timer_t::interrupt_htim(void)
 {
     bool event_raise = false;
     auto ccr = TIMER_PERIOD_MAX;
+    
     // Опрделеение разницы времени в тиках
     auto dx = (timer_period_t)TIM3->CNT;
     dx -= timer_ccr;
     timer_ccr += dx;
+    
     // Обработка таймеров
     for (auto wrap = timer_list.active.head(); wrap != NULL;)
     {
@@ -144,7 +150,7 @@ void timer_base_t::interrupt_htim(void)
             // Генерирование события
             if (timer.call_from_irq)
                 // ...прямо из прерывания
-                timer.execute();
+                timer.callback();
             else
             {
                 // ...в основной нити
@@ -152,12 +158,14 @@ void timer_base_t::interrupt_htim(void)
                 if (timer.raised.unlinked())
                     timer.raised.link(timer_list.raised);
             }
+            
             if (timer.reload <= 0)
             {
                 // Отключение
                 wrap = (timer_wrap_t *)wrap->unlink();
                 continue;
             }
+            
             // Определяем сколько времени прошляпили
             auto dt = dx - timer.current;
             // Нормализация пропавшего времени до значения перезагрузки
@@ -170,17 +178,22 @@ void timer_base_t::interrupt_htim(void)
         }
         else
             timer.current -= dx;
+        
         // Определение времени следующего срабатывания аппаратного таймера
         if (ccr > timer.current)
             ccr = timer.current;
+        
         // Переход к следующему таймеру
         wrap = LIST_ITEM_NEXT(wrap);
     }
+    
     // Рассчет времени следующего срабатывания
     if (ccr < TIMER_PERIOD_MIN)
         ccr = TIMER_PERIOD_MIN;
+    
     // Установка регистра CCR1
     timer_ccr_inc(ccr);
+    
     // Генерация события
     if (event_raise)
         call_event.raise();

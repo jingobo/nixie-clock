@@ -13,7 +13,7 @@
 #define WDT_PERIOD_HZ       2
 
 // Таймер сброса watchdog
-static timer_callback_t wdt_pulse_timer(wdt_pulse);
+static timer_t wdt_pulse_timer(wdt_pulse);
 
 void wdt_init(void)
 {

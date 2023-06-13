@@ -133,7 +133,7 @@ static __no_init uint8_t light_current_level;
 static __no_init uint16_t light_level_update_prescaler;
 
 // Таймер автомата состояний
-static timer_callback_t light_state_timer(light_state_timer_cb);
+static timer_t light_state_timer(light_state_timer_cb);
 
 // Обновление уровня освещенности
 static void light_level_update(void)

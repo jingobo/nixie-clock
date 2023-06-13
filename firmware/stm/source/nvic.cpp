@@ -164,7 +164,7 @@ extern "C" __root const nvic_vtbl_t __vector_table @ NVIC_SECTION_VTBL =
         nvic_interrupt_dummy,                   // TIM1 Trigger and Commutation
         nvic_interrupt_dummy,                   // TIM1 Capture Compare
         nvic_interrupt_dummy,                   // TIM2
-        timer_base_t::interrupt_htim,           // TIM3
+        timer_t::interrupt_htim,                // TIM3
         nvic_interrupt_dummy,                   // TIM4
         nvic_interrupt_dummy,                   // I2C1 Event
         nvic_interrupt_dummy,                   // I2C1 Error

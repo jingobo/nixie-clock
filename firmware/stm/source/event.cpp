@@ -54,7 +54,7 @@ void event_t::process(void)
         // Проверка состояния
         assert(event.pending);
         // Вызов события
-        event.execute();
+        event.callback();
         // Удаляем из списка
         event.unlink();
         // Cбрасываем флаг ожидания

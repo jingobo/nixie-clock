@@ -97,7 +97,7 @@ void rtc_clock_output(bool enabled)
 static callback_list_t rtc_second_event_callbacks;
 
 // Обработчик события инкремента секунды
-static event_callback_t rtc_second_event([](void)
+static event_t rtc_second_event([](void)
 {
     // Инкремент секунды
     rtc_time.inc_second();

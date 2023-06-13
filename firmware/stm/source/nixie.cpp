@@ -36,7 +36,7 @@ static constexpr uint8_t nixie_selc_calc(uint8_t index, bool dot)
 }
 
 // Событие одновления дисплея
-static event_callback_t nixie_screen_refresh([](void)
+static event_t nixie_screen_refresh([](void)
 {
     screen.refresh();
 });
@@ -148,7 +148,7 @@ public:
 } nixie_display;
 
 // Таймер мультиплексирования ламп
-static timer_callback_t nixie_mux_timer([](void)
+static timer_t nixie_mux_timer([](void)
 {
     nixie_display.mux();
 });

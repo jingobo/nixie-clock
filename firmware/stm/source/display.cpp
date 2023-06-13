@@ -172,27 +172,26 @@ class display_scene_custom_t : public display_scene_t
         { }
     } setter;
     
-    // Ссылка на настройки
-    SETTINGS &settings;
-    
     // Источник светодиодов
     led_source_t led_source;
     // Источник неонок
     neon_source_t neon_source;
     // Фильтр плавной смены цифр на лампах
     nixie_switcher_t nixie_switcher;
-    
-protected:
+
     // Получает ссылку на типизированные настройки
     display_settings_t& settings_get(void) const
     {
         return (display_settings_t&)settings;
     }
+    
+protected:
+    // Ссылка на настройки
+    SETTINGS &settings;
 
     // Обработчик примнения настроек
     virtual void settings_apply(void)
     {
-        // TODO: сортировка
         led_source.settings_apply();
         neon_source.settings_apply();
     }
@@ -213,13 +212,16 @@ protected:
         // Пробуем установить другую сцену
         display_scene_set_default();
     }
+    
 public:
     // Конструктор по умолчанию
-    display_scene_custom_t(SETTINGS &_settings) 
-        : settings(_settings), setter(*this), getter(*this), led_source(_settings.led),
-          neon_source(_settings.neon), nixie_switcher(_settings.nixie)
+    display_scene_custom_t(SETTINGS &_settings) : 
+        settings(_settings),
+        setter(*this), getter(*this), 
+        led_source(settings_get().led),
+        neon_source(settings_get().neon), 
+        nixie_switcher(settings_get().nixie)
     {
-        // Источники
         led.attach(led_source);
         neon.attach(neon_source);
         nixie.attach(nixie_switcher);

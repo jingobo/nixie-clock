@@ -86,7 +86,7 @@ public:
 } neon_display;
 
 // Таймер мультиплексирования неонок
-static timer_callback_t neon_mux_timer([](void)
+static timer_t neon_mux_timer([](void)
 {
     neon_display.mux();
 });
