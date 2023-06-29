@@ -10,6 +10,7 @@ constexpr const hmi_sat_t NEON_SAT_DX = 1;
 constexpr const uint32_t NEON_MUX_HZ = HMI_FRAME_RATE * NEON_COUNT;
 
 // Сброс адресной линии анодов
+RAM_IAR
 static void neon_sel_reset(void)
 {
     IO_PORT_RESET_MASK(IO_SSEL0_PORT, 
@@ -68,6 +69,7 @@ protected:
     }
 public:
     // Мультиплексирование
+    RAM_IAR
     void mux(void)
     {
         // Установка анодного напряжения
@@ -85,11 +87,15 @@ public:
     }
 } neon_display;
 
-// Таймер мультиплексирования неонок
-static timer_t neon_mux_timer([](void)
+// Обработчик таймера мультиплексирования неонок
+RAM_IAR
+static void neon_mux_timer_cb(void)
 {
     neon_display.mux();
-});
+}
+
+// Таймер мультиплексирования неонок
+static timer_t neon_mux_timer(neon_mux_timer_cb);
 
 void neon_init(void)
 {

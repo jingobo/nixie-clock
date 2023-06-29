@@ -1,6 +1,7 @@
 ﻿#include "ipc.h"
 
-RAM uint16_t ipc_packet_t::checksum_get(void) const
+RAM_GCC 
+uint16_t ipc_packet_t::checksum_get(void) const
 {
     uint16_t result = 0;
     const uint16_t *data = &this->dll.checksum + 1;
@@ -18,7 +19,8 @@ ipc_slots_t::ipc_slots_t(void)
         slots[i].link(unused);
 }
 
-RAM void ipc_slots_t::use(ipc_slot_t &slot)
+RAM_GCC 
+void ipc_slots_t::use(ipc_slot_t &slot)
 {
     // Проверка состояния
     assert(slot.list() == &unused);
@@ -28,7 +30,8 @@ RAM void ipc_slots_t::use(ipc_slot_t &slot)
     slot.link(used);
 }
 
-RAM void ipc_slots_t::free(ipc_slot_t &slot)
+RAM_GCC 
+void ipc_slots_t::free(ipc_slot_t &slot)
 {
     // Проверка состояния
     assert(slot.list() == &used);
@@ -83,7 +86,8 @@ bool ipc_processor_t::data_split(ipc_processor_t &processor, ipc_opcode_t opcode
     return true;
 }
 
-RAM void ipc_link_t::transmit_flow(reset_reason_t reason)
+RAM_GCC 
+void ipc_link_t::transmit_flow(reset_reason_t reason)
 {
     auto result = data_split(*this, IPC_OPCODE_FLOW, IPC_DIR_REQUEST, &reason, sizeof(reason));
     assert(result);
@@ -110,7 +114,8 @@ void ipc_link_t::reset_layer(reset_reason_t reason, bool internal)
     reseting = true;
 }
 
-RAM bool ipc_link_t::check_phase(const ipc_packet_t &packet)
+RAM_GCC 
+bool ipc_link_t::check_phase(const ipc_packet_t &packet)
 {
     // Проверка последовательности
     if (packet.dll.phase == rx.phase_switch())
@@ -305,36 +310,42 @@ bool ipc_link_t::packet_process(const ipc_packet_t &packet, const args_t &args)
     return true;
 }
 
-RAM size_t ipc_command_t::buffer_size(ipc_dir_t dir) const
+RAM_GCC 
+size_t ipc_command_t::buffer_size(ipc_dir_t dir) const
 {
     // По умолчанию у команды данных нет
     return 0;
 }
 
-RAM const void * ipc_command_t::buffer_pointer(ipc_dir_t dir) const
+RAM_GCC
+const void * ipc_command_t::buffer_pointer(ipc_dir_t dir) const
 {
     // По умолчанию у команды данных нет
     return NULL;
 }
 
-RAM size_t ipc_command_t::encode(ipc_dir_t dir)
+RAM_GCC
+size_t ipc_command_t::encode(ipc_dir_t dir)
 {
     // Получает размер буфера
     return buffer_size(dir);
 }
 
-RAM bool ipc_command_t::decode(ipc_dir_t dir, size_t size)
+RAM_GCC
+bool ipc_command_t::decode(ipc_dir_t dir, size_t size)
 {
     // По умолчанию размер полученных данных и буфер должены быть равены
     return buffer_size(dir) == size;
 }
 
-RAM bool ipc_command_t::transmit(ipc_processor_t &processor, ipc_dir_t dir)
+RAM_GCC 
+bool ipc_command_t::transmit(ipc_processor_t &processor, ipc_dir_t dir)
 {
     return ipc_processor_t::data_split(processor, opcode, dir, buffer_pointer(dir), encode(dir));
 }
 
-RAM void ipc_requester_t::pool(void)
+RAM_GCC 
+void ipc_requester_t::pool(void)
 {
     switch (state)
     {
@@ -363,7 +374,8 @@ RAM void ipc_requester_t::pool(void)
     assert(false);
 }
 
-RAM void ipc_requester_t::transmit(void)
+RAM_GCC 
+void ipc_requester_t::transmit(void)
 {
     // Если уже ожидает ответ - выходим
     if (state == HANDLER_STATE_RESPONSE_PENDING)
@@ -378,7 +390,8 @@ RAM void ipc_requester_t::transmit(void)
         state = HANDLER_STATE_REQUEST;
 }
 
-RAM void ipc_responder_t::pool(void)
+RAM_GCC 
+void ipc_responder_t::pool(void)
 {
     switch (state)
     {
@@ -400,7 +413,8 @@ RAM void ipc_responder_t::pool(void)
     assert(false);
 }
 
-RAM void ipc_responder_t::transmit(void)
+RAM_GCC 
+void ipc_responder_t::transmit(void)
 {
     // Если еще не было запроса - выходим
     if (state == HANDLER_STATE_IDLE)
@@ -415,7 +429,8 @@ RAM void ipc_responder_t::transmit(void)
         state = HANDLER_STATE_RESPONSE;
 }
 
-RAM ipc_handler_t * ipc_handler_host_t::handler_find(ipc_opcode_t opcode) const
+RAM_GCC 
+ipc_handler_t * ipc_handler_host_t::handler_find(ipc_opcode_t opcode) const
 {
     // Поиск обработчика с такой командой
     for (auto i = handlers.head(); i != NULL; i = LIST_ITEM_NEXT(i))
@@ -425,7 +440,8 @@ RAM ipc_handler_t * ipc_handler_host_t::handler_find(ipc_opcode_t opcode) const
     return NULL;
 }
 
-RAM void ipc_handler_host_t::pool(void)
+RAM_GCC 
+void ipc_handler_host_t::pool(void)
 {
     for (auto i = handlers.head(); i != NULL; i = LIST_ITEM_NEXT(i))
         i->pool();

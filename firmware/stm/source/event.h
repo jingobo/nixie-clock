@@ -2,7 +2,6 @@
 #define __EVENT_H
 
 #include <list.h>
-#include <callback.h>
 
 // Класс события
 class event_t : list_item_t
@@ -10,19 +9,20 @@ class event_t : list_item_t
     // Указывает, что элемент добавлен и ожидает обработки
     bool pending = false;
     // Обработчик
-    callback_proc_ptr callback;
+    handler_cb_ptr handler;
 
     // Обработка событий
     static void process(void);
     
 public:
     // Конструктор по умолчанию
-    event_t(callback_proc_ptr cb) : callback(cb)
+    event_t(handler_cb_ptr _handler) : handler(_handler)
     {
-        assert(cb != NULL);
+        assert(handler != NULL);
     }
     
     // Генерация события
+    RAM_IAR
     void raise(void);
     
     // Цикл обработки событий

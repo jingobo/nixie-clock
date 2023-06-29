@@ -17,25 +17,29 @@ os_mutex_t::~os_mutex_t(void)
         vSemaphoreDelete(mutex);
 }
 
-RAM void os_mutex_t::enter(void) const
+RAM_GCC
+void os_mutex_t::enter(void) const
 {
     if (!xSemaphoreTakeRecursive(mutex, portMAX_DELAY))
         LOGE("Unable to enter mutex!");
 }
 
-RAM void os_mutex_t::enter_irq(void) const
+RAM_GCC
+void os_mutex_t::enter_irq(void) const
 {
     if (!xSemaphoreTakeFromISR(mutex, NULL))
         LOGE("Unable to enter mutex(from isr)!");
 }
 
-RAM void os_mutex_t::leave(void) const
+RAM_GCC
+void os_mutex_t::leave(void) const
 {
     if (!xSemaphoreGiveRecursive(mutex))
         LOGE("Unable to leave mutex!");
 }
 
-RAM void os_mutex_t::leave_irq(void) const
+RAM_GCC
+void os_mutex_t::leave_irq(void) const
 {
     if (!xSemaphoreGiveFromISR(mutex, NULL))
         LOGE("Unable to leave mutex(from isr)!");
@@ -54,13 +58,15 @@ os_event_base_t::~os_event_base_t(void)
         vQueueDelete(queue);
 }
 
-RAM void os_event_base_t::set(void)
+RAM_GCC
+void os_event_base_t::set(void)
 {
     queue_item_t item;
     xQueueSend(queue, &item, OS_TICK_MIN);
 }
 
-RAM void os_event_base_t::set_isr(void)
+RAM_GCC
+void os_event_base_t::set_isr(void)
 {
     queue_item_t item;
     BaseType_t switch_task;
@@ -69,25 +75,29 @@ RAM void os_event_base_t::set_isr(void)
         taskYIELD();
 }
 
-RAM bool os_event_auto_t::wait(os_tick_t ticks)
+RAM_GCC
+bool os_event_auto_t::wait(os_tick_t ticks)
 {
     queue_item_t item;
     return xQueueReceive(queue, &item, ticks) > 0;
 }
 
-RAM bool os_event_manual_t::wait(os_tick_t ticks)
+RAM_GCC
+bool os_event_manual_t::wait(os_tick_t ticks)
 {
     queue_item_t item;
     return xQueuePeek(queue, &item, ticks) > 0;
 }
 
-RAM void os_event_manual_t::reset(void)
+RAM_GCC
+void os_event_manual_t::reset(void)
 {
     queue_item_t item;
     xQueueReceive(queue, &item, OS_TICK_MIN);
 }
 
-RAM void os_event_manual_t::reset_isr(void)
+RAM_GCC
+void os_event_manual_t::reset_isr(void)
 {
     queue_item_t item;
     BaseType_t switch_task;
@@ -107,19 +117,22 @@ os_event_group_t::~os_event_group_t(void)
         vEventGroupDelete(handle);
 }
 
-RAM void os_event_group_t::set(uint32_t bits)
+RAM_GCC
+void os_event_group_t::set(uint32_t bits)
 {
     assert(bits > 0);
     xEventGroupSetBits(handle, bits);
 }
 
-RAM void os_event_group_t::reset(uint32_t bits)
+RAM_GCC
+void os_event_group_t::reset(uint32_t bits)
 {
     assert(bits > 0);
     xEventGroupClearBits(handle, bits);
 }
 
-RAM bool os_event_group_t::wait(uint32_t bits, bool all, os_tick_t ticks)
+RAM_GCC
+bool os_event_group_t::wait(uint32_t bits, bool all, os_tick_t ticks)
 {
     assert(bits > 0);
     return xEventGroupWaitBits(handle, bits, pdFALSE, all ? pdTRUE : pdFALSE, ticks) > 0;
@@ -133,7 +146,8 @@ os_task_base_t::os_task_base_t(const char * _name, bool _critical)
     assert(name != NULL);
 }
 
-RAM void os_task_base_t::task_routine(void *arg)
+RAM_GCC
+void os_task_base_t::task_routine(void *arg)
 {
     ((os_task_base_t *)arg)->execute_wrapper();
     vTaskDelete(NULL);
@@ -157,7 +171,8 @@ void os_task_base_t::execute_wrapper(void)
         LOGI("Restarted \"%s\"...", name);
 }
 
-RAM void os_task_base_t::delay(os_tick_t ticks)
+RAM_GCC
+void os_task_base_t::delay(os_tick_t ticks)
 {
     vTaskDelay(ticks);
 }
@@ -189,12 +204,14 @@ bool os_task_base_t::start(bool auto_restart)
     return result;
 }
 
-RAM void os_task_base_t::priority_set(os_task_priority_t priority)
+RAM_GCC
+void os_task_base_t::priority_set(os_task_priority_t priority)
 {
     vTaskPrioritySet(NULL, (unsigned)priority);
 }
 
-RAM os_tick_t os_tick_get(void)
+RAM_GCC
+os_tick_t os_tick_get(void)
 {
     return (os_tick_t)xTaskGetTickCount();
 }

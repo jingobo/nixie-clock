@@ -9,18 +9,6 @@ constexpr const uint32_t MCU_SYSTICK_DIVIDER = 10;
 // Количество тиков системного таймера в мС
 static volatile __no_init uint32_t mcu_systicks;
 
-// Проверки готовности HSE
-static bool mcu_check_hse(void)
-{
-    return RCC->CR & RCC_CR_HSERDY;                                             // Check HSE ready flag
-}
-
-// Проверка готовности PLL
-static bool mcu_check_pll(void)
-{
-    return RCC->CR & RCC_CR_PLLRDY;                                             // Check PLL ready flag
-}
-
 // Проверка PLL как источкник HCLK
 static bool mcu_check_pll_hclk(void)
 {
@@ -43,7 +31,10 @@ static bool mcu_init_rcc(void)
     RCC->CR &= ~RCC_CR_HSEBYP;                                                  // HSE bypass disable
     RCC->CR |= RCC_CR_HSEON;                                                    // HSE enable
     // Ожидание запуска HSE, 100 мС
-    if (!mcu_pool_ms(mcu_check_hse, 100))                                       // Wait for HSE ready
+    if (!mcu_pool_ms([](void) -> bool
+        {
+            return RCC->CR & RCC_CR_HSERDY;                                     // Check HSE ready flag
+        }, 100))
         return true;
     
     // Конфигурирование высокочастотной части системы тактирования
@@ -57,7 +48,10 @@ static bool mcu_init_rcc(void)
     
     // Запуск PLL и ожидание стабилизации, 2 мС
     RCC->CR |= RCC_CR_PLLON;                                                    // PLL enable
-    if (!mcu_pool_ms(mcu_check_pll))                                            // Wait for PLL ready
+    if (!mcu_pool_ms([](void) -> bool
+        {
+            return RCC->CR & RCC_CR_PLLRDY;                                     // Check PLL ready flag
+        }))
         return true;
     
     mcu_reg_update_32(&FLASH->ACR, FLASH_ACR_LATENCY_1, FLASH_ACR_LATENCY);     // Flash latency 2 wait states
@@ -94,6 +88,7 @@ void mcu_init(void)
         mcu_halt(MCU_HALT_REASON_RCC);
 }
 
+RAM_IAR
 __noreturn void mcu_halt(mcu_halt_reason_t reason)
 {
     UNUSED(reason); // TODO: куданить сохранить причину

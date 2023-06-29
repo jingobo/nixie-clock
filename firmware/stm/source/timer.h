@@ -1,9 +1,6 @@
 ﻿#ifndef __TIMER_H
 #define __TIMER_H
 
-#include <list.h>
-#include <callback.h>
-
 #include "event.h"
 
 // Количество микросекунд на тик
@@ -58,7 +55,7 @@ public:
 class timer_t
 {
     // Обработчик
-    callback_proc_ptr callback;
+    handler_cb_ptr handler;
     // Общий список
     timer_wrap_t active = *this;
     // Для срабатывания
@@ -77,9 +74,9 @@ class timer_t
     
 public:
     // Конструктор по умолчанию
-    timer_t(callback_proc_ptr cb) : callback(cb)
+    timer_t(handler_cb_ptr _handler) : handler(_handler)
     {
-        assert(cb != NULL);
+        assert(handler != NULL);
     }
 
     // Старт таймера

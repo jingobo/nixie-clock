@@ -76,7 +76,7 @@ void rtc_init(void)
         RTC_BKP_ACCESS_DENY();
     IRQ_SAFE_LEAVE();
     // Прерывание
-    nvic_irq_enable_set(RTC_IRQn, true);                                        // RTC IRQ enable
+    nvic_irq_enable(RTC_IRQn);                                                  // RTC IRQ enable
     nvic_irq_priority_set(RTC_IRQn, NVIC_IRQ_PRIORITY_LOWEST);                  // Lowest RTC IRQ priority
 }
 
@@ -94,7 +94,7 @@ void rtc_clock_output(bool enabled)
 }
 
 // Список обработчиков секундных собюытий
-static callback_list_t rtc_second_event_callbacks;
+static list_handler_t rtc_second_event_handlers;
 
 // Обработчик события инкремента секунды
 static event_t rtc_second_event([](void)
@@ -102,12 +102,12 @@ static event_t rtc_second_event([](void)
     // Инкремент секунды
     rtc_time.inc_second();
     // Вызов цепочки обработчиков
-    rtc_second_event_callbacks();
+    rtc_second_event_handlers();
 });
 
-void rtc_second_event_add(callback_list_item_t &callback)
+void rtc_second_event_add(list_handler_item_t &handler)
 {
-    callback.link(rtc_second_event_callbacks);
+    handler.link(rtc_second_event_handlers);
 }
 
 IRQ_ROUTINE

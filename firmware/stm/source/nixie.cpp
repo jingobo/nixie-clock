@@ -10,6 +10,7 @@ constexpr const hmi_sat_t NIXIE_SAT_DX = 1;
 constexpr const uint32_t NIXIE_MUX_HZ = HMI_FRAME_RATE * NIXIE_COUNT;
 
 // Сброс адресной линии анодов
+RAM_IAR
 static void nixie_sela_reset(void)
 {
     IO_PORT_RESET_MASK(IO_TSELA0_PORT,
@@ -19,6 +20,7 @@ static void nixie_sela_reset(void)
 }
 
 // Сброс адресной линии катодов
+RAM_IAR
 static void nixie_selc_reset(void)
 {
     IO_PORT_RESET_MASK(IO_TSELP_PORT,
@@ -122,6 +124,7 @@ protected:
     }
 public:
     // Мультиплексирование
+    RAM_IAR
     void mux(void)
     {
         // Переключение катодного напряжения
@@ -147,11 +150,15 @@ public:
     }
 } nixie_display;
 
-// Таймер мультиплексирования ламп
-static timer_t nixie_mux_timer([](void)
+// Обработчик таймера мультиплексирования ламп
+RAM_IAR
+static void nixie_mux_timer_cb(void)
 {
     nixie_display.mux();
-});
+}
+
+// Таймер мультиплексирования ламп
+static timer_t nixie_mux_timer(nixie_mux_timer_cb);
 
 void nixie_init(void)
 {

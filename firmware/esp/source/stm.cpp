@@ -60,7 +60,8 @@ public:
     static void spi_isr(void *dummy);
 } stm_link;
 
-RAM bool stm_link_t::packet_process(const ipc_packet_t &packet, const args_t &args)
+RAM_GCC
+bool stm_link_t::packet_process(const ipc_packet_t &packet, const args_t &args)
 {
     // Начало ввода
     if (args.first)
@@ -76,7 +77,8 @@ RAM bool stm_link_t::packet_process(const ipc_packet_t &packet, const args_t &ar
 }
 
 // Выполнение транзакции
-RAM void stm_link_t::transaction(void)
+RAM_GCC
+void stm_link_t::transaction(void)
 {
     // Вывод пакета
     stm_task.mutex.enter();
@@ -116,7 +118,8 @@ RAM void stm_link_t::transaction(void)
 #define STM_IRQ_SRC_SPI     BIT4
 #define STM_IRQ_SRC_HSPI    BIT7
 
-RAM void stm_link_t::spi_isr(void *dummy)
+RAM_GCC
+void stm_link_t::spi_isr(void *dummy)
 {
     auto sr = READ_PERI_REG(STM_IRQ_SRC_REG);
     // SPI
@@ -135,7 +138,8 @@ RAM void stm_link_t::spi_isr(void *dummy)
     stm_link.event_data_ready.set_isr();
 }
 
-RAM void stm_task_t::execute(void)
+RAM_GCC
+void stm_task_t::execute(void)
 {
     priority_set(OS_TASK_PRIORITY_CRITICAL);
     // SPI enable

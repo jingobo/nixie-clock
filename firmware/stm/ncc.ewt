@@ -1462,9 +1462,6 @@
             </file>
         </group>
         <file>
-            <name>$PROJ_DIR$\..\common\source\callback.h</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\..\common\source\common.h</name>
         </file>
         <file>

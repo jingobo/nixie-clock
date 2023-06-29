@@ -267,7 +267,7 @@ void esp_init(void)
     // Конфигурирование DMA
     DMA1->IFCR |= DMA_IFCR_CTCIF2;                                              // Clear CTCIF
     // Включаем прерывание канала DMA
-    nvic_irq_enable_set(DMA1_Channel2_IRQn, true);
+    nvic_irq_enable(DMA1_Channel2_IRQn);
     // Канал 2 (RX)
     esp_dma_channel_init(DMA1_C2, DMA_CCR_TCIE);                                // Transfer complete IRQ enable
     // Канал 3 (TX)

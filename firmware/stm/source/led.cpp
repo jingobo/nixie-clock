@@ -123,7 +123,7 @@ void led_init(void)
     LED_DMA_C6->CCR |= DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PSIZE_0 |           // Memory to peripheral, Memory increment (8-bit), Peripheral size 16-bit
                     DMA_CCR_PL | DMA_CCR_TCIE;                                  // Very high priority, Transfer complete interrupt enable
     // Включаем прерывание канала DMA
-    nvic_irq_enable_set(DMA1_Channel6_IRQn, true);
+    nvic_irq_enable(DMA1_Channel6_IRQn);
     // Добавляем в цепочку драйвер
     screen.led.attach(led_display);
 }

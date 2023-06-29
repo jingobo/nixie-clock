@@ -10,6 +10,7 @@ static struct event_list_t
     list_template_t<event_t> *active = item;
 } event_list;
 
+RAM_IAR
 void event_t::raise(void)
 {
     // Добавление в начало списка событий
@@ -54,7 +55,7 @@ void event_t::process(void)
         // Проверка состояния
         assert(event.pending);
         // Вызов события
-        event.callback();
+        event.handler();
         // Удаляем из списка
         event.unlink();
         // Cбрасываем флаг ожидания
@@ -66,6 +67,8 @@ void event_t::process(void)
 
 __noreturn void event_t::loop(void)
 {
+    IRQ_CTX_ENABLE();
+    
     for (;;)
         process();
 }

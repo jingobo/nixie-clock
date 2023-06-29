@@ -73,7 +73,7 @@ static screen_data_capture_t<nixie_model_t> screen_nixie_capture(screen_command_
 screen_t screen;
 
 // Событие наступления секунды
-static callback_list_item_t screen_second_event([](void)
+static list_handler_item_t screen_second_event([](void)
 {
     screen.second();
 });

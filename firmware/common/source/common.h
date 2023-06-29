@@ -53,10 +53,12 @@ typedef float32_t float_t;
 // Расположение кода/констант
 #ifdef __GNUC__
     // ESP8266 IDF (GCC)
-    #define RAM     __attribute__((section(".iram1")))
+    #define RAM_GCC     __attribute__((section(".iram1")))
+    #define RAM_IAR
 #else
-    // Остальные
-    #define RAM
+    // IAR ARM
+    #define RAM_GCC
+    #define RAM_IAR     __ramfunc
 #endif
 
 // Утверждение на этапе компиляции
@@ -99,5 +101,25 @@ constexpr T div_ceil(T a, T b)
 {
     return a / b + (((a % b) != 0) ? 1 : 0);
 }
+
+// Прототип функции оповещения
+typedef void (* handler_cb_ptr)(void);
+
+// Исключение литералов assert для вызова из ОЗУ функций
+#ifndef __GNUC__
+    // Будем переопределять
+    #undef assert
+    
+    #ifdef NODEBUG
+        // Заглушка
+        #define assert(test)    UNUSED(0)
+    #else
+        // Реализация
+        #define assert(test)    ((test) ? UNUSED(0) : main_assert())
+        
+        // Обработчик утверждения
+        extern handler_cb_ptr main_assert;
+    #endif
+#endif
 
 #endif // __TYPEDEFS_H

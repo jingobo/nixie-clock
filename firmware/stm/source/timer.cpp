@@ -30,6 +30,7 @@ static timer_period_t timer_ccr = 0;
 event_t timer_t::call_event(call_event_cb);
 
 // Установка нового значения для регистра захвата/сравнения
+RAM_IAR
 static void timer_ccr_inc(timer_period_t delta)
 {
     delta += (timer_period_t)TIM3->CNT;
@@ -74,7 +75,6 @@ void timer_t::start_hz(float_t hz, timer_flag_t flags)
 void timer_t::start_us(uint32_t us, timer_flag_t flags)
 {
     assert(us >= TIMER_US_MIN);
-    // assert(us <= TIMER_US_MAX);
     start(us / TIMER_US_PER_TICK, flags);
 }
 
@@ -123,25 +123,25 @@ void timer_t::call_event_cb(void)
             wrap = (timer_wrap_t *)wrap->unlink();
             // Обработка тика таймера
             IRQ_CTX_RESTORE();
-                timer.callback();
+                timer.handler();
             IRQ_CTX_DISABLE();
         }
     // Восстановление прерываний
     IRQ_CTX_RESTORE();
 }
 
+RAM_IAR
 IRQ_ROUTINE
 void timer_t::interrupt_htim(void)
 {
-    bool event_raise = false;
-    auto ccr = TIMER_PERIOD_MAX;
-    
     // Опрделеение разницы времени в тиках
     auto dx = (timer_period_t)TIM3->CNT;
     dx -= timer_ccr;
     timer_ccr += dx;
     
     // Обработка таймеров
+    bool event_raise = false;
+    auto ccr = TIMER_PERIOD_MAX;
     for (auto wrap = timer_list.active.head(); wrap != NULL;)
     {
         auto &timer = wrap->timer;
@@ -150,7 +150,7 @@ void timer_t::interrupt_htim(void)
             // Генерирование события
             if (timer.call_from_irq)
                 // ...прямо из прерывания
-                timer.callback();
+                timer.handler();
             else
             {
                 // ...в основной нити
@@ -211,7 +211,7 @@ void timer_init(void)
     TIM3->ARR = TIMER_PERIOD_RAW;                                               // Max period
     TIM3->DIER = TIM_DIER_CC1IE;                                                // CC1 IRQ enable
     // Конфигурирование прерываний
-    nvic_irq_enable_set(TIM3_IRQn, true);                                       // TIM3 IRQ enable
+    nvic_irq_enable(TIM3_IRQn);                                                 // TIM3 IRQ enable
     nvic_irq_priority_set(TIM3_IRQn, NVIC_IRQ_PRIORITY_HIGHEST);                // Middle TIM3 IRQ priority
     // Старт аппаратного таймера
     timer_ccr_inc(TIMER_PERIOD_MAX);

@@ -65,7 +65,8 @@ public:
     { }
 } core_main_task;
 
-RAM bool core_processor_out_t::side_t::transmit_to(const ipc_packet_t &packet, const args_t &args, core_link_side_t dest)
+RAM_GCC 
+bool core_processor_out_t::side_t::transmit_to(const ipc_packet_t &packet, const args_t &args, core_link_side_t dest)
 {
     // Определяем код команды
     const auto opcode = packet.dll.opcode;
@@ -95,7 +96,8 @@ RAM bool core_processor_out_t::side_t::transmit_to(const ipc_packet_t &packet, c
     return true;
 }
 
-RAM bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet, const args_t &args)
+RAM_GCC
+bool core_processor_out_t::side_t::packet_process(const ipc_packet_t &packet, const args_t &args)
 {
     // Результат выполнения
     auto result = true;

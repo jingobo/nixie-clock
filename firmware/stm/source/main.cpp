@@ -21,28 +21,37 @@
 __task __noreturn void main(void)
 {
     IRQ_CTX_DISABLE();
-        // Системные модули (порядок не менять)
-        nvic_init();
-        mcu_init();
-        wdt_init();
-        rtc_init();
-        io_init();
-        timer_init();
-        // Остальные модули
-        storage_init();
-        esp_init();
-        led_init();
-        neon_init();
-        temp_init();
-        light_init();
-        nixie_init();
-        screen_init();
-        display_init();
-        // Сервисы
-        wifi_init();
-        ntime_init();
-    IRQ_CTX_ENABLE();
-
+    
+    // Системные модули (порядок не менять)
+    nvic_init();
+    mcu_init();
+    wdt_init();
+    rtc_init();
+    io_init();
+    timer_init();
+    
+    // Остальные модули
+    esp_init();
+    led_init();
+    neon_init();
+    temp_init();
+    light_init();
+    nixie_init();
+    screen_init();
+    display_init();
+    
+    // Сервисы
+    wifi_init();
+    ntime_init();
+    
     // Обработка событий
     event_t::loop();
 }
+
+// Обработчик минимального assert
+#ifndef NODEBUG
+    handler_cb_ptr main_assert = [](void)
+    {
+        __aeabi_assert(NULL, NULL, 0);
+    };
+#endif

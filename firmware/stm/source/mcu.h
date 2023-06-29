@@ -45,6 +45,7 @@ void mcu_debug_pulse(void);
 // Вывод частоты на IO MCO
 void clk_mco_output(mcu_mco_source_t source);
 // Обработчик аварийной остановки приложения
+RAM_IAR
 __noreturn void mcu_halt(mcu_halt_reason_t reason);
 
 // Получает текущее значение тиков в мС

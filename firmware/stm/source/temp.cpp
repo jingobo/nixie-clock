@@ -321,7 +321,7 @@ void temp_init(void)
     // Конфигурирование DMA
     DMA1->IFCR |= DMA_IFCR_CTCIF5;                                              // Clear CTCIF
     // Включаем прерывание канала DMA
-    nvic_irq_enable_set(DMA1_Channel5_IRQn, true);
+    nvic_irq_enable(DMA1_Channel5_IRQn);
     // Канал 4 (TX)
     temp_dma_channel_init(DMA1_C4, temp_dma.tx, DMA_CCR_DIR);                   // Memory to peripheral
     // Канал 5 (RX)
