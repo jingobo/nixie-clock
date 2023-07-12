@@ -48,8 +48,8 @@ __task __noreturn void main(void)
     event_t::loop();
 }
 
-// Обработчик минимального assert
 #ifndef NODEBUG
+    // Обработчик минимального assert
     handler_cb_ptr main_assert = [](void)
     {
         __aeabi_assert(NULL, NULL, 0);

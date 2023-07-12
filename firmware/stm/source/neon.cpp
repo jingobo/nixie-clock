@@ -123,3 +123,56 @@ void neon_init(void)
     // Выставление задачи мультиплексирования
     neon_mux_timer.start_hz(NEON_MUX_HZ, TIMER_PRI_CRITICAL | TIMER_FLAG_LOOP);
 }
+
+void neon_source_t::refresh(void)
+{
+    // Эффект не обрабатывается если период отсутствует
+    if (frame_count <= 0)
+        return;
+    
+    // Обработка плавности
+    for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
+        if (smoother.process_needed(i))
+            out_set(i, smoother.process(i, in_get(i)));
+    
+    // Обработка фрейма периода
+    if (++frame < frame_count)
+        return;
+    frame = 0;
+    
+    // Установка разрядов
+    uint8_t mask = settings.mask;
+    for (hmi_rank_t i = 0; i < NEON_COUNT; i++, mask >>= 1)
+    {
+        const auto state = settings.inversion ?
+            rank_mask_lsb(mask ^ phase) :
+            (rank_mask_lsb(mask) && phase != 0);
+        
+        start_rank_smooth(i, data_normal(state));
+    }
+    
+    // Обработка фазы
+    if (++phase >= 2)
+        phase = 0;
+}
+
+void neon_source_t::settings_apply(const settings_t *settings_old)
+{
+    // Признак начальной установки
+    const auto initial = settings_old == NULL;
+    
+    // Период
+    if (initial || settings_old->period != settings.period)
+    {
+        frame_count_sync = frame = 0;
+        frame_count = hmi_time_to_frame_count(settings.period);
+    }
+    
+    // Плавность
+    if (initial || settings_old->smooth != settings.smooth)
+        smoother.time_set(settings.smooth);
+    
+    // Начальные разряды
+    if (initial || settings_old->mask != settings.mask)
+        set_initial_ranks();
+}

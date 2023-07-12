@@ -26,7 +26,7 @@ static class led_display_t : public led_model_t::display_t
     typedef uint8_t rgb_t[RGB_COM_COUNT][RGB_BIT_DEPTH];
     
     // Внутренний буфер данных для DMA
-    struct 
+    struct
     {
         // Для формирования паузы
         uint16_t reset[22];
@@ -153,10 +153,11 @@ void led_source_t::color_last_next(void)
             // Случайный цвет из списка
             {
                 hmi_rgb_t color;
+                hmi_rank_t count = 0;
                 do
                 {
                     color = settings.rgb[random_get(LED_COUNT)];
-                } while (color_last == color);
+                } while (color_last == color && ++count < LED_COUNT * 2);
                 color_last = color;
             }
             break;
@@ -188,7 +189,12 @@ void led_source_t::set_initial_ranks(void)
     // Установка цветов
     if (is_static_ranks())
     {
-        set_static_ranks();
+        // Настройки светодиодов
+        const auto &rgb = settings.rgb;
+        
+        // Установка данных по разрядам
+        for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+            out_set(i, rgb[i]);
         return;
     }
     
@@ -328,3 +334,36 @@ void led_source_t::refresh(void)
             assert(false);
     }
 }
+
+void led_source_t::settings_apply(const settings_t *settings_old)
+{
+    // Признак начальной установки
+    const auto initial = settings_old == NULL;
+    
+    // Признак 
+    auto is_set_initial_ranks = initial;
+    
+    // Плавность
+    if (initial || settings_old->smooth != settings.smooth)
+        smoother.time_set(settings.smooth);
+    
+    // Эффект и источник
+    if (initial || 
+        settings_old->effect != settings.effect || 
+        settings_old->source != settings.source)
+        is_set_initial_ranks = true;
+    
+    // Подсветка
+    if (initial || rgb_equals(settings_old->rgb, settings.rgb))
+        rgb_preview_timeout = 0;
+    else
+    {
+        rgb_preview_timeout = 5;
+        is_set_initial_ranks = true;
+    }
+    
+    // Начальные разряды
+    if (is_set_initial_ranks)
+        set_initial_ranks();
+}
+

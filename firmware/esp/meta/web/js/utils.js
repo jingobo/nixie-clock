@@ -381,7 +381,8 @@ jQuery.fn.extend(
         if (state === undefined)
             return this.is(":checked");
         this.prop("checked", state);
-        this.trigger("change");
+        // Аргументом передаём признак программного события
+        this.trigger("change", { programmatically: true });
     },
 
     // Установка/снятие/получение разрешения клика по кнопке

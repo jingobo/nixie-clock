@@ -112,25 +112,24 @@ private:
     hmi_rgb_t color_last = HMI_COLOR_RGB_BLACK;
     // Предыдущий выбранный разряд цвета
     hmi_rank_t rank_last_color = 0;
+    // Таймаут предварительного просмотра в секундах
+    uint8_t rgb_preview_timeout = 0;
     
     // Получает признак неизменяемых разрядов
     bool is_static_ranks(void) const
     {
-        // TODO: если меняется через WEB цвет, то тоже true
-        return settings.effect == EFFECT_NONE;
+        return rgb_preview_timeout > 0 || 
+               settings.effect == EFFECT_NONE;
     }
     
-    // Установка данных неизменяемых разрядов
-    void set_static_ranks(void)
+    // Сравнение RGB данных
+    static bool rgb_equals(const hmi_rgb_t *a, const hmi_rgb_t *b)
     {
-        assert(is_static_ranks());
+        for (auto i = 0; i < LED_COUNT; i++)
+            if (a[i] != b[i])
+                return false;
         
-        // Настройки светодиодов
-        const auto &rgb = settings.rgb;
-        
-        // Установка данных по разрядам
-        for (hmi_rank_t i = 0; i < LED_COUNT; i++)
-            out_set(i, rgb[i]);
+        return true;
     }
     
     // Запуск эффекта плавности на разряде
@@ -179,15 +178,15 @@ public:
     led_source_t(const settings_t &_settings) : settings(_settings)
     { }
     
-    // Обработчик применения настроек
-    void settings_apply(void)
+    // Обработчик секундного события
+    void second(void)
     {
-        // Плавность эффекта
-        smoother.time_set(settings.smooth);
-        
-        // Начальные разряды
-        set_initial_ranks();
+        if (rgb_preview_timeout > 0 && --rgb_preview_timeout <= 0)
+            set_initial_ranks();
     }
+    
+    // Обработчик применения настроек
+    void settings_apply(const settings_t *settings_old);
 };
 
 // Инициализация модуля

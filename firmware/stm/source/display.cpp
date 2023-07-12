@@ -41,7 +41,7 @@ static display_settings_t display_settings_time @ STORAGE_SECTION =
     },
 };
 
-// Класс базового источника для ламп
+// Класс базового источника для ламп TODO: перенос в nixie
 class display_nixie_datetime_source_t : public nixie_model_t::source_t
 {
     // Признак вывода данных
@@ -158,6 +158,7 @@ class display_scene_custom_t : public display_scene_t
                 return;
             
             // Применение настроек
+            scene.settings_old = scene.settings;
             scene.settings = command.request;
             scene.settings_changed();
             storage_modified();
@@ -178,28 +179,38 @@ class display_scene_custom_t : public display_scene_t
     neon_source_t neon_source;
     // Фильтр плавной смены цифр на лампах
     nixie_switcher_t nixie_switcher;
+    // Таймаут предварительного просмотра в секундах
+    uint8_t show_preview_timeout = 0;
 
     // Получает ссылку на типизированные настройки
-    display_settings_t& settings_get(void) const
+    static display_settings_t& settings_get(SETTINGS &settings)
     {
         return (display_settings_t&)settings;
     }
     
 protected:
-    // Ссылка на настройки
+    // Ссылка на текущие настройки
     SETTINGS &settings;
+    // Ссылка на предыдущие настройки
+    SETTINGS settings_old;
 
     // Обработчик примнения настроек
-    virtual void settings_apply(void)
+    virtual void settings_apply(bool initial)
     {
-        led_source.settings_apply();
-        neon_source.settings_apply();
+        const auto &old = settings_get(settings_old);
+        led_source.settings_apply(initial ? NULL : &old.led);
+        neon_source.settings_apply(initial ? NULL : &old.neon);
     }
     
     // Обработчик изменения настроек
     virtual void settings_changed(void)
     {
-        settings_apply();
+        // Приминение настроек
+        settings_apply(false);
+        
+        // Пробуем показать
+        show_preview_timeout = 10;
+        display_scene_set_default();
     }
     
     // Секундное событие
@@ -207,20 +218,34 @@ protected:
     {
         // Базовый метод
         screen_scene_t::second();
+        
         // Оповещение источников
+        led_source.second();
         neon_source.second();
         // Пробуем установить другую сцену
         display_scene_set_default();
+        
+        // Таймаут предварительного просмотра
+        if (show_preview_timeout > 0 && --show_preview_timeout <= 0)
+            display_scene_set_default();
+    }
+    
+    // Получает, нужно ли отобразить сцену
+    virtual bool show_required(void) override
+    {
+        // По умолчанию пока идет предпросмотр
+        return show_preview_timeout > 0;
     }
     
 public:
     // Конструктор по умолчанию
     display_scene_custom_t(SETTINGS &_settings) : 
         settings(_settings),
+        settings_old(_settings),
         setter(*this), getter(*this), 
-        led_source(settings_get().led),
-        neon_source(settings_get().neon), 
-        nixie_switcher(settings_get().nixie)
+        led_source(settings_get(_settings).led),
+        neon_source(settings_get(_settings).neon), 
+        nixie_switcher(settings_get(_settings).nixie)
     {
         led.attach(led_source);
         neon.attach(neon_source);
@@ -258,6 +283,7 @@ protected:
     // Получает, нужно ли отобразить сцену
     virtual bool show_required(void) override final
     {
+        // Базовый метод не вызывается (показывается всегда по умолчанию)
         return true;
     }
     
@@ -277,7 +303,7 @@ public:
         nixie.attach(nixie_source);
         
         // Финальное применение настроек
-        settings_apply();
+        settings_apply(true);
     }
 } display_scene_time;
 

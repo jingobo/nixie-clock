@@ -1438,6 +1438,12 @@ app.page =
                 .toArray()
                 .map(element =>
                     {
+                        // Для определения реального изменения цвета
+                        let lastColor;
+
+                         // Подготовка объекта разряда
+                        const result = { };
+                       
                         // Биндинг пипетки
                         const picker = $(element).colorPicker(
                             {
@@ -1446,23 +1452,29 @@ app.page =
                                 animationSpeed: 150,
                                 renderCallback()
                                 {
+                                    // Определение реального изменения цвета
+                                    if (lastColor.colors.HEX == result.color.colors.HEX)
+                                        return;
+                                    lastColor = result.color;
+                                    
                                     // Установка цвета всем разрядам если выбран режим
                                     if (ledOneColor.checked())
-                                        ledRanks.forEach(r => r.color = this.color);
+                                        ledRanks.forEach(r => r.color = result.color);
                                     
                                     // Генерация события
                                     fire();
                                 }
                             });
                         
-                        // Подготовка объекта разряда
-                        const result = { };
-                        
                         // Свойство цвета
                         Object.defineProperty(result, "color", 
                             {
                                 get: () => new Colors({ color: picker.css("background-color") }),
-                                set: value => picker.css({"background-color": element.value = value.toString("rgb", false) }),
+                                set: value => 
+                                    {
+                                        lastColor = new Colors({ color: value.colors.HEX});
+                                        picker.css({"background-color": element.value = value.toString("rgb", false) });
+                                    },
                                 configurable: false
                             });
                             
@@ -1552,9 +1564,6 @@ app.page =
                 // Применение режима
                 const visible = !state;
                 ledEffect.disabled(state);
-                if (state)
-                    ledEffect.val(0).change();
-                updateLedRandomColorsEnabled();
                 
                 // Расчет среднего цвета
                 const avgColor = ledRanks[(Math.random() * 5).toFixed()].color;
@@ -1572,8 +1581,22 @@ app.page =
                     if (i > 0)
                         rank.visible = visible;
                 }
+                
+                // После установки общего цвета
+                if (state)
+                    ledEffect.val(0).change();
+                updateLedRandomColorsEnabled();
             };
-            ledOneColor.change(ledOneColorChanged);
+            ledOneColor.change((info, args) =>
+            {
+                ledOneColorChanged();
+                // Фильтр на проверку реального изменения пользователем
+                if (args !== undefined || ledOneColor.checked())
+                    return;
+                
+                // Ранзомизация цветов
+                ledRandomColors.click();
+            });
 
             // Надпись режима подсветки
             const ledModeLabel = this.dom.find(".disp-class-led-mode-label");
@@ -1777,6 +1800,7 @@ app.page =
             let transmitLock = false;
             let transmitCount = 0;
             
+            // Обработчик передачи
             this.transmit = async () =>
             {
                 // Если передача заблокирована

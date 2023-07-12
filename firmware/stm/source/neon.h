@@ -73,6 +73,8 @@ private:
     uint32_t frame = 0;
     // Фреймов на период
     uint32_t frame_count = 0;
+    // Фреймов для синхронизации
+    uint32_t frame_count_sync = 0;
     // Используемые настройки
     const settings_t &settings;
     // Контроллер плавного изменения
@@ -117,37 +119,7 @@ protected:
     }
 
     // Обнвление данных
-    virtual void refresh(void) override final
-    {
-        // Эффект не обрабатывается если период отсутствует
-        if (frame_count <= 0)
-            return;
-        
-        // Обработка плавности
-        for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
-            if (smoother.process_needed(i))
-                out_set(i, smoother.process(i, in_get(i)));
-        
-        // Обработка фрейма периода
-        if (++frame < frame_count)
-            return;
-        frame = 0;
-        
-        // Установка разрядов
-        uint8_t mask = settings.mask;
-        for (hmi_rank_t i = 0; i < NEON_COUNT; i++, mask >>= 1)
-        {
-            const auto state = settings.inversion ?
-                rank_mask_lsb(mask ^ phase) :
-                (rank_mask_lsb(mask) && phase != 0);
-            
-            start_rank_smooth(i, data_normal(state));
-        }
-        
-        // Обработка фазы
-        if (++phase >= 2)
-            phase = 0;
-    }
+    virtual void refresh(void) override final;
     
 public:
     // Конструктор по умолчанию
@@ -157,19 +129,16 @@ public:
     // Синхронизация основного фрйма к секунде
     void second(void)
     {
-        frame = frame % HMI_FRAME_RATE;
+        if (frame_count <= 0)
+            return;
+        
+        frame_count_sync += HMI_FRAME_RATE;
+        frame_count_sync %= frame_count;
+        frame = frame_count_sync;
     }
     
     // Обработчик применения настроек
-    void settings_apply(void)
-    {
-        // Пересчет
-        frame_count = hmi_time_to_frame_count(settings.period);
-        smoother.time_set(settings.smooth);
-        
-        // Начальные разряды
-        set_initial_ranks();
-    }
+    void settings_apply(const settings_t *settings_old);
 };
 
 // Инициализация модуля
