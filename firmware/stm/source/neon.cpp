@@ -169,8 +169,7 @@ void neon_source_t::settings_apply(const settings_t *settings_old)
     }
     
     // Плавность
-    if (initial || settings_old->smooth != settings.smooth)
-        smoother.time_set(settings.smooth);
+    smoother.time_set(settings.smooth);
     
     // Начальные разряды
     if (initial || settings_old->mask != settings.mask)

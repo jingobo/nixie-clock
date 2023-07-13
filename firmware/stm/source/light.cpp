@@ -6,9 +6,17 @@
 #include "system.h"
 #include "screen.h"
 #include "random.h"
+#include "storage.h"
+#include "proto/light.inc.h"
 
-// Максимальное значение уровня освещенности
-constexpr const uint8_t LIGHT_LEVEL_MAX = 100;
+// Настройки освещенности
+static light_settings_t light_settings @ STORAGE_SECTION =
+{
+    .level = 80,
+    .smooth = 2,
+    .autoset = true,
+    .nightmode = false,
+};
 
 // Количество измерений в секунду (не менять)
 constexpr const uint8_t LIGHT_MSR_PER_SECOND = 5;
@@ -285,11 +293,14 @@ static void light_state_timer_cb(void)
     RCC->APB1ENR &= ~RCC_APB1ENR_I2C1EN;                                        // I2C1 clock disable
 }
 
+// Признак нобходимости установки максимального уровня
+static uint8_t light_setup_maximum_count = 0;
 
-// Класс захвата источника данных
-template <typename MODEL, hmi_sat_t DX>
-class light_data_control_t : public MODEL::transceiver_t
+// Класс управления уровнем освещенности
+template <typename MODEL>
+class light_control_t : public MODEL::transceiver_t
 {
+protected:
     // Псевдонимы
     using model_t = MODEL;
     using data_t = typename model_t::data_t;
@@ -299,20 +310,23 @@ class light_data_control_t : public MODEL::transceiver_t
     uint8_t level = LIGHT_LEVEL_MAX;
     
     // Получает финальные данные относительно освещенности
-    data_t final_data_get(data_t source) const 
-    {
-        return data_t().smooth(source, level + DX, LIGHT_LEVEL_MAX + DX);
-    }
-    
+    virtual data_t final_data_get(data_t source) const = 0;
 public:
     // Контроллер плавного изменения
     typename model_t::smoother_t smoother;
     
     // Конструктор по умолчанию
-    light_data_control_t(void)
+    light_control_t(void)
     {
-        // TODO: применять из настроек
-        smoother.time_set(2);
+        reset_smoother();
+    }
+    
+    // Сброс контроллера плавного изменения
+    void reset_smoother(void)
+    {
+        smoother.time_set(light_settings.autoset && light_setup_maximum_count <= 0 ? 
+            light_settings.smooth : 
+            0);
     }
     
 protected:
@@ -354,10 +368,17 @@ protected:
         // Базовый метод
         base_t::refresh();
         
+        // Следущий уровень освещенности
+        auto level_next = light_settings.level;
+        if (light_setup_maximum_count > 0)
+            level_next = LIGHT_LEVEL_MAX;
+        else if (light_settings.autoset)
+            level_next = light_current_level;
+        
         // Если уровень освещения изменился
-        const bool start_effect = level != light_current_level;
+        const bool start_effect = level != level_next;
         if (start_effect)
-            level = light_current_level;
+            level = level_next;
         
         // Обработка разрядов
         for (hmi_rank_t i = 0; i < model_t::RANK_COUNT; i++)
@@ -379,11 +400,108 @@ protected:
 };
 
 // Управление освещенности светодиодов
-static light_data_control_t<led_model_t, 10> light_led_control;
+static class light_control_led_t : public light_control_t<led_model_t>
+{
+protected:
+    // Получает финальные данные относительно освещенности
+    virtual data_t final_data_get(data_t source) const override final
+    {
+        // Обработка отключения подсветки
+        if (light_settings.autoset && light_settings.nightmode && level < 5)
+            return data_t();
+        
+        const uint8_t DX = 10;
+        return data_t().smooth(source, level + DX, LIGHT_LEVEL_MAX + DX);
+    }
+} light_control_led;
+
 // Управление освещенности неонок
-static light_data_control_t<neon_model_t, 17> light_neon_control;
+static class light_control_neon_t : public light_control_t<neon_model_t>
+{
+protected:
+    // Получает финальные данные относительно освещенности
+    virtual data_t final_data_get(data_t source) const override final
+    {
+        const uint8_t DX = 17;
+        return data_t().smooth(source, level + DX, LIGHT_LEVEL_MAX + DX);
+    }
+} light_control_neon;
+
 // Управление освещенности ламп
-static light_data_control_t<nixie_model_t, 19> light_nixie_control;
+static class light_control_nixie_t : public light_control_t<nixie_model_t>
+{
+protected:
+    // Получает финальные данные относительно освещенности
+    virtual data_t final_data_get(data_t source) const override final
+    {
+        const uint8_t DX = 19;
+        return data_t().smooth(source, level + DX, LIGHT_LEVEL_MAX + DX);
+    }
+} light_control_nixie;
+
+// Обновление всех контроллеров плавности
+static void light_control_reset_smoothers(void)
+{
+    light_control_led.reset_smoother();
+    light_control_neon.reset_smoother();
+    light_control_nixie.reset_smoother();
+}
+
+// Обработчик команды получения настроек освещенности
+static class light_command_handler_settings_get_t : public ipc_responder_template_t<light_command_settings_get_t>
+{
+protected:
+    // Событие обработки данных
+    virtual void work(bool idle) override final
+    {
+        if (idle)
+            return;
+
+        // Подготовка данных
+        command.response = light_settings;
+        
+        // Передача
+        transmit();
+    }
+} light_command_handler_settings_get;
+
+// Обработчик команды установки настроек освещенности
+static class light_command_handler_settings_set_t : public ipc_responder_template_t<light_command_settings_set_t>
+{
+protected:
+    // Событие обработки данных
+    virtual void work(bool idle) override final
+    {
+        if (idle)
+            return;
+
+        // Применение настроек
+        light_settings = command.request;
+        light_control_reset_smoothers();
+        storage_modified();
+        
+        // Передача
+        transmit();
+    }
+} light_command_handler_settings_set;
+
+// Обработчик команды получения состояния освещенности
+static class light_command_handler_state_get_t : public ipc_responder_template_t<light_command_state_get_t>
+{
+protected:
+    // Событие обработки данных
+    virtual void work(bool idle) override final
+    {
+        if (idle)
+            return;
+
+        // Подготовка данных
+        command.response.level = light_current_level;
+        
+        // Передача
+        transmit();
+    }
+} light_command_handler_state_get;
 
 void light_init(void)
 {
@@ -395,7 +513,29 @@ void light_init(void)
     light_state_retry();
     
     // Монтирование управления в экран
-    screen.led.attach(light_led_control);
-    screen.neon.attach(light_neon_control);
-    screen.nixie.attach(light_nixie_control);
+    screen.led.attach(light_control_led);
+    screen.neon.attach(light_control_neon);
+    screen.nixie.attach(light_control_nixie);
+    
+    // Обработчики IPC
+    esp_handler_add(light_command_handler_state_get);
+    esp_handler_add(light_command_handler_settings_get);
+    esp_handler_add(light_command_handler_settings_set);
+}
+
+void light_setup_maximum(bool state)
+{
+    if (state)
+    {
+        if (light_setup_maximum_count++ > 0)
+            return;
+    }
+    else
+    {
+        assert(light_setup_maximum_count > 0);
+        if (--light_setup_maximum_count > 0)
+            return;
+    }
+    
+    light_control_reset_smoothers();
 }

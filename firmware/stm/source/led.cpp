@@ -344,8 +344,7 @@ void led_source_t::settings_apply(const settings_t *settings_old)
     auto is_set_initial_ranks = initial;
     
     // Плавность
-    if (initial || settings_old->smooth != settings.smooth)
-        smoother.time_set(settings.smooth);
+    smoother.time_set(settings.smooth);
     
     // Эффект и источник
     if (initial || 

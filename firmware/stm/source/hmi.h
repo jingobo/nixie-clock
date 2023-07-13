@@ -449,7 +449,11 @@ public:
         // Устанвливает длительность в дискретах приведенного времени
         void time_set(hmi_time_t value)
         {
-            frame_count = maximum<uint32_t>(hmi_time_to_frame_count(value), 1);
+            const auto frame_count_next = maximum<uint32_t>(hmi_time_to_frame_count(value), 1);
+            if (frame_count == frame_count_next)
+                return;
+            
+            frame_count = frame_count_next;
             stop();
         }
     };

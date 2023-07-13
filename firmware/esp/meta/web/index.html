@@ -405,9 +405,9 @@
                                             </div>
                                         </div>
 
-                                        <!-- Плавность -->
-                                        <div class="row duration-slider">
-                                            <label for="disp-opts-led-smooth" class="col-md-2 col-form-label disp-class-led-smooth-label">Плавность</label>
+                                        <!-- Скорость -->
+                                        <div class="row labeled-slider">
+                                            <label for="disp-opts-led-smooth" class="col-md-2 col-form-label disp-class-led-smooth-label">Скорость</label>
                                             <div class="row col-md-10">
                                                 <div class="col-sm-11 col-10">
                                                     <input type="range" class="custom-range disp-class-led-smooth" id="disp-opts-led-smooth">                                            
@@ -511,9 +511,9 @@
                                             </div>
                                         </div>
                                         
-                                        <!-- Плавность -->
-                                        <div class="row duration-slider">
-                                            <label for="disp-opts-neon-smooth" class="col-md-2 col-form-label disp-class-neon-smooth-label">Плавность</label>
+                                        <!-- Скорость -->
+                                        <div class="row labeled-slider">
+                                            <label for="disp-opts-neon-smooth" class="col-md-2 col-form-label disp-class-neon-smooth-label">Скорость</label>
                                             <div class="row col-md-10">
                                                 <div class="col-sm-11 col-10">
                                                     <input type="range" class="custom-range disp-class-neon-smooth" id="disp-opts-neon-smooth">                                            
@@ -523,7 +523,7 @@
                                         </div>
 
                                         <!-- Период -->
-                                        <div class="row duration-slider">
+                                        <div class="row labeled-slider">
                                             <label for="disp-opts-neon-period" class="col-md-2 col-form-label disp-class-neon-period-label">Период</label>
                                             <div class="row col-md-10">
                                                 <div class="col-sm-11 col-10">
@@ -549,7 +549,57 @@
                         </div>
                     </template>
                     
+                    <!-- Отображение времени -->
                     <div class="row form-part">Отображение времени</div>
+                    
+                    <!-- Управление яркостью -->
+                    <div class="row form-part">
+                        <!-- Заголовок -->
+                        <label class="col-auto mr-auto">Управление яркостью</label>
+                        <!-- Кнопка обновления -->
+                        <label id="disp-light-current" class="col-auto text-primary">100%</label>
+                    </div>
+                    
+                    <!-- Скорость -->
+                    <div class="row labeled-slider" id="disp-light-smooth-carrier">
+                        <label for="disp-light-smooth" class="col-md-2 col-form-label">Скорость</label>
+                        <div class="row col-md-10">
+                            <div class="col-sm-11 col-10">
+                                <input type="range" class="custom-range" id="disp-light-smooth">
+                            </div>
+                            <div class="row col align-items-center justify-content-center text-muted"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Ручной уровень -->
+                    <div class="row labeled-slider" id="disp-light-manual-carrier">
+                        <label for="disp-light-manual" class="col-md-2 col-form-label">Уровень</label>
+                        <div class="row col-md-10">
+                            <div class="col-sm-11 col-10">
+                                <input type="range" class="custom-range" id="disp-light-manual">
+                            </div>
+                            <div class="row col align-items-center justify-content-center text-muted"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Булевы -->
+                    <div class="row mb-0">
+                        <div class="col">
+                            <div class="custom-control custom-switch col-form-label">
+                                <input type="checkbox" class="custom-control-input" id="disp-light-auto">
+                                <label class="custom-control-label" for="disp-light-auto">Автоподстройка уровня</label>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="custom-control custom-switch col-form-label">
+                                <input type="checkbox" class="custom-control-input" id="disp-light-night">
+                                <label class="custom-control-label" for="disp-light-night">Отключение подсветки</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Температура среды -->
+                    <div class="row form-part">Комнатная температура</div>
                 </div>
             </div>
         </div>

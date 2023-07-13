@@ -403,7 +403,7 @@ button > .spinner-inline
     margin: 0.45rem 0;
 }
 
-#tab-disp .duration-slider .text-muted
+#tab-disp .labeled-slider .text-muted
 {
     padding-right: 0;
     padding-bottom: 0.125rem;

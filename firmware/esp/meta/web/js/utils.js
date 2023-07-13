@@ -431,8 +431,30 @@ jQuery.fn.extend(
             return $(html);
         };
     },
+
+    // Инициализация слайдера процента
+    setupPrecentSlider()
+    {
+        this.each(function ()
+            {
+                // Надпись значения
+                const label = $(this).find(".text-muted");
+                
+                // Настройка слайдера
+                const slider = $(this).find(".custom-range");
+                slider.prop("min", 0);
+                slider.prop("max", 100);
+                slider.prop("step", 1);
+                
+                // Обработчик изменения значения слайдера
+                const change = () => label.text(slider.val() + "%");
+                slider.on("input change", change);
+                slider[0].fireChange = change;
+                change();
+            });
+    },
     
-    // Инициализация слайдера времени
+    // Инициализация слайдера продолжительности
     setupDurationSlider()
     {
         this.each(function ()
@@ -451,11 +473,11 @@ jQuery.fn.extend(
                 slider.on("input change", change);
                 slider[0].fireChange = change;
                 change();
-            });        
+            });
     },
     
-    // Установка значения слайдеру времени
-    valds(value)
+    // Установка значения слайдеру
+    valSlider(value)
     {
         this.val(value);
         this[0].fireChange();

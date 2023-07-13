@@ -1452,6 +1452,9 @@
                 <name>$PROJ_DIR$\source\proto\display.inc.h</name>
             </file>
             <file>
+                <name>$PROJ_DIR$\source\proto\light.inc.h</name>
+            </file>
+            <file>
                 <name>$PROJ_DIR$\source\proto\screen.inc.h</name>
             </file>
             <file>

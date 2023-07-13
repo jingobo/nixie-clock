@@ -41,7 +41,7 @@ enum ipc_opcode_t : uint8_t
         IPC_OPCODE_STM_WIFI_SETTINGS_GET,
         // Установка настроек WiFi
         IPC_OPCODE_STM_WIFI_SETTINGS_SET,
-        
+
         // Получает состояние экрана
         IPC_OPCODE_STM_SCREEN_STATE_GET,
         
@@ -50,6 +50,13 @@ enum ipc_opcode_t : uint8_t
         // Установка настроек сцены времени
         IPC_OPCODE_STM_DISPLAY_TIME_SET,
 
+        // Получает состояние освещенности
+        IPC_OPCODE_STM_LIGHT_STATE_GET,
+        // Получает настройки освещенности
+        IPC_OPCODE_STM_LIGHT_SETTINGS_GET,
+        // Задает настройки освещенности
+        IPC_OPCODE_STM_LIGHT_SETTINGS_SET,
+        
     // Не команда, база для команд, обрабатываемых модулем ESP8266
     IPC_OPCODE_ESP_HANDLE_BASE = 25,
         // Запрос информации о сети

@@ -31,6 +31,18 @@ app.opcode =
     // Получает состояние экрана
     STM_SCREEN_STATE_GET: 10,
 
+    // Запрос настроек сцены времени
+    STM_DISPLAY_TIME_GET: 11,
+    // Установка настроек сцены времени
+    STM_DISPLAY_TIME_SET: 12,
+
+    // Получает состояние освещенности
+    STM_LIGHT_STATE_GET: 13,
+    // Получает настройки освещенности
+    STM_LIGHT_SETTINGS_GET: 14,
+    // Задает настройки освещенности
+    STM_LIGHT_SETTINGS_SET: 15,
+            
     // Запрос информации о сети
     ESP_WIFI_INFO_GET: 26,    
     // Поиск сетей с опросом состояния
@@ -210,6 +222,25 @@ app.dom = new function ()
             time:
             {
                 holder: "#tab-disp > div:eq(0)",
+            },
+            
+            light:
+            {
+                auto: "#disp-light-auto",
+                night: "#disp-light-night",
+                current: "#disp-light-current",
+                manual:
+                {
+                    slider: "#disp-light-manual",
+                    carrier: "#disp-light-manual-carrier",
+                    label: "#disp-light-manual-carrier label",
+                },
+                smooth:
+                {
+                    slider: "#disp-light-smooth",
+                    carrier: "#disp-light-smooth-carrier",
+                    label: "#disp-light-smooth-carrier label",
+                },
             },
         },
     };
@@ -1423,8 +1454,8 @@ app.page =
             // Обработчик вызова события изменения
             const fire = () => this.onchange();
 
-            // Инициализация слейдеров времени
-            this.dom.find(".duration-slider").setupDurationSlider();
+            // Инициализация слейдеров продолжительности
+            this.dom.find(".labeled-slider").setupDurationSlider();
             
             // Режим эффекта цифр
             const digitEffect = this.dom.find(".disp-class-digit-effect");
@@ -1695,7 +1726,7 @@ app.page =
                     // Плавность и режим
                     {
                         const temp = data.uint8();
-                        ledSmooth.valds(temp & 0x3F); // Младшие 6 бит
+                        ledSmooth.valSlider(temp & 0x3F); // Младшие 6 бит
                         ledMode.val(temp >> 6); // Старшие 2 бит
                     }
                     
@@ -1724,9 +1755,9 @@ app.page =
                     }
                     
                     // Период
-                    neonPeriod.valds(data.uint8());
+                    neonPeriod.valSlider(data.uint8());
                     // Плавность
-                    neonSmooth.valds(data.uint8());
+                    neonSmooth.valSlider(data.uint8());
                     // Инверсия
                     neonInversion.checked(data.bool());
                 }
@@ -1859,13 +1890,13 @@ app.page =
                 const packeting = new Packeting(
                     // Приём
                     {
-                        code: 0x0B,
+                        code: app.opcode.STM_DISPLAY_TIME_GET,
                         name: "запрос настроек сцены времени",
                         processing: data => dispSettings.read(data),
                     },
                     // Передача
                     {
-                        code: 0x0C,
+                        code: app.opcode.STM_DISPLAY_TIME_SET,
                         name: "применение настроек сцены времени",
                         processing: data => dispSettings.write(data),
                     });
@@ -1875,6 +1906,110 @@ app.page =
                 
                 // Подписка на события
                 dispSettings.onchange = packeting.transmit;
+            };
+        };
+        
+        // Настройки яркости
+        const lightSettings = new function ()
+        {
+            // Инициализация
+            this.init = () =>
+            {
+                // Обработчик изменения настроек
+                const settingsChanged = () => this.settingsChanged();
+                
+                // Слайдер ручной подстройки
+                const levelManual = app.dom.disp.light.manual.slider;
+                app.dom.disp.light.manual.carrier.setupPrecentSlider();
+                levelManual.on("input", settingsChanged);
+                
+                // Ночной режим
+                const nightMode = app.dom.disp.light.night;
+                nightMode.change(settingsChanged);
+                
+                // Плавность изменения
+                const changeSmooth = app.dom.disp.light.smooth.slider;
+                app.dom.disp.light.smooth.carrier.setupDurationSlider();
+                changeSmooth.on("input", settingsChanged);
+                
+                // Автоподстройка яркости
+                const levelAuto = app.dom.disp.light.auto;
+                const levelAutoChanged = () =>
+                {
+                    const state = levelAuto.checked();
+                    nightMode.disabled(!state);
+                    
+                    levelManual.disabled(state);
+                    app.dom.disp.light.manual.label.setClass("disabled-label", state);
+                    
+                    changeSmooth.disabled(!state);
+                    app.dom.disp.light.smooth.label.setClass("disabled-label", !state);
+                };
+                levelAutoChanged();
+                levelAuto.change(() =>
+                {
+                    levelAutoChanged();
+                    settingsChanged();
+                });
+                                
+                // Пакетная передача
+                const packeting = new Packeting(
+                    // Приём
+                    {
+                        code: app.opcode.STM_LIGHT_SETTINGS_GET,
+                        name: "запрос настроек освещенности",
+                        processing: data =>
+                        {
+                            levelManual.valSlider(data.uint8());
+                            changeSmooth.valSlider(data.uint8());
+                            levelAuto.checked(data.bool());
+                            nightMode.checked(data.bool());
+                        },
+                    },
+                    // Передача
+                    {
+                        code: app.opcode.STM_LIGHT_SETTINGS_SET,
+                        name: "применение настроек освещенности",
+                        processing: data =>
+                        {
+                            data.uint8(levelManual.val());
+                            data.uint8(changeSmooth.val());
+                            data.bool(levelAuto.checked());
+                            data.bool(nightMode.checked());
+                        },
+                    });
+                
+                // Связывание обработчик изменения настроек
+                this.settingsChanged = packeting.transmit;
+                
+                // Периодичное обновление уровня освещенности
+                {
+                    // Таймаут обновления состояния
+                    let requestStateTimeout;
+                    
+                    // Запрос состояния
+                    async function requestState()
+                    {
+                        const data = await app.session.transmit(new Packet(app.opcode.STM_LIGHT_STATE_GET, "получение состояния освещенности"));
+                        if (data == null)
+                            return;
+                        
+                        app.dom.disp.light.current.text(data.uint8() + "%");
+
+                        // Перезапрос
+                        requestStateTimeout = setTimeout(requestState, 1000);
+                    };
+                    
+                    // Загрузка страницы
+                    this.load = () => 
+                    {
+                        packeting.receive();
+                        requestState()
+                    };
+                    
+                    // Выгрузка страницы
+                    this.unload = () => clearTimeout(requestStateTimeout);
+                }
             };
         };
         
@@ -1894,6 +2029,7 @@ app.page =
             
             // Инициализация сцен
             timeScene.init();
+            lightSettings.init();
         };
         
         // Загрузка страницы
@@ -1903,12 +2039,14 @@ app.page =
             
             // Загрузка сцен
             timeScene.load();
+            lightSettings.load();
         };  
         
         // Выгрузка страницы
         this.unloaded = () =>
         {
-            
+            // Выгрузка сцен
+            lightSettings.unload();
         };
 
         // Получает, готова ли страница к отображению
