@@ -216,12 +216,13 @@ app.dom = new function ()
         {
             template:
             {
-                opts: "#disp-opts-template",
+                main: "#disp-main-template",
+                timeout: "#disp-timeout-template",
             },
             
             time:
             {
-                holder: "#tab-disp > div:eq(0)",
+                holder: "#disp-time-holder",
             },
             
             light:
@@ -1446,7 +1447,7 @@ app.page =
         function DisplaySettings()
         {
             // Инициализация DOM
-            this.dom = app.page.display.optsTemplate();
+            this.dom = app.page.display.mainTemplate();
             
             // Обработчик события изменения
             this.onchange = () => { };
@@ -1714,7 +1715,7 @@ app.page =
             };
 
             fieldsChanged();
-                
+
             // Чтение данных из пакета
             this.read = data =>
             {
@@ -1770,7 +1771,7 @@ app.page =
                 
                 fieldsChanged();
             };
-                            
+
             // Запись данных в пакет
             this.write = data =>
             {
@@ -1821,6 +1822,71 @@ app.page =
                     data.uint8(digitEffect.val());
                 }
             }
+        }
+        
+        // Класс настроек дисплея с возможность включения
+        function DisplaySettingsArm(armCheckBox)
+        {
+            // Базовый класс
+            const base = new DisplaySettings();
+            
+            // DOM
+            this.dom = base.dom;
+            
+            // Обработчик события изменения
+            this.onchange = () => { };
+            base.onchange = () => this.onchange();
+            
+            // Настройка чекбокса включения
+            armCheckBox.change(base.onchange);
+            
+            // Чтение данных из пакета
+            this.read = data =>
+            {
+                base.read(data);
+                armCheckBox.checked(data.bool());
+            };
+            
+            // Запись данных в пакет
+            this.write = data =>
+            {
+                base.write(data);
+                data.bool(armCheckBox.checked());
+            };
+        }
+
+        // Класс настроек дисплея с таймаутом
+        function DisplaySettingsTimeout(armCheckBox)
+        {
+            // Базовый класс
+            const base = new DisplaySettingsArm(armCheckBox);
+            
+            // DOM
+            const dom = app.page.display.timeoutTemplate();
+            this.dom = dom.add(base.dom);
+            
+            // Обработчик события изменения
+            this.onchange = () => { };
+            base.onchange = () => this.onchange();
+            
+            // Настройка слайдера
+            dom.setupDurationSlider(20);
+            const timeoutSlider = dom.find(".disp-class-timeout-slider");
+            timeoutSlider.on("input", base.onchange);
+            
+            // Чтение данных из пакета
+            this.read = data =>
+            {
+                base.read(data);
+                timeoutSlider.valSlider(data.uint8());
+            };
+            
+            // Запись данных в пакет
+            this.write = data =>
+            {
+                base.write(data);
+                data.uint8(timeoutSlider.val());
+            };
         }
         
         // Класс отправителя пакета при изменениях
@@ -1883,8 +1949,8 @@ app.page =
             this.init = () =>
             {
                 // Настройки дисплея
-                const dispSettings = new DisplaySettings();
-                app.dom.disp.time.holder.after(dispSettings.dom);
+                const settings = new DisplaySettings();
+                app.dom.disp.time.holder.after(settings.dom);
                 
                 // Пакетная передача
                 const packeting = new Packeting(
@@ -1892,20 +1958,20 @@ app.page =
                     {
                         code: app.opcode.STM_DISPLAY_TIME_GET,
                         name: "запрос настроек сцены времени",
-                        processing: data => dispSettings.read(data),
+                        processing: data => settings.read(data),
                     },
                     // Передача
                     {
                         code: app.opcode.STM_DISPLAY_TIME_SET,
                         name: "применение настроек сцены времени",
-                        processing: data => dispSettings.write(data),
+                        processing: data => settings.write(data),
                     });
                     
                 // Загрузка сцены
                 this.load = () => packeting.receive();
                 
                 // Подписка на события
-                dispSettings.onchange = packeting.transmit;
+                settings.onchange = packeting.transmit;
             };
         };
         
@@ -1984,6 +2050,9 @@ app.page =
                 
                 // Периодичное обновление уровня освещенности
                 {
+                    // Сброс значения надписи текущего состояния
+                    const currentStateClear = () => app.dom.disp.light.current.text("");
+
                     // Таймаут обновления состояния
                     let requestStateTimeout;
                     
@@ -1992,7 +2061,10 @@ app.page =
                     {
                         const data = await app.session.transmit(new Packet(app.opcode.STM_LIGHT_STATE_GET, "получение состояния освещенности"));
                         if (data == null)
+                        {
+                            currentStateClear();
                             return;
+                        }
                         
                         app.dom.disp.light.current.text(data.uint8() + "%");
 
@@ -2003,6 +2075,7 @@ app.page =
                     // Загрузка страницы
                     this.load = () => 
                     {
+                        currentStateClear();
                         packeting.receive();
                         requestState()
                     };
@@ -2017,7 +2090,7 @@ app.page =
         this.init = () =>
         {
              // Шаблон настроек дисплея
-            this.optsTemplate = app.dom.disp.template.opts.makeTemplate(
+            this.mainTemplate = app.dom.disp.template.main.makeTemplate(
                 "disp-opts-parent", "disp-opts-lamps",
                 "disp-opts-neons", "disp-opts-digit-effect",
                 "disp-opts-led-one-color", "disp-opts-led-mode",

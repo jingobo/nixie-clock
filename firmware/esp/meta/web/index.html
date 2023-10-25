@@ -356,7 +356,7 @@
                 <!-- Вкладка настроек дисплея -->
                 <div class="tab-pane fade active show" id="tab-disp">
                     <!-- Шаблон настроек ламп -->
-                    <template id="disp-opts-template">
+                    <template id="disp-main-template">
                         <!-- Аккордион настроек ламп -->
                         <div class="accordion" id="disp-opts-parent">
                             <!-- Лампы -->
@@ -549,15 +549,29 @@
                         </div>
                     </template>
                     
+                    <!-- Шаблон настроек таймаута -->
+                    <template id="disp-timeout-template">
+                        <!-- Таймаут -->
+                        <div class="row labeled-slider">
+                            <label for="disp-opts-timeout-slider" class="col-md-2 col-form-label disp-class-timeout-slider-label">Таймаут</label>
+                            <div class="row col-md-10">
+                                <div class="col-sm-11 col-10">
+                                    <input type="range" class="custom-range disp-class-timeout-slider" id="disp-opts-timeout-slider">
+                                </div>
+                                <div class="row col align-items-center justify-content-center text-muted"></div>
+                            </div>
+                        </div>
+                    </template>
+                    
                     <!-- Отображение времени -->
-                    <div class="row form-part">Отображение времени</div>
+                    <div class="row form-part" id="disp-time-holder">Отображение времени</div>
                     
                     <!-- Управление яркостью -->
                     <div class="row form-part">
                         <!-- Заголовок -->
                         <label class="col-auto mr-auto">Управление яркостью</label>
-                        <!-- Кнопка обновления -->
-                        <label id="disp-light-current" class="col-auto text-primary">100%</label>
+                        <!-- Текущий уровнь -->
+                        <label id="disp-light-current" class="col-auto text-primary"></label>
                     </div>
                     
                     <!-- Скорость -->
@@ -597,9 +611,6 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- Температура среды -->
-                    <div class="row form-part">Комнатная температура</div>
                 </div>
             </div>
         </div>

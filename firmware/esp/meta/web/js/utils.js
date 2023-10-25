@@ -361,6 +361,27 @@ function delay(mills)
     return result;
 };
 
+// Общая настройка слайдера
+function setupCommonSlider(container, minimum, maximum, toString)
+{
+    // Надпись значения
+    const label = $(container).find(".text-muted");
+    if (label.length <= 0)
+        return;
+    
+    // Настройка слайдера
+    const slider = $(container).find(".custom-range");
+    slider.prop("min", minimum);
+    slider.prop("max", maximum);
+    slider.prop("step", 1);
+    
+    // Обработчик изменения значения слайдера
+    const change = () => label.text(toString(slider.val()));
+    slider.on("input change", change);
+    slider[0].fireChange = change;
+    change();
+}
+
 // Расширения для jQuery
 jQuery.fn.extend(
 {
@@ -432,48 +453,26 @@ jQuery.fn.extend(
         };
     },
 
+    // Инициализация слайдера периода
+    setupPeriodSlider()
+    {
+        this.each((i, e) => setupCommonSlider(e, 1, 60, (val) => val + "м"));
+    },
+    
     // Инициализация слайдера процента
     setupPrecentSlider()
     {
-        this.each(function ()
-            {
-                // Надпись значения
-                const label = $(this).find(".text-muted");
-                
-                // Настройка слайдера
-                const slider = $(this).find(".custom-range");
-                slider.prop("min", 0);
-                slider.prop("max", 100);
-                slider.prop("step", 1);
-                
-                // Обработчик изменения значения слайдера
-                const change = () => label.text(slider.val() + "%");
-                slider.on("input change", change);
-                slider[0].fireChange = change;
-                change();
-            });
+        this.each((i, e) => setupCommonSlider(e, 0, 100, (val) => val + "%"));
     },
     
     // Инициализация слайдера продолжительности
-    setupDurationSlider()
+    setupDurationSlider(minimum)
     {
-        this.each(function ()
-            {
-                // Надпись значения
-                const label = $(this).find(".text-muted");
-                
-                // Настройка слайдера
-                const slider = $(this).find(".custom-range");
-                slider.prop("min", 0);
-                slider.prop("max", 60);
-                slider.prop("step", 1);
-                
-                // Обработчик изменения значения слайдера
-                const change = () => label.text((slider.val() / 4.0).toFixed(2) + "c");
-                slider.on("input change", change);
-                slider[0].fireChange = change;
-                change();
-            });
+        // Опциональный минимум
+        if (minimum === undefined)
+            minimum = 0;
+        
+        this.each((i, e) => setupCommonSlider(e, minimum, 60, (val) => (val / 4.0).toFixed(2) + "c"));
     },
     
     // Установка значения слайдеру
