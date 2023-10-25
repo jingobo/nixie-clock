@@ -123,10 +123,12 @@ struct time_command_current_get_response_t
 {
     struct
     {
-        // Текущее время синхронизации
+        // Текущее время
         datetime_t current;
-        // Последнее время синхронизации
+        // Время синхронизации
         datetime_t sync;
+        // Секунд с запуска
+        uint32_t uptime;
     } time;
     
     // Можно ли запустить синхронизацию

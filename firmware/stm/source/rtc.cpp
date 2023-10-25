@@ -10,6 +10,8 @@
 
 // Локальное время
 datetime_t rtc_time;
+// Количество секунд с запуска
+uint32_t rtc_uptime_seconds = 0;
 
 // Проверка работы LSE
 static bool rtc_check_lse(void)
@@ -101,6 +103,7 @@ static event_t rtc_second_event([](void)
 {
     // Инкремент секунды
     rtc_time.inc_second();
+    rtc_uptime_seconds++;
     // Вызов цепочки обработчиков
     rtc_second_event_handlers();
 });

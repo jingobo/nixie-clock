@@ -222,6 +222,7 @@ protected:
         // Заполняем ответ
         command.response.time.sync = ntime_sync_time;
         command.response.time.current = rtc_time;
+        command.response.time.uptime = rtc_uptime_seconds;
         command.response.sync_allow = ntime_sync_allow();
         // Передача ответа
         transmit();

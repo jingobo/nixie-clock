@@ -190,6 +190,11 @@ app.dom = new function ()
                     message: "#date-ntp-notice-text",
                 },
             },
+            
+            run:
+            {
+                message: "#date-run-notice-text",
+            },
         },
         
         wifi:
@@ -477,6 +482,8 @@ app.page =
     {
         // Счетчик загруженных пакетов
         const loadCounter = new LoadCounter(2);
+        // Время работы устройства
+        let uptime_seconds = 0;
         // Время синхронизации с часами
         let syncTime = new Date();
         // Время прочтенное с часов
@@ -495,39 +502,47 @@ app.page =
             syncTime = new Date();
             
             // Текущая дата
-            let year = data.uint8();
-            let month = data.uint8();
-            let day = data.uint8();
-            let hour = data.uint8();
-            let minute = data.uint8();
-            let second = data.uint8();
-            readedTime = new Date(year + 2000, month - 1, day, hour, minute, second);
+            {
+                const year = data.uint8();
+                const month = data.uint8();
+                const day = data.uint8();
+                const hour = data.uint8();
+                const minute = data.uint8();
+                const second = data.uint8();
+                readedTime = new Date(year + 2000, month - 1, day, hour, minute, second);
+            }
             
             // Дата синхронизации
-            year = data.uint8();
-            month = data.uint8();
-            day = data.uint8();
-            hour = data.uint8();
-            minute = data.uint8();
-            second = data.uint8();
+            {
+                const year = data.uint8();
+                const month = data.uint8();
+                const day = data.uint8();
+                const hour = data.uint8();
+                const minute = data.uint8();
+                const second = data.uint8();
+
+                // Вывод даты
+                const notice = app.dom.time.ntp.notice;
+                if (month != 0)
+                {
+                    notice.message.text(
+                        utils.leadingZeros(day, 2) + "." +
+                        utils.leadingZeros(month, 2) + "." +
+                        utils.leadingZeros(year, 2) + " в " +
+                        utils.leadingZeros(hour, 2) + ":" +
+                        utils.leadingZeros(minute, 2) + ":" +
+                        utils.leadingZeros(second, 2));
+                    notice.container.visible(true);
+                }
+                else
+                    notice.container.visible(false);
+            }
+            
+            // Время работы устройства
+            uptime_seconds = data.uint32();
+            
             // Возможность синхронизации
             app.dom.time.ntp.sync.disabled(!data.bool());
-            
-            // Вывод времени синхронизации
-            const notice = app.dom.time.ntp.notice;
-            if (month != 0)
-            {
-                notice.message.text(
-                    utils.leadingZeros(day, 2) + "." +
-                    utils.leadingZeros(month, 2) + "." +
-                    utils.leadingZeros(year, 2) + " в " +
-                    utils.leadingZeros(hour, 2) + ":" +
-                    utils.leadingZeros(minute, 2) + ":" +
-                    utils.leadingZeros(second, 2));
-                notice.container.visible(true);
-            }
-            else
-                notice.container.visible(false);
             
             log.info("Received current datetime: " + readedTime + "...");
             updateTimeOnDom();
@@ -554,18 +569,38 @@ app.page =
         // Обновление текущего времени на дисплее
         function updateTimeOnDom()
         {
+            // Время работы устройства
+            {
+                let uptime = uptime_seconds;
+                
+                // Функция деления частей времени
+                const div = (v) =>
+                {
+                    const result = uptime % v;
+                    uptime = Math.floor(uptime / v);
+                    return result;
+                };
+                
+                const seconds = div(60);
+                const minutes = div(60);
+                const hours = div(24);
+                const days = uptime;
+                
+                // Вывод времени
+                app.dom.time.run.message.text(
+                    days + " дней " +
+                    utils.leadingZeros(hours, 2) + ":" +
+                    utils.leadingZeros(minutes, 2) + ":" +
+                    utils.leadingZeros(seconds, 2));
+            }
+            
+            // Текущее время
             const time = app.page.time.currentTime();
-            // Год
             const yy = time.getFullYear();
-            // Месяц
             const nn = time.getMonth();
-            // День
             const dd = time.getDate();
-            // Часы
             const hh = time.getHours();
-            // Минуты
             const mm = time.getMinutes();
-            // Секунды
             const ss = time.getSeconds();
             
             // Можем ли модифицировать поля ввода
@@ -690,8 +725,12 @@ app.page =
                     // Перезапрашивает текущую дату/время
                     requestTime();
                 });
+            
             // Обновление времени на дисплее
             setInterval(updateTimeOnDom, 500);
+            
+            // Обновление времени работы устройства
+            setInterval(() => uptime_seconds++, 1000);
 
             // Обработчик клика по кнопке применения настроек
             app.dom.time.ntp.apply.click(async () =>

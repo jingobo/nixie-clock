@@ -6,6 +6,8 @@
 
 // Локальное время
 extern datetime_t rtc_time;
+// Количество секунд с запуска
+extern uint32_t rtc_uptime_seconds;
 
 // Инициализация модуля
 void rtc_init(void);
