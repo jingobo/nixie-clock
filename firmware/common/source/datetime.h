@@ -3,31 +3,38 @@
 
 #include "common.h"
 
-// Пределы для года
-#define DATETIME_YEAR_MIN       0
-#define DATETIME_YEAR_MAX       99
-// Пределы для месяца
-#define DATETIME_MONTH_MIN      1
-#define DATETIME_MONTH_MAX      12
-// Пределы для дней
-#define DATETIME_DAY_MIN        1
-#define DATETIME_DAY_MAX        31
-// Пределы для часов
-#define DATETIME_HOUR_MIN       0
-#define DATETIME_HOUR_MAX       23
-// Пределы для минут
-#define DATETIME_MINUTE_MIN     0
-#define DATETIME_MINUTE_MAX     59
-// Пределы для секунд
-#define DATETIME_SECOND_MIN     0
-#define DATETIME_SECOND_MAX     59
-
-// Смещение для значения года
-#define DATETIME_YEAR_BASE      2000
-
 // Календарная дата/время
 struct datetime_t
 {
+    // Пределы для года
+    static constexpr const uint8_t YEAR_MIN = 0;
+    static constexpr const uint8_t YEAR_MAX = 99;
+    // Пределы для месяца
+    static constexpr const uint8_t MONTH_MIN = 1;
+    static constexpr const uint8_t MONTH_MAX = 12;
+    // Пределы для дней
+    static constexpr const uint8_t DAY_MIN = 1;
+    static constexpr const uint8_t DAY_MAX = 31;
+    // Пределы для часов
+    static constexpr const uint8_t HOUR_MIN = 0;
+    static constexpr const uint8_t HOUR_MAX = 23;
+    // Пределы для минут
+    static constexpr const uint8_t MINUTE_MIN = 0;
+    static constexpr const uint8_t MINUTE_MAX = 59;
+    // Пределы для секунд
+    static constexpr const uint8_t SECOND_MIN = 0;
+    static constexpr const uint8_t SECOND_MAX = 59;
+
+    // Количество секунд в минуте
+    static constexpr const uint32_t SECOND_IN_MINUTE = 60; 
+    // Количество секунд в часе
+    static constexpr const uint32_t SECOND_IN_HOUR = SECOND_IN_MINUTE * 60; 
+    // Количество секунд в сутках
+    static constexpr const uint32_t SECOND_IN_DAY = SECOND_IN_HOUR * 24; 
+    
+    // Смещение для значения года
+    static constexpr const uint16_t YEAR_BASE = 2000;
+
     // Дата
     uint8_t year;
     uint8_t month;

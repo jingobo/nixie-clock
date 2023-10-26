@@ -165,7 +165,7 @@ public:
 struct time_sync_settings_t
 {
     // Включена ли синхронизация
-    bool sync : 8;
+    bool sync;
     // Часовой пояс
     int8_t timezone;
     // Смещение часа
