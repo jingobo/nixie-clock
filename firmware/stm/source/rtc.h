@@ -16,6 +16,10 @@ void rtc_clock_output(bool enabled);
 // Добавление обработчика секундного события 
 void rtc_second_event_add(list_handler_item_t &handler);
 
+// Получает/Задает частота кварца LSE
+uint16_t rtc_lse_freq_get(void);
+void rtc_lse_freq_set(uint16_t value);
+
 // Обработчик секундного прерывания
 void rtc_interrupt_second(void);
 
