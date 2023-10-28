@@ -26,11 +26,15 @@ struct datetime_t
     static constexpr const uint8_t SECOND_MAX = 59;
 
     // Количество секунд в минуте
-    static constexpr const uint32_t SECOND_IN_MINUTE = 60; 
+    static constexpr const uint32_t SECONDS_PER_MINUTE = 60; 
+    // Количество минут в часе
+    static constexpr const uint32_t MINUTES_PER_HOUR = 60; 
+    // Количество часов в сутках
+    static constexpr const uint32_t HOURS_PER_DAY = 24; 
     // Количество секунд в часе
-    static constexpr const uint32_t SECOND_IN_HOUR = SECOND_IN_MINUTE * 60; 
+    static constexpr const uint32_t SECONDS_PER_HOUR = SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
     // Количество секунд в сутках
-    static constexpr const uint32_t SECOND_IN_DAY = SECOND_IN_HOUR * 24; 
+    static constexpr const uint32_t SECONDS_PER_DAY = SECONDS_PER_HOUR * HOURS_PER_DAY; 
     
     // Смещение для значения года
     static constexpr const uint16_t YEAR_BASE = 2000;
@@ -91,6 +95,11 @@ struct datetime_t
     {
         return month_day_count(month, leap());
     }
+    
+    // Формирование даты из секунд с UTC базой
+    static bool from_utc_seconds(uint64_t seconds, datetime_t &dest);
+    // Формирование секунд с UTC базой
+    uint64_t to_utc_seconds(void) const;
 };
 
 #endif // __DATETIME_H

@@ -41,6 +41,7 @@ void datetime_t::inc_second(void)
 {
     if (++second <= SECOND_MAX)
         return;
+    
     second = SECOND_MIN;
     inc_minute();
 }
@@ -49,6 +50,7 @@ void datetime_t::inc_minute(void)
 {
     if (++minute <= MINUTE_MAX)
         return;
+    
     minute = MINUTE_MIN;
     inc_hour();
 }
@@ -58,17 +60,21 @@ void datetime_t::inc_hour(void)
     if (++hour <= HOUR_MAX)
         return;
     hour = HOUR_MIN;
+    
     // Инкремент дней
     if (++day <= month_day_count())
         return;
     day = DAY_MIN;
+    
     // Инкремент месяцев
     if (++month <= MONTH_MAX)
         return;
     month = MONTH_MIN;
+    
     // Инкремент лет
     if (++year <= YEAR_MAX)
         return;
+    
     // Ничесе 0_o
     year = YEAR_MIN;
 }
@@ -80,6 +86,7 @@ void datetime_t::dec_second(void)
         second--;
         return;
     }
+    
     second = SECOND_MAX;
     dec_minute();
 }
@@ -91,6 +98,7 @@ void datetime_t::dec_minute(void)
         minute--;
         return;
     }
+    
     minute = MINUTE_MAX;
     dec_hour();
 }
@@ -103,12 +111,14 @@ void datetime_t::dec_hour(void)
         return;
     }
     hour = HOUR_MAX;
+    
     // Декремент дней
     if (day > MINUTE_MIN)
     {
         day--;
         return;
     }
+    
     // Декремент месяцев
     if (month > MONTH_MIN)
         month--;
@@ -122,6 +132,7 @@ void datetime_t::dec_hour(void)
             // Ого 0_o
             year = YEAR_MAX;
     }
+    
     day = month_day_count();
 }
 
@@ -153,4 +164,96 @@ void datetime_t::shift_minute(int8_t dx)
             dec_minute();
             dx++;
         }
+}
+
+// Смещение года UTC
+constexpr const uint16_t DATETIME_UTC_YEAR_BASE = 1900;
+
+// Фиксированная точка для расчета дней
+constexpr const uint32_t DAYS_FP = 256;
+// Количество дней в году с учетом високосных лет (365.25) валидно для [1901..2099]
+constexpr const uint32_t DAYS_PER_YEAR = 365 * DAYS_FP + DAYS_FP / 4;
+
+bool datetime_t::from_utc_seconds(uint64_t seconds, datetime_t &dest)
+{
+    // Расчет часов, минут, секунд
+    {
+        // Количество секунд в сутках
+        const auto day_seconds = (uint32_t)(seconds % SECONDS_PER_DAY);
+        
+        dest.second = (uint8_t)(day_seconds % SECONDS_PER_MINUTE);
+        dest.minute = (uint8_t)(day_seconds % SECONDS_PER_HOUR / SECONDS_PER_MINUTE);
+        dest.hour = (uint8_t)(day_seconds / SECONDS_PER_HOUR);
+    }
+
+    // Количество суток
+    auto day_count = (uint32_t)(seconds / SECONDS_PER_DAY);
+    // 1900 год не високосный
+    day_count += 1;
+
+    // Расчет года
+    day_count *= DAYS_FP;
+    const auto year = DATETIME_UTC_YEAR_BASE + (uint16_t)(day_count / DAYS_PER_YEAR);
+    if (year < YEAR_BASE)
+        // Год не корректный
+        return false;
+    dest.year = (uint8_t)(year - YEAR_BASE);
+    
+    // Расчет месяца и дня
+    {
+        // Признак високосного года
+        const auto is_leap = dest.leap();
+        // Количество дней в текущем году
+        auto day_year = (int16_t)((day_count % DAYS_PER_YEAR) / DAYS_FP);
+        
+        // Цикл по дням
+        auto month = 0;
+        while (day_year >= 0)
+            day_year -= month_day_count(++month, is_leap);
+        
+        dest.month = (uint8_t)month;
+        dest.day = (uint8_t)(day_year + month_day_count(month, is_leap) + DAY_MIN);
+    }
+    
+    // Резеультат
+    return dest.check();    
+}
+
+uint64_t datetime_t::to_utc_seconds(void) const
+{
+    assert(check());
+
+    // Общее количество дней
+    uint32_t day_count;
+    
+    // Учет месяца и дня
+    {
+        // Признак високосного года
+        const auto is_leap = leap();
+        
+        // Расчет дня текущего года
+        uint16_t day_year = day - DAY_MIN;
+        for (auto i = MONTH_MIN; i < month; i++)
+            day_year += month_day_count(i, is_leap);
+            
+        day_count = day_year * DAYS_FP;
+    }
+    
+    // Учет года
+    day_count += (year + YEAR_BASE - DATETIME_UTC_YEAR_BASE) * DAYS_PER_YEAR;
+    day_count /= DAYS_FP;
+    
+    // 1900 год не високосный
+    day_count -= 1;
+    
+    // Перевод дней в секунды
+    uint64_t result = day_count;
+    result *= SECONDS_PER_DAY;
+    
+    // Учет часов, минут, секунд
+    result += second;
+    result += minute * SECONDS_PER_MINUTE;
+    result += hour * SECONDS_PER_HOUR;
+    
+    return result;
 }

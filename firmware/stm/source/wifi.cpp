@@ -1,5 +1,5 @@
 ﻿#include "esp.h"
-#include "mcu.h"
+#include "rtc.h"
 #include "wifi.h"
 #include "storage.h"
 #include <proto/wifi.inc.h>
@@ -48,7 +48,7 @@ public:
 // Обработчик события изменения настроек
 static void wifi_settings_time_changed(void)
 {
-    wifi_settings_time_change = mcu_tick_get();
+    wifi_settings_time_change = rtc_uptime_seconds;
     wifi_command_handler_settings_changed.transmit();
 }
 
@@ -89,6 +89,8 @@ protected:
     }
 } wifi_command_handler_settings_set;
 
+// Модули к оповещению
+#include "ntime.h"
 #include "display.h"
 
 // Обработчик команды репортирования о присвоении IP адреса
@@ -102,9 +104,13 @@ protected:
             return;
         
         // Показ если с момента изменения настроек не прошло 10 секунд
-        if (mcu_tick_get() - wifi_settings_time_change < 10000)
+        if (rtc_uptime_seconds - wifi_settings_time_change < 10)
             display_show_ip(command.request.intf, command.request.ip);
         
+        // Синхронизация в случае подключения к сети
+        if (command.request.intf == WIFI_INTF_STATION)
+            ntime_sync();
+            
         // Передача ответа
         transmit();
     }

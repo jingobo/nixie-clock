@@ -76,20 +76,19 @@ static class ntime_synchronizer_t
     // Секундный таймаут
     uint32_t remain_timeout;
     
-    // Расчет следующего длинного таймаута
-    void next_timeout_long(void)
+    // Таймаут опроса
+    void timeout_pool(void)
     {
-        // Раз в 5-8 дней
-        remain_timeout = datetime_t::SECOND_IN_DAY * 5 +  random_range_get(0, datetime_t::SECOND_IN_DAY * 3);
-    }
-
-    // Расчет следующего короткого таймаута
-    void next_short_long(void)
-    {
-        // Раз 1-2 часа
-        remain_timeout = datetime_t::SECOND_IN_HOUR + random_range_get(0, datetime_t::SECOND_IN_HOUR);
+        // Каждые 5 минут
+        remain_timeout = datetime_t::SECONDS_PER_MINUTE * 5;
     }
 public:
+    // Конструктор по умолчанию
+    ntime_synchronizer_t(void)
+    {
+        timeout_pool();
+    }
+
     // Запуск обработки
     void run(void)
     {
@@ -100,13 +99,9 @@ public:
         // Запуск синхронизации
         ntime_sync_time_clear();
         if (ntime_command_handler_time_sync.go())
-        {
             running = true;
-            return;
-        }
-        
-        // К следующему таймауту
-        next_short_long();
+        else
+            timeout_pool();
     }
     
     // Получает признак обработки
@@ -144,9 +139,14 @@ public:
         
         // Подбор следующего таймаута
         if (success)
-            next_timeout_long();
+            // Раз в 5-8 дней
+            remain_timeout = datetime_t::SECONDS_PER_DAY * 5 +  random_range_get(0, datetime_t::SECONDS_PER_DAY * 3);
+        else if (rtc_uptime_seconds > datetime_t::SECONDS_PER_HOUR)
+            // Раз 1-2 часа
+            remain_timeout = datetime_t::SECONDS_PER_HOUR + random_range_get(0, datetime_t::SECONDS_PER_HOUR);
         else
-            next_short_long();
+            // Часто в первый час
+            timeout_pool();
     }
 } ntime_synchronizer;
 
@@ -220,6 +220,12 @@ public:
     }
 } ntime_command_handler_hostlist;
 
+// Применение времени синхронизации
+static void ntime_sync_apply(const datetime_t &fresh)
+{
+    rtc_time = fresh;
+}
+
 void ntime_command_handler_time_sync_t::work(bool idle)
 {
     if (idle)
@@ -255,7 +261,7 @@ void ntime_command_handler_time_sync_t::work(bool idle)
             ntime_sync_time = command.response.value;
             // Устанавилваем новое время
             if (ntime_sync_settings.sync_allow())
-                rtc_time = command.response.value;
+                ntime_sync_apply(command.response.value);
             
             // Рапортирование автомату синхронизации
             ntime_synchronizer.report(true);
@@ -372,6 +378,10 @@ static list_handler_item_t ntime_second_event([](void)
     ntime_synchronizer.second();
 });
 
+void ntime_sync(void)
+{
+    ntime_synchronizer.run();
+}
 
 void ntime_init(void)
 {
@@ -385,6 +395,5 @@ void ntime_init(void)
     esp_handler_add(ntime_command_handler_time_sync_start);
     
     // Подготовка синхронизации
-    ntime_synchronizer.run();
     rtc_second_event_add(ntime_second_event);
 }
