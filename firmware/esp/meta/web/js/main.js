@@ -195,6 +195,10 @@ app.dom = new function ()
             {
                 message: "#date-run-notice-text",
             },
+            lse:
+            {
+                message: "#date-lse-notice-text",
+            },
         },
         
         wifi:
@@ -540,6 +544,9 @@ app.page =
             
             // Время работы устройства
             uptime_seconds = data.uint32();
+            
+            // Частота LSE
+            app.dom.time.lse.message.text(data.uint16());
             
             // Возможность синхронизации
             app.dom.time.ntp.sync.disabled(!data.bool());

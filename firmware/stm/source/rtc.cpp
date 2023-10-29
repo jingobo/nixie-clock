@@ -10,7 +10,7 @@ datetime_t rtc_time;
 // Количество секунд с запуска
 uint32_t rtc_uptime_seconds = 0;
 // Частота кварца LSE
-static uint16_t rtc_lse_freq @ STORAGE_SECTION = 32768;
+static uint16_t rtc_lse_freq @ STORAGE_SECTION = RTC_LSE_FREQ_DEFAULT;
 
 // Проверка работы LSE
 static bool rtc_check_lse(void)

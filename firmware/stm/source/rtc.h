@@ -4,6 +4,9 @@
 #include <list.h>
 #include <datetime.h>
 
+// Частота кварца LSE по умолчанию
+constexpr const uint16_t RTC_LSE_FREQ_DEFAULT = 32768;
+
 // Локальное время
 extern datetime_t rtc_time;
 // Количество секунд с запуска

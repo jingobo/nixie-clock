@@ -143,6 +143,7 @@ static bool ntime_try_host(const char *host)
     auto &dest = ntime_command_time_sync.command.response.value;
     if (!packet.time.tx.datetime_get(dest))
         return false;
+
     // Вывод результата
     LOGI("Success. Time: %d/%d/%d %d:%d:%d (GMT 0)", dest.day, dest.month, dest.year, dest.hour, dest.minute, dest.second);
     ntime_command_time_sync.command.response.status = time_command_sync_response_t::STATUS_SUCCESS;

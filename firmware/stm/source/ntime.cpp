@@ -19,13 +19,21 @@ static time_sync_settings_t ntime_sync_settings @ STORAGE_SECTION =
     .hosts = "ntp1.stratum2.ru\n0.pool.ntp.org"
 };
 
-// Хранит время последней синхронизации
-__no_init static datetime_t ntime_sync_time;
+// Время последней синхронизации
+static __no_init datetime_t ntime_sync_time;
+// Количество секунд времени работы с последней синхронизации
+static __no_init uint32_t ntime_sync_seconds;
 
-// Отчистка даты последней синхронизации
+// Очистка даты последней синхронизации
 static void ntime_sync_time_clear(void)
 {
     memory_clear(&ntime_sync_time, sizeof(ntime_sync_time));
+}
+
+// Сброс количества секунд с последней синхронизации
+static void ntime_sync_seconds_reset(void)
+{
+    ntime_sync_seconds = 0;
 }
 
 // Получает, можно ли запустить процедуру синхронизации
@@ -223,6 +231,26 @@ public:
 // Применение времени синхронизации
 static void ntime_sync_apply(const datetime_t &fresh)
 {
+    // Коррекция частоты если есть секунды с последней синхронизации
+    if (ntime_sync_seconds > 0)
+    {
+        // Секунд по часам устройства
+        const auto device_seconds = rtc_uptime_seconds - ntime_sync_seconds;
+        
+        // Если дельта секунд достаточная
+        if (device_seconds > RTC_LSE_FREQ_DEFAULT)
+        {
+            auto seconds = device_seconds;
+            seconds =+ rtc_time.to_utc_seconds() - fresh.to_utc_seconds();
+            
+            seconds *= rtc_lse_freq_get();
+            seconds /= device_seconds;
+            rtc_lse_freq_set((uint16_t)seconds);
+        }
+    }
+    
+    // Приминение времени
+    ntime_sync_seconds = rtc_uptime_seconds;
     rtc_time = fresh;
 }
 
@@ -309,6 +337,7 @@ protected:
         command.response.time.current = rtc_time;
         command.response.time.uptime = rtc_uptime_seconds;
         command.response.sync_allow = ntime_sync_allow();
+        command.response.time.lse = rtc_lse_freq_get();
         
         // Передача ответа
         transmit();
@@ -327,8 +356,9 @@ protected:
         
         // Установка даты/времени
         rtc_time = command.request;
-        // Сброс даты синхронизации
+        // Сброс данных синхронизации
         ntime_sync_time_clear();
+        ntime_sync_seconds_reset();
         // Передача подтверждения
         transmit();
     }
@@ -378,11 +408,6 @@ static list_handler_item_t ntime_second_event([](void)
     ntime_synchronizer.second();
 });
 
-void ntime_sync(void)
-{
-    ntime_synchronizer.run();
-}
-
 void ntime_init(void)
 {
     // Обработчики IPC
@@ -395,5 +420,7 @@ void ntime_init(void)
     esp_handler_add(ntime_command_handler_time_sync_start);
     
     // Подготовка синхронизации
+    ntime_synchronizer.run();
+    ntime_sync_seconds_reset();
     rtc_second_event_add(ntime_second_event);
 }

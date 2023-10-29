@@ -90,7 +90,6 @@ protected:
 } wifi_command_handler_settings_set;
 
 // Модули к оповещению
-#include "ntime.h"
 #include "display.h"
 
 // Обработчик команды репортирования о присвоении IP адреса
@@ -106,10 +105,6 @@ protected:
         // Показ если с момента изменения настроек не прошло 10 секунд
         if (rtc_uptime_seconds - wifi_settings_time_change < 10)
             display_show_ip(command.request.intf, command.request.ip);
-        
-        // Синхронизация в случае подключения к сети
-        if (command.request.intf == WIFI_INTF_STATION)
-            ntime_sync();
             
         // Передача ответа
         transmit();

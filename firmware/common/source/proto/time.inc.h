@@ -121,6 +121,7 @@ public:
 // Структура ответа команды чтения текущей даты/времени
 struct time_command_current_get_response_t
 {
+    ALIGN_FIELD_8
     struct
     {
         // Текущее время
@@ -129,7 +130,10 @@ struct time_command_current_get_response_t
         datetime_t sync;
         // Секунд с запуска
         uint32_t uptime;
+        // Частота часового кварца
+        uint16_t lse;
     } time;
+    ALIGN_FIELD_DEF
     
     // Можно ли запустить синхронизацию
     bool sync_allow;
