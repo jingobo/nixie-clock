@@ -1,4 +1,5 @@
-﻿#include <stm.h>
+﻿#include <io.h>
+#include <stm.h>
 #include <log.h>
 #include <core.h>
 #include "wifi.h"
@@ -244,6 +245,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
         case SYSTEM_EVENT_STA_GOT_IP:
             LOGI("[Station] got IP: %s", ip4addr_ntoa(&info.got_ip.ip_info.ip));
             wifi_update_intf_address(TCPIP_ADAPTER_IF_STA);
+            io_led_green.flash();
             break;
         case SYSTEM_EVENT_STA_LOST_IP:
             LOGI("[Station] lost IP!");
@@ -251,6 +253,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
 
         case SYSTEM_EVENT_STA_CONNECTED:
             LOGI("[Station] connected, channel: %d", info.connected.channel);
+        	io_led_yellow.state_set(false);
             os_timer_disarm(&wifi_station_reconnect_timer);
             break;
 
@@ -258,6 +261,7 @@ static esp_err_t wifi_event_handler(void *ctx, system_event_t *event)
             LOGI("[Station] disconnected, reason: %d", info.disconnected.reason);
             if (wifi_settings.intf[WIFI_INTF_STATION].use)
             {
+            	io_led_yellow.state_set(true);
                 wifi_info.intf[WIFI_INTF_STATION].state = WIFI_INTF_STATE_ERROR;
                 os_timer_arm(&wifi_station_reconnect_timer, 30 * 1000, true);
             }
