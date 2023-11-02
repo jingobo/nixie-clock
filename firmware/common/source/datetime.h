@@ -90,6 +90,9 @@ struct datetime_t
         return (year & 3) == 0;
     }
     
+    // Получает день недели [0..6]
+    uint8_t day_week(void) const;
+    
     // Получает кодичество дней в месяце
     uint8_t month_day_count(void) const
     {
@@ -97,9 +100,13 @@ struct datetime_t
     }
     
     // Формирование даты из секунд с UTC базой
-    static bool from_utc_seconds(uint64_t seconds, datetime_t &dest);
+    static bool utc_from_seconds(uint64_t seconds, datetime_t &dest);
     // Формирование секунд с UTC базой
-    uint64_t to_utc_seconds(void) const;
+    uint64_t utc_to_seconds(void) const;
+
+private:
+    // Получает количество дней с UTC базой
+    uint32_t utc_day_count(void) const;
 };
 
 #endif // __DATETIME_H

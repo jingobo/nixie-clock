@@ -168,13 +168,12 @@ void datetime_t::shift_minute(int8_t dx)
 
 // Смещение года UTC
 constexpr const uint16_t DATETIME_UTC_YEAR_BASE = 1900;
-
 // Фиксированная точка для расчета дней
-constexpr const uint32_t DAYS_FP = 256;
+constexpr const uint32_t DATETIME_DAYS_FP = 256;
 // Количество дней в году с учетом високосных лет (365.25) валидно для [1901..2099]
-constexpr const uint32_t DAYS_PER_YEAR = 365 * DAYS_FP + DAYS_FP / 4;
+constexpr const uint32_t DATETIME_DAYS_PER_YEAR = 365 * DATETIME_DAYS_FP + DATETIME_DAYS_FP / 4;
 
-bool datetime_t::from_utc_seconds(uint64_t seconds, datetime_t &dest)
+bool datetime_t::utc_from_seconds(uint64_t seconds, datetime_t &dest)
 {
     // Расчет часов, минут, секунд
     {
@@ -192,8 +191,8 @@ bool datetime_t::from_utc_seconds(uint64_t seconds, datetime_t &dest)
     day_count += 1;
 
     // Расчет года
-    day_count *= DAYS_FP;
-    const auto year = DATETIME_UTC_YEAR_BASE + (uint16_t)(day_count / DAYS_PER_YEAR);
+    day_count *= DATETIME_DAYS_FP;
+    const auto year = DATETIME_UTC_YEAR_BASE + (uint16_t)(day_count / DATETIME_DAYS_PER_YEAR);
     if (year < YEAR_BASE)
         // Год не корректный
         return false;
@@ -201,53 +200,69 @@ bool datetime_t::from_utc_seconds(uint64_t seconds, datetime_t &dest)
     
     // Расчет месяца и дня
     {
-        // Признак високосного года
-        const auto is_leap = dest.leap();
         // Количество дней в текущем году
-        auto day_year = (int16_t)((day_count % DAYS_PER_YEAR) / DAYS_FP);
+        auto day_year = (uint16_t)(day_count % DATETIME_DAYS_PER_YEAR / DATETIME_DAYS_FP);
         
-        // Цикл по дням
-        auto month = 0;
-        while (day_year >= 0)
-            day_year -= month_day_count(++month, is_leap);
+        // Цикл по месяцам
+        for (dest.month = MONTH_MIN;; dest.month++)
+        {
+            // Количество дней в месяце
+            const auto mday_count = dest.month_day_count();
+            
+            // Вычет дней месяца из дней года
+            if (day_year < mday_count)
+                break;
+            day_year -= mday_count;
+        }
         
-        dest.month = (uint8_t)month;
-        dest.day = (uint8_t)(day_year + month_day_count(month, is_leap) + DAY_MIN);
+        dest.day = (uint8_t)day_year + DAY_MIN;
     }
     
     // Резеультат
     return dest.check();    
 }
 
-uint64_t datetime_t::to_utc_seconds(void) const
+uint32_t datetime_t::utc_day_count(void) const
 {
     assert(check());
 
     // Общее количество дней
-    uint32_t day_count;
+    uint32_t result;
     
     // Учет месяца и дня
     {
         // Признак високосного года
         const auto is_leap = leap();
         
-        // Расчет дня текущего года
+        // Цикл по месяцам
         uint16_t day_year = day - DAY_MIN;
         for (auto i = MONTH_MIN; i < month; i++)
             day_year += month_day_count(i, is_leap);
             
-        day_count = day_year * DAYS_FP;
+        // Расчет дня текущего года
+        result = day_year * DATETIME_DAYS_FP;
     }
     
     // Учет года
-    day_count += (year + YEAR_BASE - DATETIME_UTC_YEAR_BASE) * DAYS_PER_YEAR;
-    day_count /= DAYS_FP;
-    
+    {
+        // Годов в днях
+        const auto year_days = (year + YEAR_BASE - DATETIME_UTC_YEAR_BASE) * DATETIME_DAYS_PER_YEAR;
+        result += year_days;
+
+        // Округление в большую сторону
+        if ((year_days % DATETIME_DAYS_FP) != 0)
+            result += DATETIME_DAYS_FP;
+    }
+    result /= DATETIME_DAYS_FP;
+
     // 1900 год не високосный
-    day_count -= 1;
-    
+    return result - 1;
+}
+
+uint64_t datetime_t::utc_to_seconds(void) const
+{
     // Перевод дней в секунды
-    uint64_t result = day_count;
+    uint64_t result = utc_day_count();
     result *= SECONDS_PER_DAY;
     
     // Учет часов, минут, секунд
@@ -256,4 +271,9 @@ uint64_t datetime_t::to_utc_seconds(void) const
     result += hour * SECONDS_PER_HOUR;
     
     return result;
+}
+
+uint8_t datetime_t::day_week(void) const
+{
+    return (uint8_t)(utc_day_count() % 7);
 }

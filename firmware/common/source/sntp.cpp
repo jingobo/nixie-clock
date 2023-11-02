@@ -40,7 +40,7 @@ bool sntp_time_t::datetime_get(datetime_t &dest) const
     if ((seconds & 0x80000000) == 0)
         utc_seconds += 0x0100000000;
     
-    return datetime_t::from_utc_seconds(utc_seconds, dest);
+    return datetime_t::utc_from_seconds(utc_seconds, dest);
 }
 
 // Подготавливает поля после записи
