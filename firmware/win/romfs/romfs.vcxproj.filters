@@ -17,9 +17,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\platform.h">
-      <Filter>source\common</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\common\source\common.h">
       <Filter>source\common</Filter>
     </ClInclude>

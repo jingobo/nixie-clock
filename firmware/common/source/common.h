@@ -106,11 +106,11 @@ constexpr T div_ceil(T a, T b)
 typedef void (* handler_cb_ptr)(void);
 
 // Исключение литералов assert для вызова из ОЗУ функций
-#ifndef __GNUC__
+#ifdef __IAR_SYSTEMS_ICC__
     // Будем переопределять
     #undef assert
     
-    #ifdef NODEBUG
+    #ifdef NDEBUG
         // Заглушка
         #define assert(test)    UNUSED(0)
     #else
