@@ -35,8 +35,12 @@ class screen_scene_t : public screen_model_t
 {
     friend class screen_t;
 protected:
-    // Событие установки сцены на дисплей
+    // Событие активации сцены на дисплее
     virtual void activated(void)
+    { }
+    
+    // Событие деактивации сцены на дисплее
+    virtual void deactivated(void)
     { }
 };
 
@@ -58,11 +62,17 @@ public:
     {
         if (ref == scene_get())
             return;
+        
         // Отсоединение старой сцены
         if (scene != NULL)
+        {
             move(*scene);
-        // Присоединение новой
+            scene->deactivated();
+        }
+
         scene = ref;
+        
+        // Присоединение новой
         if (scene != NULL)
         {
             scene->activated();
@@ -81,10 +91,12 @@ public:
     {
         // Базовый метод
         screen_model_t::refresh();
+        
         // Обновление моделей
         led.refresh();
         neon.refresh();
         nixie.refresh();
+        
         // Вызов обнвоения у сцены
         if (scene != NULL)
             scene->refresh();
