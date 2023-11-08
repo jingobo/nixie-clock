@@ -445,16 +445,22 @@ public:
             for (hmi_rank_t i = 0; i < COUNT; i++)
                 ranks[i].frame = frame_count;
         }
+
+        // Устанвливает длительность в колчиестве кадров
+        void frame_count_set(uint32_t value)
+        {
+            assert(value > 0);
+            if (frame_count == value)
+                return;
+            
+            frame_count = value;
+            stop();
+        }
         
         // Устанвливает длительность в дискретах приведенного времени
         void time_set(hmi_time_t value)
         {
-            const auto frame_count_next = maximum<uint32_t>(hmi_time_to_frame_count(value), 1);
-            if (frame_count == frame_count_next)
-                return;
-            
-            frame_count = frame_count_next;
-            stop();
+            frame_count_set(maximum<uint32_t>(hmi_time_to_frame_count(value), 1));
         }
     };
 private:
@@ -561,8 +567,8 @@ public:
         assert(redirect == NULL);
         
         // Состояния направления переноса
-        const bool forward = to.redirect == NULL;
-        const bool backward = to.redirect != NULL;
+        const auto forward = to.redirect == NULL;
+        const auto backward = to.redirect != NULL;
         
         // Если возвращаем фильтры
         if (backward)
