@@ -29,7 +29,7 @@ bool datetime_t::empty(void) const
 uint8_t datetime_t::month_day_count(uint8_t month, bool leap)
 {
     // Количество дней в месяцах
-    static const uint8_t MONTH_DAYS[MONTH_MAX] = { 31,  0,  31,  30,  31,  30,  31,  31,  30,  31,  30,  31 };
+    constexpr const uint8_t MONTH_DAYS[MONTH_MAX] = { 31,  0,  31,  30,  31,  30,  31,  31,  30,  31,  30,  31 };
     // Если февраль
     if (month == 2)
         return leap ? 29 : 28;
