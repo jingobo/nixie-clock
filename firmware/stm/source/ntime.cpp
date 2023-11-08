@@ -228,8 +228,6 @@ public:
     }
 } ntime_command_handler_hostlist;
 
-static volatile uint8_t dw;
-
 // Применение времени синхронизации
 static void ntime_sync_apply(const datetime_t &fresh)
 {
@@ -245,7 +243,7 @@ static void ntime_sync_apply(const datetime_t &fresh)
             auto seconds = device_seconds;
             seconds =+ rtc_time.utc_to_seconds() - fresh.utc_to_seconds();
             
-            seconds *= rtc_lse_freq_get();
+            seconds *= rtc_lse_freq;
             seconds /= device_seconds;
             rtc_lse_freq_set((uint16_t)seconds);
         }
@@ -253,9 +251,7 @@ static void ntime_sync_apply(const datetime_t &fresh)
     
     // Приминение времени
     ntime_sync_seconds = rtc_uptime_seconds;
-    rtc_time = fresh;
-    
-    dw = fresh.day_week();
+    rtc_time_set(fresh);
 }
 
 void ntime_command_handler_time_sync_t::work(bool idle)
@@ -339,9 +335,9 @@ protected:
         // Заполняем ответ
         command.response.time.sync = ntime_sync_time;
         command.response.time.current = rtc_time;
+        command.response.time.lse = rtc_lse_freq;
         command.response.time.uptime = rtc_uptime_seconds;
         command.response.sync_allow = ntime_sync_allow();
-        command.response.time.lse = rtc_lse_freq_get();
         
         // Передача ответа
         transmit();

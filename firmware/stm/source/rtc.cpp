@@ -7,10 +7,12 @@
 
 // Локальное время
 datetime_t rtc_time;
+// День недели
+uint8_t rtc_week_day = 5;
 // Количество секунд с запуска
 uint32_t rtc_uptime_seconds = 0;
 // Частота кварца LSE
-static uint16_t rtc_lse_freq @ STORAGE_SECTION = RTC_LSE_FREQ_DEFAULT;
+uint16_t rtc_lse_freq @ STORAGE_SECTION = RTC_LSE_FREQ_DEFAULT;
 
 // Проверка работы LSE
 static bool rtc_check_lse(void)
@@ -129,9 +131,10 @@ void rtc_second_event_add(list_handler_item_t &handler)
     handler.link(rtc_second_event_handlers);
 }
 
-uint16_t rtc_lse_freq_get(void)
+void rtc_time_set(datetime_t value)
 {
-    return rtc_lse_freq;
+    rtc_time = value;
+    rtc_week_day = value.day_week();
 }
 
 void rtc_lse_freq_set(uint16_t value)
