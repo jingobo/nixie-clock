@@ -41,7 +41,7 @@ constexpr const uint16_t HMI_SAT_COUNT = HMI_SAT_MAX + 1;
 // Таблица уровней насыщенности
 typedef hmi_sat_t hmi_sat_table_t[HMI_SAT_COUNT];
 
-// Тип для хранения цвета в формате RGB
+// Структура цвета в формате RGB
 union hmi_rgb_t
 {
     // Порядок компонент из-за специфики светодиодов WS2812B
@@ -52,7 +52,9 @@ union hmi_rgb_t
         hmi_sat_t b;
     };
     uint8_t grb[3];
-     
+    
+    // Конструкторы должны отсутствовать
+    
     // Оператор равенства
     bool operator == (const hmi_rgb_t &a) const
     { 
@@ -78,11 +80,20 @@ union hmi_rgb_t
     }
 };
 
-// Статическая инициализация
-#define HMI_RGB_INIT(r, g, b)   \
-    { .grb = { (g), (r), (b) } }
+// Инициализация структуры цвета в формате RGB
+constexpr hmi_rgb_t hmi_rgb_init(hmi_sat_t r, hmi_sat_t g, hmi_sat_t b)
+{
+    const hmi_rgb_t result =
+    {
+        .g = g,
+        .r = r,
+        .b = b,
+    };
+    
+    return result;
+}
 
-// Тип для хранения цвета в формате HSV
+// Структура цвета в формате HSV
 union hmi_hsv_t
 {
     struct
@@ -93,6 +104,8 @@ union hmi_hsv_t
     };
     uint8_t hsv[3];
         
+    // Конструкторы должны отсутствовать
+    
     // Оператор равенства
     bool operator == (const hmi_hsv_t &a) const
     {
@@ -113,9 +126,18 @@ union hmi_hsv_t
     hmi_rgb_t to_rgb(void) const;
 };
 
-// Статическая инициализация
-#define HMI_HSV_INIT(h, s, v)   \
-    { .hsv = { (h), (s), (v) } }
+// Инициализация структуры цвета в формате HSV
+constexpr hmi_hsv_t hmi_hsv_init(hmi_sat_t h, hmi_sat_t s, hmi_sat_t v)
+{
+    const hmi_hsv_t result =
+    {
+        .h = h,
+        .s = s,
+        .v = v,
+    };
+    
+    return result;
+}
 
 // Класс модели фильтров
 template <typename DATA, hmi_rank_t COUNT>
@@ -622,10 +644,10 @@ extern const hmi_sat_table_t HMI_GAMMA_TABLE;
 
 // Цвета RGB
 constexpr const hmi_rgb_t 
-    HMI_COLOR_RGB_BLACK = HMI_RGB_INIT(HMI_SAT_MIN, HMI_SAT_MIN, HMI_SAT_MIN),
-    HMI_COLOR_RGB_RED = HMI_RGB_INIT(HMI_SAT_MAX, HMI_SAT_MIN, HMI_SAT_MIN),
-    HMI_COLOR_RGB_GREEN = HMI_RGB_INIT(HMI_SAT_MIN, HMI_SAT_MAX, HMI_SAT_MIN),
-    HMI_COLOR_RGB_BLUE = HMI_RGB_INIT(HMI_SAT_MIN, HMI_SAT_MIN, HMI_SAT_MAX),
-    HMI_COLOR_RGB_WHITE = HMI_RGB_INIT(HMI_SAT_MAX, HMI_SAT_MAX, HMI_SAT_MAX);
+    HMI_COLOR_RGB_BLACK = hmi_rgb_init(HMI_SAT_MIN, HMI_SAT_MIN, HMI_SAT_MIN),
+    HMI_COLOR_RGB_RED = hmi_rgb_init(HMI_SAT_MAX, HMI_SAT_MIN, HMI_SAT_MIN),
+    HMI_COLOR_RGB_GREEN = hmi_rgb_init(HMI_SAT_MIN, HMI_SAT_MAX, HMI_SAT_MIN),
+    HMI_COLOR_RGB_BLUE = hmi_rgb_init(HMI_SAT_MIN, HMI_SAT_MIN, HMI_SAT_MAX),
+    HMI_COLOR_RGB_WHITE = hmi_rgb_init(HMI_SAT_MAX, HMI_SAT_MAX, HMI_SAT_MAX);
 
 #endif // __HMI_H

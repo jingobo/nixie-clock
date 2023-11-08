@@ -19,12 +19,12 @@ static display_settings_t display_settings_time @ STORAGE_SECTION =
         .source = led_source_t::DATA_SOURCE_ANY_RANDOM,
         .rgb =
         {
-            HMI_RGB_INIT(255, 0, 0),
-            HMI_RGB_INIT(255, 255, 0),
-            HMI_RGB_INIT(0, 255, 0),
-            HMI_RGB_INIT(0, 255, 255),
-            HMI_RGB_INIT(0, 0, 255),
-            HMI_RGB_INIT(255, 0, 255),
+            hmi_rgb_init(255, 0, 0),
+            hmi_rgb_init(255, 255, 0),
+            hmi_rgb_init(0, 255, 0),
+            hmi_rgb_init(0, 255, 255),
+            hmi_rgb_init(0, 0, 255),
+            hmi_rgb_init(255, 0, 255),
         },
     },
     
@@ -511,12 +511,7 @@ static class display_scene_heat_t : public display_scene_t
             // Рандомизация цветов
             {
                 const auto hue = (hmi_sat_t)random_range_get(HMI_SAT_MIN, HMI_SAT_MAX);
-                hmi_hsv_t hsv =
-                {
-                    .h = hue,
-                    .s = HMI_SAT_MAX,
-                    .v = HMI_SAT_MAX
-                };
+                auto hsv = hmi_hsv_init(hue, HMI_SAT_MAX, HMI_SAT_MAX);
                 
                 // Дельта оттенка
                 constexpr const hmi_sat_t HUE_DELTA = HMI_SAT_MAX / 3;

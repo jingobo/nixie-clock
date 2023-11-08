@@ -173,7 +173,7 @@ void led_source_t::color_last_next(void)
                 hue_last = (hmi_sat_t)hue;
                 
                 // Цвет в HSV
-                const hmi_hsv_t hsv = HMI_HSV_INIT(hue_last, (hmi_sat_t)random_range_get(220, HMI_SAT_MAX), HMI_SAT_MAX);
+                const auto hsv = hmi_hsv_init(hue_last, (hmi_sat_t)random_range_get(220, HMI_SAT_MAX), HMI_SAT_MAX);
                 // Конвертироование
                 color_last = hsv.to_rgb();
             }

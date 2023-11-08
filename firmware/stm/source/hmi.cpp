@@ -45,7 +45,7 @@ hmi_rgb_t hmi_hsv_t::to_rgb(void) const
         case 5: r = v, g = p, b = q; break;
     }
 
-    const hmi_rgb_t result = HMI_RGB_INIT(
+    const hmi_rgb_t result = hmi_rgb_init(
         (hmi_sat_t)(r * HMI_SAT_MAX),
         (hmi_sat_t)(g * HMI_SAT_MAX),
         (hmi_sat_t)(b * HMI_SAT_MAX));
