@@ -10,15 +10,15 @@ enum list_side_t
     LIST_SIDE_PREV,
     // Следущюий элемент
     LIST_SIDE_NEXT,
+
+    // Первый элемент
+    LIST_SIDE_HEAD = LIST_SIDE_PREV,
+    // Последний элемент
+    LIST_SIDE_LAST = LIST_SIDE_NEXT,
 };
 
 // Количество сторон
 constexpr const auto LIST_SIDE_COUNT = 2;
-
-// Первый элемент
-#define LIST_SIDE_HEAD      LIST_SIDE_PREV
-// Последний элемент
-#define LIST_SIDE_LAST      LIST_SIDE_NEXT
 
 // Получает следующий элемент
 #define LIST_ITEM_NEXT(item)     ((decltype(item))(item)->next())
