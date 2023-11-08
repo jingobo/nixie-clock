@@ -102,7 +102,7 @@ private:
     // Используемые настройки
     const settings_t &settings;
     // Контроллер плавного изменения
-    led_model_t::smoother_t smoother;
+    led_model_t::smoother_to_t smoother;
     
     // Предыдущий выбранный оттенок
     hmi_sat_t hue_last = 0;
@@ -133,10 +133,9 @@ private:
     }
     
     // Запуск эффекта плавности на разряде
-    void start_rank_smooth(hmi_rank_t index, led_data_t from)
+    void start_rank_smooth(hmi_rank_t index, led_data_t to)
     {
-        input(index, from);
-        smoother.start(index, out_get(index));
+        smoother.start(index, out_get(index), to);
     }
         
     // Обработка разряда эффекта вспышки
@@ -172,7 +171,7 @@ protected:
 
     // Обнвление данных
     virtual void refresh(void) override final;
-        
+
 public:
     // Конструктор по умолчанию
     led_source_t(const settings_t &_settings) : settings(_settings)

@@ -248,8 +248,6 @@ public:
         // Вывод данных
         void reoutput(void) const
         {
-            for (hmi_rank_t i = 0; i < COUNT; i++)
-                output(i, out_get(i));
         }
     protected:
         // Установка выходных данных
@@ -268,16 +266,6 @@ public:
             return out[index];
         }
         
-        // Обработчик события присоединения к цепочке
-        virtual void attached(void)
-        {
-            // Базовый метод
-            layer_t::attached();
-            
-            // Передаем данные
-            reoutput();
-        }
-        
         // Обработчик изменения стороны
         virtual void side_changed(list_side_t side) override
         {
@@ -289,7 +277,8 @@ public:
                     
                 case LIST_SIDE_NEXT:
                     // Передаем данные
-                    reoutput();
+                    for (hmi_rank_t i = 0; i < COUNT; i++)
+                        output(i, out_get(i));
                     break;
                     
                 default:
@@ -331,12 +320,11 @@ public:
             }
         }
 
-        // Обработчик изменения данных TODO: возможно оставить абстрактным
+        // Обработчик изменения данных
         virtual void data_changed(hmi_rank_t index, DATA &data) override final
         {
-            // По умолчанию нет реакции
             // В источник могут прилететь только данные предыдущей сцены
-            index_check(index);
+            transceiver_t::out_set(index, data);
         }
     };
         
@@ -485,6 +473,27 @@ public:
             frame_count_set(maximum<uint32_t>(hmi_time_to_frame_count(value), 1));
         }
     };
+    
+    // Класс контроллера плавного изменения данных (с буфером конечного значения)
+    class smoother_to_t : public smoother_t
+    {
+        // Данные по разрядам конечного значения
+        DATA to[COUNT];
+    public:
+        // Запуск на разряде
+        void start(hmi_rank_t index, DATA from, DATA to)
+        {
+            smoother_t::start(index, from);
+            this->to[index] = to;
+        }
+        
+        // Обработка разряда
+        DATA process(hmi_rank_t index)
+        {
+            return smoother_t::process(index, to[index]);
+        }
+    };
+    
 private:
     // Указатель на перенаправляемую модель модель добавление/удаления фильтров
     hmi_model_t *redirect = NULL;
@@ -535,13 +544,9 @@ public:
         else
             item.link(place, LIST_SIDE_PREV);
         
+        // Оповещение сторон о смене слоёв
         if (raise_event)
-        {
-            // Оповещение сторон о смене слоёв
             side_changed(item.prev(), item.next());
-            // Генерирование события
-            item.attached();
-        }
     }
     
     // Добавление слоя в цепочку
@@ -568,8 +573,8 @@ public:
         const auto prev = item.prev();
         const auto next = item.unlink(LIST_SIDE_NEXT);
         
+        // Оповещение сторон о смене слоёв
         if (raise_event)
-            // Оповещение сторон о смене слоёв
             side_changed(prev, next);
     }
     
@@ -636,6 +641,10 @@ public:
                 for (hmi_rank_t i = 0; i < COUNT; i++)
                     head->input(i, data[i]);
         }
+        
+        // Событие присоединения
+        for (auto i = to.list.head(); i != NULL; i = LIST_ITEM_NEXT(i))
+            i->attached();
     }
 };
 

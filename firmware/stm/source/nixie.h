@@ -142,17 +142,6 @@ private:
         return settings.effect == EFFECT_NONE;
     }
 protected:
-    // Событие присоединения к цепочке
-    virtual void attached(void) override final
-    {
-        // Базовый метод
-        nixie_filter_t::attached();
-        
-        // Стоп эффекта по всем разрядам
-        for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
-            effects[i].stop();
-    }
-    
     // Обнвление данных
     virtual void refresh(void) override final;
     

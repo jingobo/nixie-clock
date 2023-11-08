@@ -243,7 +243,7 @@ void led_source_t::refresh(void)
             if (smoother.process_needed(i))
             {
                 transition = true;
-                out_set(i, smoother.process(i, in_get(i)));
+                out_set(i, smoother.process(i));
             }
         
         if (transition)

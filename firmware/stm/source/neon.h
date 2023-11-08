@@ -78,7 +78,7 @@ private:
     // Используемые настройки
     const settings_t &settings;
     // Контроллер плавного изменения
-    neon_model_t::smoother_t smoother;
+    neon_model_t::smoother_to_t smoother;
     
     // Получает данные к отображению по состоянию
     neon_data_t data_normal(bool state) const
@@ -87,10 +87,9 @@ private:
     }
 
     // Запуск эффекта плавности на разряде
-    void start_rank_smooth(hmi_rank_t index, neon_data_t from)
+    void start_rank_smooth(hmi_rank_t index, neon_data_t to)
     {
-        input(index, from);
-        smoother.start(index, out_get(index));
+        smoother.start(index, out_get(index), to);
     }
     
     // Получает младший бит маски в виде булевы

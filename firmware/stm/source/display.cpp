@@ -371,6 +371,7 @@ static class display_scene_heat_t : public display_scene_t
             for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
                 rank_data[i].reset(RANK_INFO[i].digit);
             
+            // Вывод данных разрядов
             flush_ranks();
         }
         
