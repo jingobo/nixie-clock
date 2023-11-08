@@ -50,6 +50,17 @@ template
     border-top-width: 0;
 }
 
+.tab-content .dropdown-toggle
+{
+    width: 100%;
+    text-align: left;
+}
+
+.form-check.dropdown-item
+{
+    padding: 0.25rem 1.5rem 0.25rem 2.5rem;    
+}
+
 .nav-link svg
 {
     position: relative;

@@ -221,7 +221,6 @@
                             </button>
                         </div>
                     </div>
-                    
                     <!-- Статистика -->
                     <div class="alert text-center text-muted">
                         <!-- Время работы устройства -->
@@ -622,12 +621,57 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Прогрев ламп -->
+                    <div class="row form-part">Прогрев ламп</div>
+                    
+                    <!-- Настройки -->
+                    <div class="row">
+                        <!-- Часы -->
+                        <label class="col-md-2 col-form-label">Часы</label>
+                        <div class="col-md-4">
+                            <select class="custom-select" id="disp-heat-hour">
+                            </select>
+                        </div>
+                        
+                        <!-- Дни недели -->
+                        <label class="col-md-2 col-form-label">Дни недели</label>
+                        <div class="col-md-4">
+                            <div class="dropdown" id="disp-heat-days">
+                                <!-- Кнопка выпадающего меню -->
+                                <button class="btn btn-success dropdown-toggle" type="button" data-toggle="dropdown" data-offset="0,5"></button>
+                                
+                                <!-- Шаблон элемента выпадающего меню -->
+                                <template>
+                                    <div class="form-check dropdown-item">
+                                        <input type="checkbox" class="form-check-input" id="disp-heat-day">
+                                        <label class="form-check-label" for="disp-heat-day"></label>
+                                    </div>
+                                </template>
+                                
+                                <!-- Элементы выпадающего меню -->
+                                <div class="dropdown-menu"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Кнопка запуска -->
+                    <div class="row">
+                        <label class="col-md-2 col-form-label">Действия</label>
+                        <div class="btn-group col-md-4">
+                            <button type="button" class="btn btn-warning" id="disp-heat-launch">
+                                <div class="spinner-border spinner-inline"></div>
+                                <span>Запустить сейчас</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         
         <!-- Scripts -->
         <script src="js/jquery.min.js"></script>
+        <script src="js/popper.min.js"></script>
         <script src="js/bootstrap.min.js"></script>
         <script src="js/picker.min.js"></script>
 

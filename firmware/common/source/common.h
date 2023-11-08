@@ -44,7 +44,7 @@ typedef float32_t float_t;
 // Ожидание TRUE
 #define WAIT_FOR(expr)          WAIT_WHILE(!(expr))
         
-// Построение битовых масок
+// Построение битовых масок TODO: на constexpr
 #define MASK(type, value, pos)  ((type)(value) << (pos))
 #define MASK_8(value, pos)      MASK(uint8_t, value, pos)
 #define MASK_16(value, pos)     MASK(uint16_t, value, pos)

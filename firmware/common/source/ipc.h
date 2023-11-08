@@ -56,6 +56,13 @@ enum ipc_opcode_t : uint8_t
         IPC_OPCODE_STM_LIGHT_SETTINGS_GET,
         // Задает настройки освещенности
         IPC_OPCODE_STM_LIGHT_SETTINGS_SET,
+
+        // Производит запуск прогрева ламп
+        IPC_OPCODE_STM_HEAT_LAUNCH_NOW,
+        // Получает настройки прогрева ламп
+        IPC_OPCODE_STM_HEAT_SETTINGS_GET,
+        // Задает настройки прогрева ламп
+        IPC_OPCODE_STM_HEAT_SETTINGS_SET,
         
     // Не команда, база для команд, обрабатываемых модулем ESP8266
     IPC_OPCODE_ESP_HANDLE_BASE = 25,

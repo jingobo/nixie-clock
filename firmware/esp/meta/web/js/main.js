@@ -42,7 +42,14 @@ app.opcode =
     STM_LIGHT_SETTINGS_GET: 14,
     // Задает настройки освещенности
     STM_LIGHT_SETTINGS_SET: 15,
-            
+
+    // Производит запуск прогрева ламп
+    STM_HEAT_LAUNCH_NOW: 16,
+    // Получает настройки прогрева ламп
+    STM_HEAT_SETTINGS_GET: 17,
+    // Задает настройки прогрева ламп
+    STM_HEAT_SETTINGS_SET: 18,
+    
     // Запрос информации о сети
     ESP_WIFI_INFO_GET: 26,    
     // Поиск сетей с опросом состояния
@@ -251,6 +258,19 @@ app.dom = new function ()
                     carrier: "#disp-light-smooth-carrier",
                     label: "#disp-light-smooth-carrier label",
                 },
+            },
+            
+            heat:
+            {
+                hour: "#disp-heat-hour",
+                days:
+                {
+                    button: "#disp-heat-days button",
+                    menu: "#disp-heat-days .dropdown-menu",
+                    template: "#disp-heat-days template",
+                },
+                
+                launch: "#disp-heat-launch",
             },
         },
     };
@@ -2063,7 +2083,7 @@ app.page =
                     levelAutoChanged();
                     settingsChanged();
                 });
-                                
+
                 // Пакетная передача
                 const packeting = new Packeting(
                     // Приём
@@ -2132,6 +2152,210 @@ app.page =
             };
         };
         
+        // Настройки прогрева ламп
+        const heatSettings = new function ()
+        {
+            // Инициализация
+            this.init = () =>
+            {
+                // Обработчик изменения настроек
+                let settingsChanged;
+                
+                // Инициализация списка часов
+                const hour = app.dom.disp.heat.hour;
+                range(24).forEach(i =>
+                    {
+                        let i1 = i + 1;
+                        if (i1 >= 24)
+                            i1 = 0;
+                        const hourText = v => utils.leadingZeros(v, 2) + ":00";
+                        utils.dropdownAdd(hour, i, hourText(i) + " — " + hourText(i1));
+                    });
+                    
+                hour.change(() => settingsChanged());
+
+                // Класс информации о типе дня
+                function Day(index, shortName, name)
+                {
+                    this.name = name;
+                    this.index = index;
+                    this.shortName = shortName;
+                }
+                    
+                // Список типов дней
+                const days = 
+                    [
+                        new Day(0, "ПН", "Понедельник"),    new Day(1, "ВТ", "Вторник"), 
+                        new Day(2, "СР", "Среда"),          new Day(3, "ЧТ", "Четверг"), 
+                        new Day(4, "ПТ", "Пятница"),        new Day(5, "СБ", "Суббота"), 
+                        new Day(6, "ВС", "Воскресенье"), 
+                    ];
+                
+                // Инициализация выбора дня
+                {
+                    // Максимальное значение индекса списка типов дней
+                    const daysIndexMax = days.length - 1;
+                    
+                    // Обработчик измекнения состония дней
+                    const dayStateChanged = () =>
+                    {
+                        // Список пар диапазонов выбранных дней
+                        const pairs = [];
+                        
+                        // Сброс признака добавления в список выбранных дней
+                        days.forEach(d => d.added = false);
+                        
+                        // Получает признак пропуска обработки дня
+                        const skip = i => 
+                        {
+                            // Пропуск если уже добавлен либо не выбран
+                            if (days[i].added || !days[i].state.checked())
+                                return true;
+                            
+                            // Добавляем
+                            days[i].added = true;
+                            return false;
+                        };
+                        
+                        // Производит спуск в ветку
+                        const branch = (i, dx) =>
+                        {
+                            // Исходный индекс
+                            const li = i;
+                            
+                            // Переход к следующему дню
+                            i += dx;
+                            if (i < 0)
+                                i = daysIndexMax;
+                            else if (i > daysIndexMax)
+                                i = 0;
+
+                            // Проверка следующего дня
+                            return skip(i) ?
+                                li :
+                                branch(i, dx);
+                        };
+                        
+                        range(days.length).forEach(i =>
+                            {
+                                // Пропуск если обработан
+                                if (skip(i))
+                                    return;
+                                
+                                // Спуск в обе стороны
+                                const lf = branch(i, -1);
+                                const rf = branch(i, 1);
+                                
+                                // Если один день
+                                if (lf == rf)
+                                    pairs.push(days[i].shortName);
+                                // Если вся неделя
+                                else if (lf == 1 && rf == 0)
+                                    pairs.push("Все дни");
+                                // Если диапазон
+                                else
+                                    pairs.push(days[lf].shortName + "-" + days[rf].shortName);
+                            });
+                            
+                        // Если не выбранно ничего
+                        if (pairs.length <= 0)
+                            pairs.push("Не выбранно");
+                        
+                        // Конвертирование пар диапазонов дней в текст
+                        app.dom.disp.heat.days.button.text(pairs.join(", "));
+                    };
+                        
+                    // Шаблон элемента выпадающего списка дней
+                    const dayItemTemplate = app.dom.disp.heat.days.template.makeTemplate("disp-heat-day");
+                        
+                    // Инициализация списка активации дней
+                    const menuHolder = app.dom.disp.heat.days.menu;
+                    days.forEach(day =>
+                        {
+                            // Создание шаблона
+                            const item = dayItemTemplate();
+                            menuHolder.append(item);
+                            
+                            // Установка надписи состояния
+                            item.find("label").text(day.name);
+                            
+                            // Подготовка чекбокса состония
+                            day.state = item.find("input");
+                            day.state.change(() =>
+                            {
+                                // Оповещение о изменении
+                                dayStateChanged();
+                                settingsChanged();
+                            });
+                        });
+                        
+                    // Предварительное обновление
+                    dayStateChanged();
+                    
+                    // Запрет закрытия всплыващего меню по клику
+                    $(menuHolder).on("click", e => e.stopPropagation());
+                }
+                
+                // Инициализация кнопки принудительного запуска
+                {
+                    const button = app.dom.disp.heat.launch;
+                    
+                    // Предварительное скрытие спинера
+                    button.spinner(false);
+                    
+                    // Обработчик клика
+                    button.click(async () =>
+                        {
+                            button.spinner(true);
+                                await app.session.transmit(new Packet(app.opcode.STM_HEAT_LAUNCH_NOW, "принудительный запуск прогрева ламп"));
+                            button.spinner(false);
+                        });
+                }
+                
+                // Пакетная передача
+                const packeting = new Packeting(
+                    // Приём
+                    {
+                        code: app.opcode.STM_HEAT_SETTINGS_GET,
+                        name: "запрос настроек прогрева ламп",
+                        processing: data =>
+                        {
+                            hour.val(data.uint8());
+                            let weekDays = data.uint8();
+                            days.forEach(day =>
+                                {
+                                    day.state.checked((weekDays & 1) != 0);
+                                    weekDays >>= 1;
+                                });
+                        },
+                    },
+                    // Передача
+                    {
+                        code: app.opcode.STM_HEAT_SETTINGS_SET,
+                        name: "применение настроек прогрева ламп",
+                        processing: data =>
+                        {
+                            data.uint8(utils.dropdownSelectedNumber(hour));
+                            const weekDays = days.slice().reverse().reduce((value, day) =>
+                                {
+                                    if (day.state.checked())
+                                        value |= 1 << day.index;
+                                    
+                                    return value;
+                                }, 0);
+                                
+                            data.uint8(weekDays);
+                        },
+                    });
+                
+                // Связывание обработчик изменения настроек
+                settingsChanged = packeting.transmit;
+                
+                // Загрузка страницы
+                this.load = packeting.receive;
+            };
+        };            
+        
         // Инициализация страницы
         this.init = () =>
         {
@@ -2148,6 +2372,7 @@ app.page =
             
             // Инициализация сцен
             timeScene.init();
+            heatSettings.init();
             lightSettings.init();
         };
         
@@ -2158,6 +2383,7 @@ app.page =
             
             // Загрузка сцен
             timeScene.load();
+            heatSettings.load();
             lightSettings.load();
         };  
         

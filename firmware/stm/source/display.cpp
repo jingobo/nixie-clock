@@ -1,5 +1,6 @@
 ﻿#include "esp.h"
 #include "rtc.h"
+#include "light.h"
 #include "timer.h"
 #include "xmath.h"
 #include "random.h"
@@ -307,6 +308,529 @@ public:
     }
 } display_scene_time;
 
+// Сцена прогрева ламп
+static class display_scene_heat_t : public display_scene_t
+{
+    // Общее время проведения прогрева
+    static constexpr const uint8_t TOTAL_TIME = 20;
+    
+    // Структура информации о разряде
+    struct rank_t
+    {
+        // Текущая цифра
+        uint8_t digit;
+        // Секундный прескалер
+        uint8_t prescaler;
+
+        // Конструктор по умолчанию
+        rank_t(void)
+        { }
+        
+        // Конструктор для информации о разряде
+        constexpr rank_t(uint8_t _digit)
+            : digit(_digit), prescaler(TOTAL_TIME / (NIXIE_DIGIT_SPACE - _digit))
+        { }
+        
+        // Сброс в начальное состояние
+        void reset(uint8_t digit)
+        {
+            prescaler = 0;
+            this->digit = digit;
+        }
+    };
+    
+    // Информация о разрядах
+    static const rank_t RANK_INFO[];
+    
+    // Источник данных для лмап
+    class nixie_source_t : public nixie_model_t::source_t
+    {
+        // Прескалер секунд
+        uint32_t frame;
+        // Данные по разрядам
+        rank_t rank_data[NIXIE_COUNT];
+        
+        // Вывод данных разрядов
+        void flush_ranks(void)
+        {
+            for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
+                out_set(i, nixie_data_t(HMI_SAT_MAX, rank_data[i].digit, true));
+        }
+        
+    protected:
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        {
+            // Базовый метод
+            source_t::attached();
+            
+            // Сброс прескалера секунд
+            frame = 0;
+            
+            // Сброс данных разрядов в начальное состояние
+            for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
+                rank_data[i].reset(RANK_INFO[i].digit);
+            
+            flush_ranks();
+        }
+        
+        // Обновление данных
+        virtual void refresh(void) override final
+        {
+            // Базовый метод
+            source_t::refresh();
+            
+            // Прескалер секунды
+            if (++frame < HMI_FRAME_RATE)
+                return;
+            frame = 0;
+            
+            // Количество завершенных разрядов
+            auto done_count = 0;
+            
+            // Секундная обработка разрдов
+            for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
+            {
+                // Данные и информация
+                auto &data = rank_data[i];
+                auto &info = RANK_INFO[i];
+                
+                // Прескалер цифры
+                if (++data.prescaler < info.prescaler)
+                    continue;
+                data.prescaler = info.prescaler;
+
+                // Завершение или переход к следующей цифре
+                if (data.digit < 9)
+                    data.reset(data.digit + 1);
+                else
+                    done_count++;
+            }
+            
+            // Если не все разряды завершены
+            if (done_count < NIXIE_COUNT)
+                flush_ranks();
+            else
+                display_scene_set_default();
+        }
+    } nixie_source;
+    
+    // Источник данных для неонок
+    class neon_source_t : public neon_model_t::source_t
+    {
+        // Текущий разряд
+        hmi_rank_t rank;
+        // Контроллер плавного изменения
+        neon_model_t::smoother_t smoother;
+        
+        // Запуск эффекта разряда
+        void rank_start(hmi_rank_t rank)
+        {
+            this->rank = rank;
+            smoother.start(rank, out_get(rank));
+        }
+    protected:
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        {
+            // Базовый метод
+            source_t::attached();
+            
+            // Сброс данных разрядов в начальное состояние
+            smoother.stop();
+            for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
+                out_set(i, neon_data_t());
+            
+            // Запуск пекрвого равзряда
+            rank_start(0);
+        }
+        
+        // Обновление данных
+        virtual void refresh(void) override final
+        {
+            // Базовый метод
+            source_t::refresh();
+            
+            // Обработка плавности
+            auto processing = false;
+            for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
+                if (smoother.process_needed(i))
+                {
+                    processing = true;
+                    out_set(i, smoother.process(i, neon_data_t(HMI_SAT_MAX)));
+                }
+            
+            // Если разряд обрабатывается
+            if (processing)
+                return;
+            
+            // Если есть разряды к обработке
+            if (rank < NEON_COUNT - 1)
+                rank_start(rank + 1);
+        }
+    public:
+        // Конструктор по умолчанию
+        neon_source_t(void)
+        {
+            // Настройка плавности
+            smoother.frame_count_set(TOTAL_TIME / NEON_COUNT * HMI_FRAME_RATE);
+        }
+    } neon_source;
+    
+    // Источник данных подсветки
+    class led_source_t : public led_model_t::source_t
+    {
+        // Данные цветности простоя
+        led_data_t data_idle;
+        // Данные цветности маркра
+        led_data_t data_marker;
+        // Данные цветности готовности
+        led_data_t data_success;
+        
+        // Прескалер фазы
+        uint32_t frame;
+        // Текущий разряд
+        hmi_rank_t rank;
+        // Контроллер плавного изменения
+        led_model_t::smoother_t smoother;
+        
+        // Запуск эффекта разряда
+        void rank_start(hmi_rank_t rank)
+        {
+            this->rank = rank;
+            smoother.start(rank, out_get(rank));
+        }
+        
+    protected:
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        {
+            // Базовый метод
+            source_t::attached();
+            
+            // Рандомизация цветов
+            {
+                const auto hue = (hmi_sat_t)random_range_get(HMI_SAT_MIN, HMI_SAT_MAX);
+                hmi_hsv_t hsv =
+                {
+                    .h = hue,
+                    .s = HMI_SAT_MAX,
+                    .v = HMI_SAT_MAX
+                };
+                
+                // Дельта оттенка
+                constexpr const hmi_sat_t HUE_DELTA = HMI_SAT_MAX / 3;
+                
+                // Расчет цветов
+                data_idle = hsv.to_rgb();
+                hsv.h += HUE_DELTA;
+                data_marker = hsv.to_rgb();
+                hsv.h += HUE_DELTA;
+                data_success = hsv.to_rgb();
+            }
+            
+            // Сброс данных разрядов в начальное состояние
+            smoother.stop();
+            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                out_set(i, data_idle);
+            
+            // Запуск первого разряда
+            rank_start(0);
+        }
+        
+        // Обновление данных
+        virtual void refresh(void) override final
+        {
+            // Базовый метод
+            source_t::refresh();
+            
+            // Разряд готовности
+            if (rank > 0)
+            {
+                const auto prev_rank = rank - 1;
+                if (smoother.process_needed(prev_rank))
+                    out_set(prev_rank, smoother.process(prev_rank, data_success));
+            }
+            
+            // Разряд маркера
+            if (smoother.process_needed(rank))
+                out_set(rank, smoother.process(rank, data_marker));
+
+            // Прескалер фазы
+            constexpr const uint32_t PHASE_FRAME_COUNT = TOTAL_TIME / LED_COUNT * HMI_FRAME_RATE;
+            if (++frame < PHASE_FRAME_COUNT)
+                return;
+            frame = 0;
+            
+            // Следующий разряд
+            if (rank >= LED_COUNT - 1)
+                return;
+            
+            // Запуск на обоих разрядах
+            rank_start(rank);
+            rank_start(rank + 1);
+        }
+    public:
+        // Конструктор по умолчанию
+        led_source_t(void)
+        {
+            // Настройка плавности
+            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT * 2);
+        }
+    } led_source;
+    
+    // Структура настроек
+    struct settings_t
+    {
+        // Час срабатывания
+        uint8_t hour;
+        // Маска дней недели
+        uint8_t week_days;
+        
+        // Проверка полей
+        bool check(void) const
+        {
+            return hour <= datetime_t::HOUR_MAX && 
+                   week_days <= 0x7F;
+        }
+    };
+    
+    // Признак ожидания вывода сцены
+    bool pending = false;
+    // Минута вывода
+    uint8_t output_minute;
+    // Текущий день недели
+    uint8_t week_day = datetime_t::WDAY_COUNT;
+    
+    // Текущие настройки
+    static settings_t settings;
+    
+    // Фильтр плавной смены цифр на лампах
+    nixie_switcher_t nixie_switcher;
+    // Настройки фильтра плавной смены цифр на лампах
+    nixie_switcher_t::settings_t nixie_switcher_settings;
+    
+    // Команда запрос настроек
+    class command_settings_get_t : public ipc_command_get_t<settings_t>
+    {
+    public:
+        // Конструктор по умолчанию
+        command_settings_get_t(void) : ipc_command_get_t(IPC_OPCODE_STM_HEAT_SETTINGS_GET)
+        { }
+    };
+
+    // Команда установки настроек
+    class command_settings_set_t : public ipc_command_set_t<settings_t>
+    {
+    public:
+        // Конструктор по умолчанию
+        command_settings_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_HEAT_SETTINGS_SET)
+        { }
+    };
+    
+    // Команда запуска прогрева ламп
+    class command_launch_now_t : public ipc_command_t
+    {
+    public:
+        // Конструктор по умолчанию
+        command_launch_now_t(void) : ipc_command_t(IPC_OPCODE_STM_HEAT_LAUNCH_NOW)
+        { }
+    };
+    
+    // Обработчик команды чтения настроек
+    class settings_getter_t : public ipc_responder_t
+    {
+        // Комадна
+        command_settings_get_t command;
+    protected:
+        // Получает ссылку на команду
+        virtual ipc_command_t &command_get(void) override final
+        {
+            return command;
+        }
+        
+        // Событие обработки данных
+        virtual void work(bool idle) override final
+        {
+            if (idle)
+                return;
+            
+            // Заполняем ответ
+            command.response = settings;
+            // Передача ответа
+            transmit();
+        }
+    } settings_getter;
+    
+    // Обработчик команды записи настроек
+    class settings_setter_t : public ipc_responder_t
+    {
+        // Сцена
+        display_scene_heat_t &scene;
+        // Комадна
+        command_settings_set_t command;
+    protected:
+        // Получает ссылку на команду
+        virtual ipc_command_t &command_get(void) override final
+        {
+            return command;
+        }
+        
+        // Событие обработки данных
+        virtual void work(bool idle) override final
+        {
+            if (idle)
+                return;
+            
+            // Применение настроек
+            settings = command.request;
+            storage_modified();
+
+            // Сброс срабатывания
+            scene.pending = false;
+            scene.week_day = datetime_t::WDAY_COUNT;
+            
+            // Передача ответа
+            transmit();
+        }
+        
+    public:
+        // Конструктор по умолчанию
+        settings_setter_t(display_scene_heat_t &_scene) : scene(_scene)
+        { }
+    } settings_setter;
+    
+    // Обработчик команды запуска прогрева ламп
+    class launch_now_t : public ipc_responder_t
+    {
+        // Сцена
+        display_scene_heat_t &scene;
+        // Комадна
+        command_launch_now_t command;
+    protected:
+        // Получает ссылку на команду
+        virtual ipc_command_t &command_get(void) override final
+        {
+            return command;
+        }
+        
+        // Событие обработки данных
+        virtual void work(bool idle) override final
+        {
+            if (idle)
+                return;
+            
+            // Запрос на показ если сцена не активна
+            if (screen.scene_get() != &scene)
+                scene.pending = true;
+            
+            // Передача ответа
+            transmit();
+        }
+    public:
+        // Конструктор по умолчанию
+        launch_now_t(display_scene_heat_t &_scene) : scene(_scene)
+        { }
+    } launch_now;
+protected:
+    // Получает, нужно ли отобразить сцену
+    virtual bool show_required(void) override final
+    {
+        return pending;
+    }
+
+    // Событие активации сцены на дисплее
+    virtual void activated(void) override final
+    {
+        // Базовый метод
+        screen_scene_t::activated();
+        
+        // Максимальная яркость
+        light_setup_maximum(true);
+        // Сброс признака ожидания вывода сцены
+        pending = false;
+    }
+
+    // Событие деактивации сцены на дисплее
+    virtual void deactivated(void) override final
+    {
+        // Базовый метод
+        screen_scene_t::deactivated();
+        
+        // Обычная яркость
+        light_setup_maximum(false);
+    }
+    
+public:
+    // Конструктор по умолчанию
+    display_scene_heat_t(void) 
+        : nixie_switcher(nixie_switcher_settings), 
+          settings_setter(*this),
+          launch_now(*this)
+    {
+        // Лампы
+        nixie.attach(nixie_source);
+        nixie.attach(nixie_switcher);
+        nixie_switcher_settings.effect = nixie_switcher_t::EFFECT_SMOOTH_DEF;
+        // Неонки
+        neon.attach(neon_source);
+        // Светодиоды
+        led.attach(led_source);
+    }
+    
+    // Обработчик секундного события (вызывается всегда)
+    void second_always(void)
+    {
+        // Если наступил новый день
+        if (week_day != rtc_week_day)
+        {
+            // Расчет случайной минуты
+            week_day = rtc_week_day;
+            output_minute = random_get(datetime_t::MINUTE_MAX);
+        }
+        
+        // Если в текущих сутках вывод уже был
+        if (output_minute == datetime_t::MINUTES_PER_HOUR)
+            return;
+        
+        // Если не сходится час вывода
+        if (settings.hour != rtc_time.hour)
+            return;
+        
+        // Если текущий день недели не активен
+        if ((settings.week_days & MASK_8(1, week_day)) == 0)
+            return;
+        
+        // Если случайная минута еще не наступила
+        if (output_minute < rtc_time.minute)
+            return;
+        
+        // Запрос на вывод сцены
+        output_minute = datetime_t::MINUTES_PER_HOUR;
+        pending = true;
+    }
+
+    // Установка обработчиков команд
+    void setup(void)
+    {
+        esp_handler_add(launch_now);
+        esp_handler_add(settings_getter);
+        esp_handler_add(settings_setter);
+    }
+} display_scene_heat;
+
+// Текущие настройки
+display_scene_heat_t::settings_t display_scene_heat_t::settings @ STORAGE_SECTION =
+{
+    // 14:00 - 15:00
+    .hour = 14,
+    // Понедельник - пятница
+    .week_days = 0x1F,
+};
+
+// Информация о разрядах
+const display_scene_heat_t::rank_t display_scene_heat_t::RANK_INFO[] = { 2, 0, 6, 0, 6, 0 };
+
 // Сцена начального теста
 static class display_scene_test_t : public display_scene_t
 {
@@ -543,7 +1067,7 @@ protected:
         return !shown;
     }
     
-    // Событие установки сцены на дисплей
+    // Событие активации сцены на дисплее
     virtual void activated(void) override final
     {
         // Базовый метод
@@ -714,7 +1238,7 @@ protected:
         return false;
     }
     
-    // Событие установки сцены на дисплей
+    // Событие активации сцены на дисплее
     virtual void activated(void) override final
     {
         // Базовый метод
@@ -793,6 +1317,8 @@ static void display_scene_set_default(void)
         //&display_scene_test,
         // Репортирование о смене IP
         //&display_scene_ip_report,
+        // Прогрев ламп
+        &display_scene_heat,
         // Основные часы
         &display_scene_time,
     };
@@ -809,10 +1335,23 @@ static void display_scene_set_default(void)
     assert(false);
 }
 
+// Событие наступления секунды
+static list_handler_item_t display_second_event([](void)
+{
+    display_scene_heat.second_always();
+});
+
 void display_init(void)
 {
-    display_scene_set_default();
+    // Инициализация сцен
     display_scene_time.setup();
+    display_scene_heat.setup();
+
+    // Установка сцены по умолчанию
+    display_scene_set_default();
+    
+    // Добавление обработчика секундного события
+    rtc_second_event_add(display_second_event);
 }
 
 void display_show_ip(const wifi_intf_t &intf, wifi_ip_t ip)
