@@ -15,6 +15,9 @@ struct datetime_t
     // Пределы для дней
     static constexpr const uint8_t DAY_MIN = 1;
     static constexpr const uint8_t DAY_MAX = 31;
+    // Пределы для дней недели
+    static constexpr const uint8_t WDAY_MIN = 0;
+    static constexpr const uint8_t WDAY_MAX = 6;
     // Пределы для часов
     static constexpr const uint8_t HOUR_MIN = 0;
     static constexpr const uint8_t HOUR_MAX = 23;
@@ -24,6 +27,9 @@ struct datetime_t
     // Пределы для секунд
     static constexpr const uint8_t SECOND_MIN = 0;
     static constexpr const uint8_t SECOND_MAX = 59;
+
+    // Количество дней недели
+    static constexpr const uint8_t WDAY_COUNT = 7;
 
     // Количество секунд в минуте
     static constexpr const uint32_t SECONDS_PER_MINUTE = 60; 

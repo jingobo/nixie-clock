@@ -275,5 +275,5 @@ uint64_t datetime_t::utc_to_seconds(void) const
 
 uint8_t datetime_t::day_week(void) const
 {
-    return (uint8_t)(utc_day_count() % 7);
+    return (uint8_t)(utc_day_count() % WDAY_COUNT);
 }
