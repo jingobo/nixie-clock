@@ -9,87 +9,6 @@
 #include "display.h"
 #include "proto/display.inc.h"
 
-// Настройки сцены времени
-static display_settings_t display_settings_time @ STORAGE_SECTION =
-{
-    .led =
-    {
-        .effect = led_source_t::EFFECT_FLASH,
-        .smooth = 20,
-        .source = led_source_t::DATA_SOURCE_ANY_RANDOM,
-        .rgb =
-        {
-            hmi_rgb_init(255, 0, 0),
-            hmi_rgb_init(255, 255, 0),
-            hmi_rgb_init(0, 255, 0),
-            hmi_rgb_init(0, 255, 255),
-            hmi_rgb_init(0, 0, 255),
-            hmi_rgb_init(255, 0, 255),
-        },
-    },
-    
-    .neon =
-    {
-        .mask = neon_source_t::RANK_MASK_ALL,
-        .period = 4,
-        .smooth = 3,
-        .inversion = false,
-    },
-    
-    .nixie =
-    {
-        .effect = nixie_switcher_t::EFFECT_SWITCH_OUT,
-    },
-};
-
-// Класс базового источника для ламп TODO: перенос в nixie
-class display_nixie_datetime_source_t : public nixie_model_t::source_t
-{
-    // Признак вывода данных
-    bool updated = false;
-protected:
-    // Смена части (час, минута или секунда)
-    void out(hmi_rank_t index, uint8_t value)
-    {
-        out_set(index + 0, nixie_data_t(HMI_SAT_MAX, value / 10));
-        out_set(index + 1, nixie_data_t(HMI_SAT_MAX, value % 10));
-    }
-    
-    // Обработчик обновления разрядов
-    virtual void update(void) = 0;
-    
-    // Событие присоединения к цепочке
-    virtual void attached(void) override final
-    { 
-        // Базовый метод
-        source_t::attached();
-        
-        // Обновление состояния
-        second();
-    }
-    
-    // Обновление данных
-    virtual void refresh(void) override final
-    {
-        // Базовый метод
-        source_t::refresh();
-        
-        // Нужно ли обновлять данные
-        if (updated)
-            return;
-        
-        // Обновление
-        updated = true;
-        update();
-    }
-public:
-    // Секундное событие
-    void second(void)
-    {
-        updated = false;
-    }
-};
-
 // Установка сцены по умолчанию (предварительное объявление)
 static void display_scene_set_default(void);
 
@@ -104,7 +23,7 @@ protected:
 
 // Базовый класс настраиваемой сцены
 template <typename SETTINGS, typename COMMAND_GET, typename COMMAND_SET>
-class display_scene_custom_t : public display_scene_t
+class display_scene_ipc_t : public display_scene_t
 {
     // Обработчик команды чтения
     class getter_t : public ipc_responder_t
@@ -112,7 +31,7 @@ class display_scene_custom_t : public display_scene_t
         // Комадна
         COMMAND_GET command;
         // Сцена
-        display_scene_custom_t &scene;
+        display_scene_ipc_t &scene;
     protected:
         // Получает ссылку на команду
         virtual ipc_command_t &command_get(void) override final
@@ -134,7 +53,7 @@ class display_scene_custom_t : public display_scene_t
         
     public:
         // Конструктор по умолчанию
-        getter_t(display_scene_custom_t &_scene) : scene(_scene)
+        getter_t(display_scene_ipc_t &_scene) : scene(_scene)
         { }
     } getter;
     
@@ -144,7 +63,7 @@ class display_scene_custom_t : public display_scene_t
         // Комадна
         COMMAND_SET command;
         // Сцена
-        display_scene_custom_t &scene;
+        display_scene_ipc_t &scene;
     protected:
         // Получает ссылку на команду
         virtual ipc_command_t &command_get(void) override final
@@ -170,7 +89,7 @@ class display_scene_custom_t : public display_scene_t
         
     public:
         // Конструктор по умолчанию
-        setter_t(display_scene_custom_t &_scene) : scene(_scene)
+        setter_t(display_scene_ipc_t &_scene) : scene(_scene)
         { }
     } setter;
     
@@ -240,7 +159,7 @@ protected:
     
 public:
     // Конструктор по умолчанию
-    display_scene_custom_t(SETTINGS &_settings) : 
+    display_scene_ipc_t(SETTINGS &_settings) : 
         settings(_settings),
         settings_old(_settings),
         setter(*this), getter(*this), 
@@ -261,24 +180,152 @@ public:
     }
 };
 
+// Базовый класс настраиваемой сцены с опцией показа
+template <typename SETTINGS, typename COMMAND_GET, typename COMMAND_SET>
+class display_scene_arm_t : public display_scene_ipc_t<SETTINGS, COMMAND_GET, COMMAND_SET>
+{
+    // Базовый класс
+    using base_t = display_scene_ipc_t<SETTINGS, COMMAND_GET, COMMAND_SET>;
+
+    // Получает ссылку на типизированные настройки
+    static display_settings_arm_t& settings_get(SETTINGS &settings)
+    {
+        return (display_settings_arm_t&)settings;
+    }
+    
+protected:
+    // Получает признак возможности вывода сцены
+    virtual bool show_allowed(void)
+    {
+        return settings_get(base_t::settings).allow;
+    }
+    
+    // Получает, нужно ли отобразить сцену
+    virtual bool show_required(void) override final
+    {
+        // Если вывод разрешен
+        return base_t::show_required() || show_allowed();
+    }
+    
+public:
+    // Конструктор по умолчанию
+    display_scene_arm_t(SETTINGS &_settings) : base_t(_settings)
+    { }
+};
+
+// Базовый класс настраиваемой сцены с опцией таймаута
+template <typename SETTINGS, typename COMMAND_GET, typename COMMAND_SET>
+class display_scene_timeout_t : public display_scene_arm_t<SETTINGS, COMMAND_GET, COMMAND_SET>
+{
+    // Базовый класс
+    using base_t = display_scene_arm_t<SETTINGS, COMMAND_GET, COMMAND_SET>;
+
+    // Получает ссылку на типизированные настройки
+    static display_settings_timeout_t& settings_get(SETTINGS &settings)
+    {
+        return (display_settings_timeout_t&)settings;
+    }
+    
+    // Секундный таймаут запроса на показ
+    uint8_t show_request_timeout;
+    
+    // Получает признак активности таймаута запроса на показ
+    bool show_request_timeout_active(void) const
+    {
+        return show_request_timeout > 0;
+    }
+    
+protected:
+    // Обработчик примнения настроек
+    virtual void settings_apply(bool initial) override
+    {
+        // Базовый метод
+        base_t::settings_apply(initial);
+        
+        // Сброс таймаута показа
+        show_request_timeout = 0;
+    }
+
+    // Секундное событие
+    virtual void second(void) override
+    {
+        // Базовый метод
+        base_t::second();
+        
+        // Таймаут показа
+        if (show_request_timeout_active() && --show_request_timeout <= 0)
+            display_scene_set_default();
+    }
+    
+    // Получает признак возможности вывода сцены
+    virtual bool show_allowed(void) override final
+    {
+        return base_t::show_allowed() &&
+               show_request_timeout_active();
+    }
+    
+    // Запрос на показ
+    void show_request(void)
+    {
+        show_request_timeout = settings_get(base_t::settings).timeout;
+        display_scene_set_default();
+    }
+    
+public:
+    // Конструктор по умолчанию
+    display_scene_timeout_t(SETTINGS &_settings) : base_t(_settings)
+    { }
+};
+
 // Сцена отображения времени
-class display_scene_time_t : public display_scene_custom_t<display_settings_t, display_command_time_get_t, display_command_time_set_t>
+static class display_scene_time_t : public display_scene_ipc_t<display_settings_t, display_command_time_get_t, display_command_time_set_t>
 {
     // Управление лампами
-    class nixie_source_t : public display_nixie_datetime_source_t
+    class nixie_source_t : public nixie_number_source_t
     {
+        // Признак вывода данных
+        bool updated = false;
     protected:
-        // Обработчик обновления разрядов
-        virtual void update(void) override final
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        { 
+            // Базовый метод
+            source_t::attached();
+            
+            // Обновление состояния
+            second();
+        }
+        
+        // Обновление данных
+        virtual void refresh(void) override final
         {
+            // Базовый метод
+            source_t::refresh();
+            
+            // Нужно ли обновлять данные
+            if (updated)
+                return;
+            
+            // Обновление
+            updated = true;
+
             // Часы
-            out(0, rtc_time.hour);
+            out(0, 2, rtc_time.hour);
             // Минуты
-            out(2, rtc_time.minute);
+            out(2, 2, rtc_time.minute);
             // Секунды
-            out(4, rtc_time.second);
+            out(4, 2, rtc_time.second);
+        }
+    public:
+        // Секундное событие
+        void second(void)
+        {
+            updated = false;
         }
     } nixie_source;
+    
+    // Текущие настройки
+    static display_settings_t settings;
     
 protected:
     // Получает, нужно ли отобразить сцену
@@ -292,13 +339,13 @@ protected:
     virtual void second(void) override final
     {
         // Базовый метод
-        display_scene_custom_t::second();
+        display_scene_ipc_t::second();
         // Оповещение источников
         nixie_source.second();
     }
 public:
     // Конструктор по умолчанию
-    display_scene_time_t(void) : display_scene_custom_t(display_settings_time)
+    display_scene_time_t(void) : display_scene_ipc_t(settings)
     {
         // Лампы
         nixie.attach(nixie_source);
@@ -307,6 +354,133 @@ public:
         settings_apply(true);
     }
 } display_scene_time;
+
+// Настройки сцены времени
+display_settings_t display_scene_time_t::settings @ STORAGE_SECTION =
+{
+    .led =
+    {
+        .effect = led_source_t::EFFECT_FLASH,
+        .smooth = 20,
+        .source = led_source_t::DATA_SOURCE_ANY_RANDOM,
+        .rgb =
+        {
+            hmi_rgb_init(255, 0, 0),
+            hmi_rgb_init(255, 255, 0),
+            hmi_rgb_init(0, 255, 0),
+            hmi_rgb_init(0, 255, 255),
+            hmi_rgb_init(0, 0, 255),
+            hmi_rgb_init(255, 0, 255),
+        },
+    },
+    
+    .neon =
+    {
+        .mask = neon_source_t::RANK_MASK_ALL,
+        .period = 4,
+        .smooth = 3,
+        .inversion = false,
+    },
+    
+    .nixie =
+    {
+        .effect = nixie_switcher_t::EFFECT_SWITCH_OUT,
+    },
+};
+
+// Сцена отображения даты
+static class display_scene_date_t : public display_scene_timeout_t<display_settings_timeout_t, display_command_date_get_t, display_command_date_set_t>
+{
+    // Управление лампами
+    class nixie_source_t : public nixie_number_source_t
+    {
+    protected:
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        { 
+            // Базовый метод
+            source_t::attached();
+
+            // День
+            out(0, 2, rtc_time.day);
+            // Месяц
+            out(2, 2, rtc_time.month, true);
+            // Год
+            out(4, 2, rtc_time.year, true);
+        }
+    } nixie_source;
+    
+    // Текущий день недели
+    uint8_t week_day;
+    
+    // Текущие настройки
+    static display_settings_timeout_t settings;
+    
+public:
+    // Конструктор по умолчанию
+    display_scene_date_t(void) : display_scene_timeout_t(settings)
+    {
+        // Лампы
+        nixie.attach(nixie_source);
+        
+        // Изначально не показываем
+        week_day = rtc_week_day;
+        // Финальное применение настроек
+        settings_apply(true);
+    }
+    
+    // Обработчик секундного события (вызывается всегда)
+    void second_always(void)
+    {
+        if (week_day == rtc_week_day)
+            return;
+
+        // Если наступил новый день
+        week_day = rtc_week_day;
+        show_request();
+    }    
+} display_scene_date;
+
+// Настройки сцены даты
+display_settings_timeout_t display_scene_date_t::settings @ STORAGE_SECTION =
+{
+    .base =
+    {
+        .base =
+        {
+            .led =
+            {
+                .effect = led_source_t::EFFECT_FILL,
+                .smooth = 4,
+                .source = led_source_t::DATA_SOURCE_CUR_RANDOM,
+                .rgb =
+                {
+                    hmi_rgb_init(255, 0, 0),
+                    hmi_rgb_init(255, 255, 0),
+                    hmi_rgb_init(0, 255, 0),
+                    hmi_rgb_init(0, 255, 255),
+                    hmi_rgb_init(0, 0, 255),
+                    hmi_rgb_init(255, 0, 255),
+                },
+            },
+            
+            .neon =
+            {
+                .mask = neon_source_t::RANK_MASK_NONE,
+                .period = 4,
+                .smooth = 3,
+                .inversion = false,
+            },
+            
+            .nixie =
+            {
+                .effect = nixie_switcher_t::EFFECT_SMOOTH_SUB,
+            },
+        },
+        .allow = true,
+    },
+    .timeout = 5,
+};
 
 // Сцена прогрева ламп
 static class display_scene_heat_t : public display_scene_t
@@ -1315,7 +1489,9 @@ static void display_scene_set_default(void)
         //&display_scene_ip_report,
         // Прогрев ламп
         &display_scene_heat,
-        // Основные часы
+        // Дата
+        &display_scene_date,
+        // Время
         &display_scene_time,
     };
     
@@ -1335,6 +1511,7 @@ static void display_scene_set_default(void)
 static list_handler_item_t display_second_event([](void)
 {
     display_scene_heat.second_always();
+    display_scene_date.second_always();
 });
 
 void display_init(void)
@@ -1342,6 +1519,7 @@ void display_init(void)
     // Инициализация сцен
     display_scene_time.setup();
     display_scene_heat.setup();
+    display_scene_date.setup();
 
     // Установка сцены по умолчанию
     display_scene_set_default();

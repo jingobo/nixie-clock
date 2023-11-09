@@ -48,6 +48,8 @@ public:
     // Тип данных для маски состояния разрядов
     using rank_mask_t = uint8_t;
     
+    // Маска состояний со всеми отключенным разрядами
+    static constexpr const rank_mask_t RANK_MASK_NONE = 0;
     // Маска состояний со всеми включенными разрядами
     static constexpr const rank_mask_t RANK_MASK_ALL = (1 << NEON_COUNT) - 1;
     

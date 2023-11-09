@@ -83,3 +83,21 @@ public:
     display_command_time_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_DISPLAY_TIME_SET)
     { }
 };
+
+// Команда запрос настроек сцены даты
+class display_command_date_get_t : public ipc_command_get_t<display_settings_timeout_t>
+{
+public:
+    // Конструктор по умолчанию
+    display_command_date_get_t(void) : ipc_command_get_t(IPC_OPCODE_STM_DISPLAY_DATE_GET)
+    { }
+};
+
+// Команда установки настроек сцены даты
+class display_command_date_set_t : public ipc_command_set_t<display_settings_timeout_t>
+{
+public:
+    // Конструктор по умолчанию
+    display_command_date_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_DISPLAY_DATE_SET)
+    { }
+};

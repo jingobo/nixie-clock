@@ -49,6 +49,21 @@ struct nixie_data_t
 // Класс модели фильтров для ламп
 using nixie_model_t = hmi_model_t<nixie_data_t, NIXIE_COUNT>;
 
+// Класс базового источника для ламп с выводом чисел
+class nixie_number_source_t : public nixie_model_t::source_t
+{
+protected:
+    // Вывод числа
+    void out(hmi_rank_t index, hmi_rank_t count, uint32_t value, bool dot = false)
+    {
+        for (auto i = index + count - 1; i >= index; i--)
+        {
+            out_set(i, nixie_data_t(HMI_SAT_MAX, (uint8_t)(value % 10), dot && i == index));
+            value /= 10;
+        }
+    }
+};
+
 // Базовый класс фильтра
 class nixie_filter_t : public nixie_model_t::filter_t
 {

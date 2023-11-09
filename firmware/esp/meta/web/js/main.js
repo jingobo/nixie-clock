@@ -50,6 +50,11 @@ app.opcode =
     // Задает настройки прогрева ламп
     STM_HEAT_SETTINGS_SET: 18,
     
+    // Получает настройки сцены даты
+    STM_DISPLAY_DATE_GET: 19,
+    // Задает настройки сцены даты
+    STM_DISPLAY_DATE_SET: 20,
+    
     // Запрос информации о сети
     ESP_WIFI_INFO_GET: 26,    
     // Поиск сетей с опросом состояния
@@ -271,6 +276,12 @@ app.dom = new function ()
                 },
                 
                 launch: "#disp-heat-launch",
+            },
+            
+            date:
+            {
+                holder: "#disp-date-holder",
+                enable: "#disp-date-enable",
             },
         },
     };
@@ -2356,10 +2367,43 @@ app.page =
             };
         };            
         
+        // Сцена даты
+        const dateScene = new function ()
+        {
+            // Инициализация сцены
+            this.init = () =>
+            {
+                // Настройки дисплея
+                const settings = new DisplaySettingsTimeout(app.dom.disp.date.enable);
+                app.dom.disp.date.holder.after(settings.dom);
+                
+                // Пакетная передача
+                const packeting = new Packeting(
+                    // Приём
+                    {
+                        code: app.opcode.STM_DISPLAY_DATE_GET,
+                        name: "запрос настроек сцены даты",
+                        processing: data => settings.read(data),
+                    },
+                    // Передача
+                    {
+                        code: app.opcode.STM_DISPLAY_DATE_SET,
+                        name: "применение настроек сцены даты",
+                        processing: data => settings.write(data),
+                    });
+                    
+                // Загрузка сцены
+                this.load = () => packeting.receive();
+                
+                // Подписка на события
+                settings.onchange = packeting.transmit;
+            };
+        };
+        
         // Инициализация страницы
         this.init = () =>
         {
-             // Шаблон настроек дисплея
+            // Шаблон настроек дисплея
             this.mainTemplate = app.dom.disp.template.main.makeTemplate(
                 "disp-opts-parent", "disp-opts-lamps",
                 "disp-opts-neons", "disp-opts-digit-effect",
@@ -2369,9 +2413,13 @@ app.page =
                 "disp-opts-neon-state-lb", "disp-opts-neon-state-rb",
                 "disp-opts-neon-smooth", "disp-opts-neon-period", 
                 "disp-opts-neon-inversion");
-            
+
+            // Шаблон настроек дисплея с опцией таймаута
+            this.timeoutTemplate = app.dom.disp.template.timeout.makeTemplate("disp-opts-timeout-slider");
+                
             // Инициализация сцен
             timeScene.init();
+            dateScene.init();
             heatSettings.init();
             lightSettings.init();
         };
@@ -2383,6 +2431,7 @@ app.page =
             
             // Загрузка сцен
             timeScene.load();
+            dateScene.load();
             heatSettings.load();
             lightSettings.load();
         };  
