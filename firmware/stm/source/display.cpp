@@ -1001,6 +1001,140 @@ display_scene_heat_t::settings_t display_scene_heat_t::settings @ STORAGE_SECTIO
 // Информация о разрядах
 const display_scene_heat_t::rank_t display_scene_heat_t::RANK_INFO[] = { 2, 0, 6, 0, 6, 0 };
 
+// Класс сцены отображения IP адреса сети
+template <typename COMMAND_GET, typename COMMAND_SET>
+class display_scene_network_t : public display_scene_timeout_t<display_settings_timeout_t, COMMAND_GET, COMMAND_SET>
+{
+    // Базовый класс
+    using base_t = display_scene_timeout_t<display_settings_timeout_t, COMMAND_GET, COMMAND_SET>;
+    
+    // Управление лампами
+    class nixie_source_t : public nixie_number_source_t
+    {
+    public:
+        // IP адрес
+        wifi_ip_t ip;
+    protected:
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        { 
+            // Базовый метод
+            source_t::attached();
+
+            // Предпоследний октет
+            out(0, 3, ip.o[2]);
+            // Последний октет
+            out(3, 3, ip.o[3], true);
+        }
+    } nixie_source;
+    
+public:
+    // Конструктор по умолчанию
+    display_scene_network_t(display_settings_timeout_t &_settings)
+        : base_t(_settings)
+    {
+        // Лампы
+        base_t::nixie.attach(nixie_source);
+    }
+    
+    // Запрос на показ
+    void show(const wifi_ip_t &ip)
+    {
+        nixie_source.ip = ip;
+        base_t::show_request();
+    }
+};
+
+// Настройки сцены своей сети
+static display_settings_timeout_t display_scene_onet_settings @ STORAGE_SECTION =
+{
+    .base =
+    {
+        .base =
+        {
+            .led =
+            {
+                .effect = led_source_t::EFFECT_NONE,
+                .smooth = 4,
+                .source = led_source_t::DATA_SOURCE_CUR_RANDOM,
+                .rgb =
+                {
+                    hmi_rgb_init(255, 255, 255),
+                    hmi_rgb_init(255, 255, 255),
+                    hmi_rgb_init(255, 255, 255),
+                    hmi_rgb_init(255, 0, 0),
+                    hmi_rgb_init(255, 0, 0),
+                    hmi_rgb_init(255, 0, 0),
+                },
+            },
+            
+            .neon =
+            {
+                .mask = 0x05,
+                .period = 0,
+                .smooth = 3,
+                .inversion = false,
+            },
+            
+            .nixie =
+            {
+                .effect = nixie_switcher_t::EFFECT_SMOOTH_SUB,
+            },
+        },
+        .allow = true,
+    },
+    .timeout = 5,
+};
+
+// Сцена своей сети
+static display_scene_network_t<display_command_onet_get_t, display_command_onet_set_t> 
+    display_scene_onet(display_scene_onet_settings);
+
+// Настройки сцены своей сети
+static display_settings_timeout_t display_scene_cnet_settings @ STORAGE_SECTION =
+{
+    .base =
+    {
+        .base =
+        {
+            .led =
+            {
+                .effect = led_source_t::EFFECT_NONE,
+                .smooth = 4,
+                .source = led_source_t::DATA_SOURCE_CUR_RANDOM,
+                .rgb =
+                {
+                    hmi_rgb_init(255, 255, 255),
+                    hmi_rgb_init(255, 255, 255),
+                    hmi_rgb_init(255, 255, 255),
+                    hmi_rgb_init(0, 0, 255),
+                    hmi_rgb_init(0, 0, 255),
+                    hmi_rgb_init(0, 0, 255),
+                },
+            },
+            
+            .neon =
+            {
+                .mask = 0x0A,
+                .period = 0,
+                .smooth = 3,
+                .inversion = false,
+            },
+            
+            .nixie =
+            {
+                .effect = nixie_switcher_t::EFFECT_SMOOTH_SUB,
+            },
+        },
+        .allow = true,
+    },
+    .timeout = 5,
+};
+
+// Сцена подключенной сети
+static display_scene_network_t<display_command_cnet_get_t, display_command_cnet_set_t> 
+    display_scene_cnet(display_scene_cnet_settings);
+
 // Сцена начального теста
 static class display_scene_test_t : public display_scene_t
 {
@@ -1306,177 +1440,6 @@ public:
     }
 } display_scene_test;
 
-// Сцена вывод IP адреса
-static class display_scene_ip_report_t : public display_scene_t
-{
-    // Источник данных для лмап
-    class nixie_source_t : public nixie_model_t::source_t
-    {
-        // Установка октета
-        void octet_set(hmi_rank_t rank, uint8_t value)
-        {
-            out_set(rank + 0, nixie_data_t(HMI_SAT_MAX, value / 100 % 10, true));
-            out_set(rank + 1, nixie_data_t(HMI_SAT_MAX, value / 10 % 10));
-            out_set(rank + 2, nixie_data_t(HMI_SAT_MAX, value / 1 % 10));
-        }
-    public:
-        // Установка адреса
-        void address_set(const wifi_ip_t &value)
-        {
-            octet_set(0, value.o[2]);
-            octet_set(3, value.o[3]);
-        }
-    } nixie_source;
-    
-    // Источник данных для неонок
-    class neon_source_t : public neon_model_t::source_t
-    {
-    public:
-        // Установка интерфейса
-        void intf_set(wifi_intf_t intf)
-        {
-            bool station;
-            switch (intf)
-            {
-                case WIFI_INTF_STATION:
-                    station = true;
-                    break;
-                    
-                case WIFI_INTF_SOFTAP:
-                    station = false;
-                    break;
-                    
-                default:
-                    assert(false);
-                    return;
-            }
-            
-            out_set(0, neon_data_t(station ? HMI_SAT_MIN : HMI_SAT_MAX));
-            out_set(2, neon_data_t(station ? HMI_SAT_MIN : HMI_SAT_MAX));
-            
-            out_set(1, neon_data_t(station ? HMI_SAT_MAX : HMI_SAT_MIN));
-            out_set(3, neon_data_t(station ? HMI_SAT_MAX : HMI_SAT_MIN));
-        }
-    } neon_source;
-    
-    // Источник данных для светодиодов
-    class led_source_t : public led_model_t::source_t
-    {
-    public:
-        // Установка интерфейса
-        void intf_set(wifi_intf_t intf)
-        {
-            bool station;
-            switch (intf)
-            {
-                case WIFI_INTF_STATION:
-                    station = true;
-                    break;
-                    
-                case WIFI_INTF_SOFTAP:
-                    station = false;
-                    break;
-                    
-                default:
-                    assert(false);
-                    return;
-            }
-            
-            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
-                out_set(i,  station ? HMI_COLOR_RGB_RED : HMI_COLOR_RGB_GREEN);
-        }
-    } led_source;
-    
-    // Данные по интерфейсам
-    struct
-    {
-        // IP адрес
-        wifi_ip_t ip;
-        // Признак показа
-        bool show = false;
-    } intf[WIFI_INTF_COUNT];
-    // Фильтр смены цвета светодиодов
-    //display_led_smooth_filter_t led_smooth;
-protected:
-    // Получает, нужно ли отобразить сцену
-    virtual bool show_required(void) override final
-    {
-        for (auto i = 0; i < WIFI_INTF_COUNT; i++)
-            if (intf[i].show)
-                return true;
-        
-        return false;
-    }
-    
-    // Событие активации сцены на дисплее
-    virtual void activated(void) override final
-    {
-        // Базовый метод
-        screen_scene_t::activated();
-
-        // Сброс номера фрймов
-        //frame.reset();
-        
-        for (auto i = 0; i < WIFI_INTF_COUNT; i++)
-            if (intf[i].show)
-            {
-                intf[i].show = false;
-                
-                // Неонки
-                nixie_source.address_set(intf[i].ip);
-                neon_source.intf_set((wifi_intf_t)i);
-                led_source.intf_set((wifi_intf_t)i);
-                return;
-            }
-        
-        assert(false);
-    }
-    
-    // Обновление сцены
-    virtual void refresh(void) override final
-    {
-        // Базовый метод
-        screen_scene_t::refresh();
-        
-        // Обработка фрейма
-        //frame++;
-        
-        // Задержка показа
-        //if (frame.seconds_get() < 3)
-        //    return;
-        
-        // Активация если есть что показывать
-        if (show_required())
-        {
-            activated();
-            return;
-        }
-        
-        // Конец сцены
-        display_scene_set_default();
-    }
-public:
-    // Конструктор по умолчанию
-    display_scene_ip_report_t(void)
-    {
-        // Лампы
-        nixie.attach(nixie_source);
-        // Неонки
-        neon.attach(neon_source);
-        //neon.attach(neon_smooth);
-        // Светодиоды
-        led.attach(led_source);
-        //led.attach(led_smooth);
-    }
-    
-    // Запрос на показ
-    void show(wifi_intf_t i, const wifi_ip_t &ip)
-    {
-        intf[i].ip = ip;
-        intf[i].show = true;
-    }
-} display_scene_ip_report;
-
 // Установка сцены по умолчанию
 static void display_scene_set_default(void)
 {
@@ -1487,6 +1450,10 @@ static void display_scene_set_default(void)
         //&display_scene_test,
         // Репортирование о смене IP
         //&display_scene_ip_report,
+        // Своя сеть
+        &display_scene_onet,
+        // Подключенная сеть
+        &display_scene_cnet,
         // Прогрев ламп
         &display_scene_heat,
         // Дата
@@ -1520,6 +1487,8 @@ void display_init(void)
     display_scene_time.setup();
     display_scene_heat.setup();
     display_scene_date.setup();
+    display_scene_onet.setup();
+    display_scene_cnet.setup();
 
     // Установка сцены по умолчанию
     display_scene_set_default();
@@ -1528,7 +1497,19 @@ void display_init(void)
     rtc_second_event_add(display_second_event);
 }
 
-void display_show_ip(const wifi_intf_t &intf, wifi_ip_t ip)
+void display_show_ip(wifi_intf_t intf, const wifi_ip_t &ip)
 {
-    display_scene_ip_report.show(intf, ip);
+    switch (intf)
+    {
+        case WIFI_INTF_STATION:
+            display_scene_cnet.show(ip);
+            break;
+        
+        case WIFI_INTF_SOFTAP:
+            display_scene_onet.show(ip);
+            break;
+            
+        default:
+            assert(false);
+    }
 }

@@ -68,6 +68,16 @@ enum ipc_opcode_t : uint8_t
         IPC_OPCODE_STM_DISPLAY_DATE_GET,
         // Задает настройки сцены даты
         IPC_OPCODE_STM_DISPLAY_DATE_SET,
+
+        // Получает настройки сцены своей сети
+        IPC_OPCODE_STM_ONET_SETTINGS_GET,
+        // Задает настройки сцены своей сети
+        IPC_OPCODE_STM_ONET_SETTINGS_SET,
+
+        // Получает настройки сцены подключенной сети
+        IPC_OPCODE_STM_CNET_SETTINGS_GET,
+        // Задает настройки сцены подключенной сети
+        IPC_OPCODE_STM_CNET_SETTINGS_SET,
         
     // Не команда, база для команд, обрабатываемых модулем ESP8266
     IPC_OPCODE_ESP_HANDLE_BASE = 25,

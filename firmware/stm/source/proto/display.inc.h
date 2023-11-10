@@ -101,3 +101,39 @@ public:
     display_command_date_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_DISPLAY_DATE_SET)
     { }
 };
+
+// Команда запрос настроек сцены своей сети
+class display_command_onet_get_t : public ipc_command_get_t<display_settings_timeout_t>
+{
+public:
+    // Конструктор по умолчанию
+    display_command_onet_get_t(void) : ipc_command_get_t(IPC_OPCODE_STM_ONET_SETTINGS_GET)
+    { }
+};
+
+// Команда установки настроек сцены своей сети
+class display_command_onet_set_t : public ipc_command_set_t<display_settings_timeout_t>
+{
+public:
+    // Конструктор по умолчанию
+    display_command_onet_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_ONET_SETTINGS_SET)
+    { }
+};
+
+// Команда запрос настроек сцены подключенной сети
+class display_command_cnet_get_t : public ipc_command_get_t<display_settings_timeout_t>
+{
+public:
+    // Конструктор по умолчанию
+    display_command_cnet_get_t(void) : ipc_command_get_t(IPC_OPCODE_STM_CNET_SETTINGS_GET)
+    { }
+};
+
+// Команда установки настроек сцены подключенной сети
+class display_command_cnet_set_t : public ipc_command_set_t<display_settings_timeout_t>
+{
+public:
+    // Конструктор по умолчанию
+    display_command_cnet_set_t(void) : ipc_command_set_t(IPC_OPCODE_STM_CNET_SETTINGS_SET)
+    { }
+};

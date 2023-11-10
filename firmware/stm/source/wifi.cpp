@@ -25,9 +25,6 @@ static wifi_settings_t wifi_settings @ STORAGE_SECTION =
     }
 };
 
-// Время в мС времени изменения настроек
-static __no_init uint32_t wifi_settings_time_change;
-
 // Обработчик команды оповещения о смене настроек
 static class wifi_command_handler_settings_changed_t : public ipc_requester_template_t<wifi_command_settings_changed_t>
 {
@@ -48,7 +45,6 @@ public:
 // Обработчик события изменения настроек
 static void wifi_settings_time_changed(void)
 {
-    wifi_settings_time_change = rtc_uptime_seconds;
     wifi_command_handler_settings_changed.transmit();
 }
 
@@ -102,9 +98,7 @@ protected:
         if (idle)
             return;
         
-        // Показ если с момента изменения настроек не прошло 10 секунд
-        if (rtc_uptime_seconds - wifi_settings_time_change < 10)
-            display_show_ip(command.request.intf, command.request.ip);
+        display_show_ip(command.request.intf, command.request.ip);
             
         // Передача ответа
         transmit();

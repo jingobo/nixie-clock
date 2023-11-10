@@ -55,6 +55,16 @@ app.opcode =
     // Задает настройки сцены даты
     STM_DISPLAY_DATE_SET: 20,
     
+    // Получает настройки сцены своей сети
+    STM_ONET_SETTINGS_GET: 21,
+    // Задает настройки сцены своей сети
+    STM_ONET_SETTINGS_SET: 22,
+
+    // Получает настройки сцены подключенной сети
+    STM_CNET_SETTINGS_GET: 23,
+    // Задает настройки сцены подключенной сети
+    STM_CNET_SETTINGS_SET: 24,
+    
     // Запрос информации о сети
     ESP_WIFI_INFO_GET: 26,    
     // Поиск сетей с опросом состояния
@@ -282,6 +292,18 @@ app.dom = new function ()
             {
                 holder: "#disp-date-holder",
                 enable: "#disp-date-enable",
+            },
+
+            onet:
+            {
+                holder: "#disp-onet-holder",
+                enable: "#disp-onet-enable",
+            },
+            
+            cnet:
+            {
+                holder: "#disp-cnet-holder",
+                enable: "#disp-cnet-enable",
             },
         },
     };
@@ -2399,6 +2421,72 @@ app.page =
                 settings.onchange = packeting.transmit;
             };
         };
+
+        // Сцена адреса своей сети
+        const onetScene = new function ()
+        {
+            // Инициализация сцены
+            this.init = () =>
+            {
+                // Настройки дисплея
+                const settings = new DisplaySettingsTimeout(app.dom.disp.onet.enable);
+                app.dom.disp.onet.holder.after(settings.dom);
+                
+                // Пакетная передача
+                const packeting = new Packeting(
+                    // Приём
+                    {
+                        code: app.opcode.STM_ONET_SETTINGS_GET,
+                        name: "запрос настроек сцены своей сети",
+                        processing: data => settings.read(data),
+                    },
+                    // Передача
+                    {
+                        code: app.opcode.STM_ONET_SETTINGS_SET,
+                        name: "применение настроек сцены своей сети",
+                        processing: data => settings.write(data),
+                    });
+                    
+                // Загрузка сцены
+                this.load = () => packeting.receive();
+                
+                // Подписка на события
+                settings.onchange = packeting.transmit;
+            };
+        };
+
+        // Сцена адреса подключенной сети
+        const cnetScene = new function ()
+        {
+            // Инициализация сцены
+            this.init = () =>
+            {
+                // Настройки дисплея
+                const settings = new DisplaySettingsTimeout(app.dom.disp.cnet.enable);
+                app.dom.disp.cnet.holder.after(settings.dom);
+                
+                // Пакетная передача
+                const packeting = new Packeting(
+                    // Приём
+                    {
+                        code: app.opcode.STM_CNET_SETTINGS_GET,
+                        name: "запрос настроек сцены подключенной сети",
+                        processing: data => settings.read(data),
+                    },
+                    // Передача
+                    {
+                        code: app.opcode.STM_CNET_SETTINGS_SET,
+                        name: "применение настроек сцены подключенной сети",
+                        processing: data => settings.write(data),
+                    });
+                    
+                // Загрузка сцены
+                this.load = () => packeting.receive();
+                
+                // Подписка на события
+                settings.onchange = packeting.transmit;
+            };
+        };
         
         // Инициализация страницы
         this.init = () =>
@@ -2420,6 +2508,8 @@ app.page =
             // Инициализация сцен
             timeScene.init();
             dateScene.init();
+            onetScene.init();
+            cnetScene.init();
             heatSettings.init();
             lightSettings.init();
         };
@@ -2432,6 +2522,8 @@ app.page =
             // Загрузка сцен
             timeScene.load();
             dateScene.load();
+            onetScene.load();
+            cnetScene.load();
             heatSettings.load();
             lightSettings.load();
         };  
