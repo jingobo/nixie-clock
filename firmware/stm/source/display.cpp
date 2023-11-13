@@ -1040,6 +1040,9 @@ public:
     // Запрос на показ
     void show(const wifi_ip_t &ip)
     {
+        if (nixie_source.ip == ip)
+            return;
+        
         nixie_source.ip = ip;
         base_t::show_request();
     }
