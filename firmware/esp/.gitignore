@@ -2,9 +2,9 @@
 /.settings/
 /build/
 sdkconfig.old
-/meta/web.rom
 
 # NodeJS
 /meta/web/dist/
+/meta/web/dist.rom
 /meta/web/node_modules/
 /meta/web/package-lock.json
