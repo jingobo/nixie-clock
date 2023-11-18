@@ -1,3 +1,4 @@
+import { Color } from "./utils";
 
 // Общее у ламп
 const tubeCommon =
@@ -25,7 +26,7 @@ const tubeCommon =
 };
 
 // Объект неоновой лампы
-function NeonTube()
+export function NeonTube()
 {
     // Насыщенность точки
     this.sat = 255;
@@ -107,9 +108,8 @@ function NeonTube()
     };
 }
 
-
 // Объект основной лампы
-function NixieTube()
+export function NixieTube()
 {
     // Отображаемая цифра
     this.digit = 0;

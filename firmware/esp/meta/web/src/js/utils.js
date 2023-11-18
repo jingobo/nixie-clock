@@ -1,5 +1,7 @@
+import $ from "./jquery.min"; 
+
 // Логирование
-const log =
+export const log =
 {
     // Вывод в консоль строки с ошибкой
     error(msg)
@@ -30,7 +32,7 @@ const log =
 };
 
 // Утилиты по работе с DOM
-const utils =
+export const utils =
 {
     // Добавление значения к выпа
     dropdownAdd(dropdown, value, text)
@@ -76,7 +78,7 @@ const utils =
     // Приводит символы CR LF к одиночному LF
     lf(input)
     {
-        return input.replace('\r', "");
+        return input.replace("\r", "");
     },
     
     // Добавление лидирующих нулей в числе
@@ -86,45 +88,28 @@ const utils =
         while (value.length < count)
             value = "0" + value;
         return value;
+    },
+
+    // Генератор диапазона
+    range(from, to)
+    {
+        // Если указано только количество
+        if (to === undefined)
+        {
+            to = from - 1;
+            from = 0;
+        }
+
+        const result = [];
+        for (let i = from; i <= to; i++)
+            result.push(i);
+        
+        return result;
     }
 };
 
-// Кодирование текста
-const textCoder = new function ()
-{
-    // Декодирование
-    const decoder = new TextDecoder();
-    
-    this.decode = array => decoder.decode(new Uint8Array(array));
-    
-    // Кодирование
-    const encoder = new TextEncoder();
-    
-    this.encode = str => Array.from(encoder.encode(str));
-};
-
-// Генератор диапазона
-function range(from, to)
-{
-    const result = [];
-    for (let i = from; i <= to; i++)
-        result.push(i);
-    
-    return result;
-}
-
-// Генератор индексов
-function range(count)
-{
-    const result = [];
-    for (let i = 0; i < count; i++)
-        result.push(i);
-    
-    return result;
-}
-
 // Класс цвета
-function Color(r, g, b, a)
+export function Color(r, g, b, a)
 {
     this.r = r;
     this.g = g;
@@ -143,7 +128,7 @@ function Color(r, g, b, a)
 }
 
 // Класс счетчика загрузок
-function LoadCounter(maximum)
+export function LoadCounter(maximum)
 {
     // Максимум опционален
     if (maximum === undefined)
@@ -172,8 +157,22 @@ function LoadCounter(maximum)
     this.increment = () => counter++;
 }
 
+// Кодирование текста
+const textCoder = new function ()
+{
+    // Декодирование
+    const decoder = new TextDecoder();
+    
+    this.decode = array => decoder.decode(new Uint8Array(array));
+    
+    // Кодирование
+    const encoder = new TextEncoder();
+    
+    this.encode = str => Array.from(encoder.encode(str));
+};
+
 // Класс реализующий чтение бинарных данных из ArrayBuffer
-function BinReader(buffer, offset)
+export function BinReader(buffer, offset)
 {
     if (offset == undefined)
         offset = 0;
@@ -254,7 +253,7 @@ function BinReader(buffer, offset)
 }
 
 // Класс реализующий запись бинарных данных в ArrayBuffer
-function BinWriter()
+export function BinWriter()
 {
     // Буфер, содержащий UInt8
     const buffer = [];
@@ -346,21 +345,6 @@ Array.prototype.shuffle = function()
     return this;
 }
 
-// Awaitable задерка в миллисекундах
-// TODO: может не нужна
-function delay(mills)
-{
-    // Создание промиса
-    let timeout;
-    const result = new Promise(resolve => 
-        timeout = setTimeout(resolve, mills));
-    
-    // Добавление функции отмены
-    result.cancel = () => clearTimeout(timeout);
-    
-    return result;
-};
-
 // Общая настройка слайдера
 function setupCommonSlider(container, minimum, maximum, toString)
 {
@@ -383,7 +367,7 @@ function setupCommonSlider(container, minimum, maximum, toString)
 }
 
 // Расширения для jQuery
-jQuery.fn.extend(
+$.fn.extend(
 {
     // Показывает/скрывает/получает элемент по булвому значению
     visible(state) 

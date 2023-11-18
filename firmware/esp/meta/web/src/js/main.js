@@ -1,3 +1,14 @@
+import "../index.html";
+import "../css/main.css";
+
+import "./color-picker";
+import "./bootstrap.min";
+
+import $ from "./jquery.min"; 
+import Colors from "./colors";
+import { NeonTube, NixieTube } from "./lamps";
+import { LoadCounter, BinReader, BinWriter, utils, log } from "./utils";
+
 const app = 
 {
     // Признак отладки
@@ -387,7 +398,7 @@ app.display = new function ()
     }
 
     // Инициализация ламп
-    const nixies = range(nixieCount).map(() =>
+    const nixies = utils.range(nixieCount).map(() =>
         {
             const n = new NixieTube();
             
@@ -402,7 +413,7 @@ app.display = new function ()
         });
 
     // Инициализация неонок
-    const neons = range(neonCount).map(() =>
+    const neons = utils.range(neonCount).map(() =>
         {
             const n = new NeonTube();
             
@@ -1580,6 +1591,7 @@ app.page =
                             {
                                 GPU: true,
                                 opacity: false,
+                                cssPrepend: true,
                                 animationSpeed: 150,
                                 renderCallback()
                                 {
@@ -1659,7 +1671,7 @@ app.page =
                         const v = 100;
                         
                         // Перемешка индексов разрядов
-                        range(ledRanks.length)
+                        utils.range(ledRanks.length)
                             .shuffle()
                             .forEach(i =>
                                 {
@@ -2196,7 +2208,7 @@ app.page =
                 
                 // Инициализация списка часов
                 const hour = app.dom.disp.heat.hour;
-                range(24).forEach(i =>
+                utils.range(24).forEach(i =>
                     {
                         let i1 = i + 1;
                         if (i1 >= 24)
@@ -2269,7 +2281,7 @@ app.page =
                                 branch(i, dx);
                         };
                         
-                        range(days.length).forEach(i =>
+                        utils.range(days.length).forEach(i =>
                             {
                                 // Пропуск если обработан
                                 if (skip(i))
