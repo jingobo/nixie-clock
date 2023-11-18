@@ -12,7 +12,7 @@ import { LoadCounter, BinReader, BinWriter, utils, log } from "./utils";
 const app = 
 {
     // Признак отладки
-    debug: window.location.protocol == 'file:',
+    debug: window.location.hostname == 'localhost',
 };
 
 // Коды команд
@@ -469,12 +469,16 @@ app.display = new function ()
         context.restore();
     };
     
+    // Признак обновления данных после запуска
+    let updated = false;
+
     // Запрос состояния
     async function request()
     {
         const data = await app.session.transmit(new Packet(app.opcode.STM_SCREEN_STATE_GET, "получение состояния экрана"));
         if (data == null)
             return;
+        updated = true;
         
         // Данные ламп
         nixies.forEach(tube =>
@@ -528,6 +532,8 @@ app.display = new function ()
     // Загрузка страницы
     this.loaded = () =>
     {
+        // Снимаем признак обновления данных
+        updated = false;
         // Старт цикла обновления дисплея
         redrawInterval = setInterval(redraw, 1000 / 50);
         // Начальный запрос
@@ -540,6 +546,9 @@ app.display = new function ()
         clearTimeout(requestTimeout);
         clearInterval(redrawInterval);
     };
+
+    // Получает признак готовности дисплея
+    this.ready = () => updated;
 };
 
 // Страницы
@@ -936,7 +945,7 @@ app.page =
         // Состояние забыть
         const STATION_STATE_FORGET = 3;
         
-        // Получает признак загрузки настроек
+        // Признак загрузки настроек
         let settingsUploaded = false;
         
         // Класс информации о точке доступа
@@ -1207,6 +1216,9 @@ app.page =
                 .filter(i => i.station.removing || (!i.station.active && i.station.rssi >= 0))
                 .forEach(i => i.slideUp("fast", () => i.list.remove()));
         }
+
+        // Счетчик загруженных пакетов
+        const loadCounter = new LoadCounter(2);
         
         // Поисковик сетей
         const searcher = new function ()
@@ -1228,6 +1240,7 @@ app.page =
             {
                 log.assert(running);
                 
+                loadCounter.increment();
                 reset();
                 cleanupStations();
                 log.info("WiFi finder stopped...");
@@ -1334,9 +1347,6 @@ app.page =
             
         };
         
-        // Счетчик загруженных пакетов
-        const loadCounter = new LoadCounter(2);
-                
         // Запрос настроек
         async function requestSettings()
         {
@@ -1531,9 +1541,9 @@ app.page =
             app.dom.wifi.ap.apply.spinner(false);
             setConnectLock(false);
             loadCounter.reset();
-            searcher.reset();
             requestSettings();
             requestState();
+            searcher.reset();
             searcher.start();
         };
         
@@ -1551,7 +1561,7 @@ app.page =
     display: new function ()
     {
         // Счетчик загруженных пакетов
-        const loadCounter = new LoadCounter(8);
+        const loadCounter = new LoadCounter(6);
         
         // Класс основных настроек дисплея
         function DisplaySettings()
@@ -2548,7 +2558,7 @@ app.page =
         };
 
         // Получает, готова ли страница к отображению
-        this.ready = () => true;
+        this.ready = () => loadCounter.ready;
     },
 };
 
@@ -2900,7 +2910,7 @@ app.session = new function ()
         const connectTimeout = setTimeout(() => ws?.close(), 2 * 1000);
         
         // Обработчик открытия
-        ws.onopen = event =>
+        ws.onopen = () =>
         {
             clearTimeout(connectTimeout);
             log.info("Socket connected!");
@@ -2930,7 +2940,7 @@ app.session = new function ()
         };
         
         // Обработчик закрытия
-        ws.onclose = event => 
+        ws.onclose = () => 
         {
             clearTimeout(connectTimeout);
             
@@ -2984,7 +2994,7 @@ app.session = new function ()
                 return;
             
             // Показываем главную страницу
-            if (app.pages.ready())
+            if (app.display.ready() && app.pages.ready())
                 app.overlay.asLoader(false);
         };
     };

@@ -27,6 +27,7 @@
                 </div>
             </div>
         </div>
+
         <!-- Модальное окно с ошибкой -->
         <div class="modal fade" id="popup" tabindex="-1">
           <div class="modal-dialog">
@@ -43,6 +44,7 @@
             </div>
           </div>
         </div>
+
         <!-- Основной контейнер -->
         <div class="container" style="display: none">
             <!-- Дисплей часов -->
@@ -53,9 +55,10 @@
                     </canvas>
                 </div>
             </div>
+
             <!-- Навигация -->
             <div class="nav nav-tabs nav-fill" id="nav-tab">
-                <a class="nav-item nav-link" data-toggle="tab" id="nav-date" href="#tab-date">
+                <a class="nav-item nav-link active" data-toggle="tab" id="nav-date" href="#tab-date">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
                         <circle cx="16" cy="16" r="14" />
                         <path d="M16 8 L16 16 20 20" />
@@ -69,17 +72,18 @@
                     </svg>
                     WiFi
                 </a>
-                <a class="nav-item nav-link active" data-toggle="tab" id="nav-disp" href="#tab-disp">
+                <a class="nav-item nav-link" data-toggle="tab" id="nav-disp" href="#tab-disp">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
                         <path d="M28 6 L4 6 M28 16 L4 16 M28 26 L4 26 M24 3 L24 9 M8 13 L8 19 M20 23 L20 29" />
                     </svg>
                     Дисплей
                 </a>
             </div>
+
             <!-- Контент вкладок -->
             <div class="tab-content">
                 <!-- Вкладка даты и времени -->
-                <div class="tab-pane fade" id="tab-date">
+                <div class="tab-pane fade active show" id="tab-date">
                     <!-- Ручная настройка -->
                     <div class="row form-part">Ручная настройка</div>
                     <div class="row">
@@ -100,6 +104,7 @@
                                 </select>
                             </div>
                         </div>
+
                         <!-- Дата -->
                         <label class="col-md-2 col-form-label">Дата</label>
                         <div class="col-md-4">
@@ -116,6 +121,7 @@
                             </div>
                         </div>
                     </div>
+
                     <!-- NTP -->
                     <div class="row form-part">
                         <label for="date-ntp-enable" class="col-auto mr-auto">NTP синхронизация</label>
@@ -126,11 +132,13 @@
                             </div>
                         </div>
                     </div>
+
                     <!-- Время последней синхронизации -->
                     <div id="date-ntp-notice" class="alert alert-primary">
                         <span>Последняя синхронизация — </span>
                         <span id="date-ntp-notice-text"></span>
                     </div>
+                    
                     <!-- Часовой пояс -->
                     <div class="row">
                         <label for="date-ntp-timezone" class="col-md-2 col-form-label">Пояс</label>
@@ -172,6 +180,8 @@
                             </select>
                         </div>
                     </div>
+
+                    <!-- Смещение часа -->
                     <div class="row">
                         <label for="date-ntp-offset" class="col-md-2 col-form-label">Смещение</label>
                         <div class="col-md-10">
@@ -181,6 +191,7 @@
                             </select>
                         </div>
                     </div>
+
                     <!-- Список серверов -->
                     <div class="row">
                         <label for="date-ntp-list" class="col-md-2 col-form-label">Серверы</label>
@@ -203,6 +214,7 @@
                             </small>
                         </div>
                     </div>
+
                     <!-- Действия -->
                     <div class="row">
                         <label class="col-md-2 col-form-label">Действия</label>
@@ -217,6 +229,7 @@
                             </button>
                         </div>
                     </div>
+
                     <!-- Статистика -->
                     <div class="alert text-center text-muted">
                         <!-- Время работы устройства -->
@@ -228,6 +241,7 @@
                         <span id="date-lse-notice-text"></span>
                     </div>
                 </div>
+
                 <!-- Вкладка WiFi -->
                 <div class="tab-pane fade" id="tab-wifi">
                     <!-- Своя сеть -->
@@ -240,6 +254,8 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Имя и пароль -->
                     <div class="row">
                         <!-- SSID -->
                         <label for="wifi-ap-ssid" class="col-md-2 col-form-label">Имя</label>
@@ -252,6 +268,7 @@
                             <input type="password" class="form-control" id="wifi-ap-pass" placeholder="Пароль точки доступа">
                         </div>
                     </div>
+                    
                     <!-- Канал -->
                     <div class="row">
                         <label for="wifi-ap-channel" class="col-md-2 col-form-label">Канал</label>
@@ -274,6 +291,7 @@
                             </select>
                         </div>
                     </div>
+
                     <!-- Действия -->
                     <div class="row">
                         <label class="col-md-2 col-form-label">Действия</label>
@@ -283,15 +301,18 @@
                                 <span>Применить настройки новой сети</span>
                             </button>
                         </div>
+
                         <!-- Адрес -->
                         <div class="col-md-2 d-flex align-items-center justify-content-center">
                             <a id="wifi-ap-addr" target="_blank" rel="noopener noreferrer" class="my-md-auto text-primary stretched-link"></a>
                         </div>
                     </div>
+
                     <!-- Подключиться к чужой сети -->
                     <div class="row form-part">
                         <!-- Заголовок -->
                         <label for="wifi-sta-find" class="col-auto mr-auto">Подключение к сети</label>
+
                         <!-- Кнопка обновления -->
                         <div class="col-auto">
                             <button type="button" class="btn btn-primary" id="wifi-sta-find">
@@ -300,6 +321,7 @@
                             </button>
                         </div>
                     </div>
+
                     <!-- Список сетей -->
                     <div class="accordion" id="wifi-sta-list">
                         <!-- Шаблон элемента -->
@@ -336,11 +358,13 @@
                                                 <span>Подключиться</span>
                                             </button>
                                         </div>
+
                                         <!-- Пароль -->
                                         <label for="wifi-sta-pass" class="wifi-sta-psw-part col-md-auto col-form-label">Пароль</label>
                                         <div class="wifi-sta-psw-part col-md-auto">
                                             <input type="text" class="form-control" id="wifi-sta-pass" placeholder="Пароль точки доступа">
                                         </div>
+                                        
                                         <!-- Адрес -->
                                         <div class="col-md-auto px-0 d-flex align-items-center justify-content-center">
                                             <a target="_blank" rel="noopener noreferrer" class="my-md-auto text-primary stretched-link"></a>
@@ -360,7 +384,7 @@
                 </div>
                 
                 <!-- Вкладка настроек дисплея -->
-                <div class="tab-pane fade active show" id="tab-disp">
+                <div class="tab-pane fade" id="tab-disp">
                     <!-- Шаблон настроек ламп -->
                     <template id="disp-main-template">
                         <!-- Аккордион настроек ламп -->
@@ -464,6 +488,7 @@
                                                     <label class="custom-control-label" for="disp-opts-led-one-color">Один цвет на все разряды</label>
                                                 </div>
                                             </div>
+
                                             <!-- Рандомизация -->
                                             <div class="col-md-6">
                                                 <button type="button" class="btn btn-info btn-block disp-class-led-rnd-color">
@@ -694,7 +719,6 @@
                             </div>
                         </div>
                     </div>
-                    
                 </div>
             </div>
         </div>
