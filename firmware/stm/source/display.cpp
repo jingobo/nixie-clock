@@ -16,6 +16,7 @@ static void display_scene_set_default(void);
 class display_scene_t : public screen_scene_t
 {
     friend void display_scene_set_default(void);
+    
 protected:
     // Получает, нужно ли отобразить сцену
     virtual bool show_required(void) = 0;
@@ -343,6 +344,7 @@ protected:
         // Оповещение источников
         nixie_source.second();
     }
+    
 public:
     // Конструктор по умолчанию
     display_scene_time_t(void) : display_scene_ipc_t(settings)
@@ -486,7 +488,7 @@ display_settings_timeout_t display_scene_date_t::settings @ STORAGE_SECTION =
 static class display_scene_heat_t : public display_scene_t
 {
     // Общее время проведения прогрева
-    static constexpr const uint8_t TOTAL_TIME = 20;
+    static constexpr const uint8_t TOTAL_TIME = 240;
     
     // Структура информации о разряде
     struct rank_t
@@ -604,6 +606,7 @@ static class display_scene_heat_t : public display_scene_t
             this->rank = rank;
             smoother.start(rank, out_get(rank));
         }
+        
     protected:
         // Событие присоединения к цепочке
         virtual void attached(void) override final
@@ -643,6 +646,7 @@ static class display_scene_heat_t : public display_scene_t
             if (rank < NEON_COUNT - 1)
                 rank_start(rank + 1);
         }
+        
     public:
         // Конструктор по умолчанию
         neon_source_t(void)
@@ -740,6 +744,7 @@ static class display_scene_heat_t : public display_scene_t
             rank_start(rank);
             rank_start(rank + 1);
         }
+        
     public:
         // Конструктор по умолчанию
         led_source_t(void)
@@ -812,6 +817,7 @@ static class display_scene_heat_t : public display_scene_t
     {
         // Комадна
         command_settings_get_t command;
+        
     protected:
         // Получает ссылку на команду
         virtual ipc_command_t &command_get(void) override final
@@ -902,6 +908,7 @@ static class display_scene_heat_t : public display_scene_t
         launch_now_t(display_scene_heat_t &_scene) : scene(_scene)
         { }
     } launch_now;
+    
 protected:
     // Получает, нужно ли отобразить сцену
     virtual bool show_required(void) override final
@@ -1019,7 +1026,7 @@ class display_scene_network_t : public display_scene_timeout_t<display_settings_
         virtual void attached(void) override final
         { 
             // Базовый метод
-            source_t::attached();
+            nixie_number_source_t::attached();
 
             // Предпоследний октет
             out(0, 3, ip.o[2]);
@@ -1146,26 +1153,24 @@ static class display_scene_test_t : public display_scene_t
     {
         // Текущая выводимая цифра
         uint8_t digit;
-        // Нужно ли обновлять данные
-        bool update_needed;
+        // Контроллер плавного изменения
+        nixie_model_t::smoother_to_t smoother;
         
-        // Установка текущей цифры
-        void digit_set(uint8_t value)
-        {
-            // Проверка аргументов
-            assert(value <= 9);
-            // Установка полей
-            digit = value;
-            update_needed = true;
-        }
     protected:
         // Событие присоединения к цепочке
         virtual void attached(void) override final
         {
             // Базовый метод
             source_t::attached();
+            
             // Начинаем с нулевой цифры
-            digit_set(0);
+            digit = 0;
+            
+            // Сначала плавно
+            const auto to = nixie_data_t(HMI_SAT_MAX, digit, true);
+            const auto from = nixie_data_t(HMI_SAT_MIN, digit, true);
+            for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
+                smoother.start(i, from, to);
         }
         
         // Обновление данных
@@ -1173,40 +1178,38 @@ static class display_scene_test_t : public display_scene_t
         {
             // Базовый метод
             source_t::refresh();
-            
-            // Нужно ли обновлять данные
-            if (!update_needed)
-                return;
-            update_needed = false;
-            
-            // Установка всех разрядов текущей цифрой
-            auto data = nixie_data_t(HMI_SAT_MAX, digit, true);
-            for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
-                out_set(i, data);
+
+            // Обработка эффекта плавного перехода
+            process_smoother(smoother);
         }
+        
     public:
+        // Конструктор по умолчанию
+        nixie_source_t(void)
+        {
+            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
+        }
+    
         // Переход к следующей цифре
         void next(void)
         {
-            if (digit < 9)
-                digit_set(digit + 1);
+            if (digit >= 9)
+                return;
+            digit++;
+            
+            // Установка всех разрядов текущей цифрой
+            const auto data = nixie_data_t(HMI_SAT_MAX, digit, true);
+            for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
+                out_set(i, data);
         }
     } nixie_source;
     
     // Источник данных для неонок
     class neon_source_t : public neon_model_t::source_t
     {
-        // Нужно ли обновлять данные
-        bool update_needed : 1;
-        // Указывает, можно ли выводить лампы
-        bool light_allowed : 1;
+        // Контроллер плавного изменения
+        neon_model_t::smoother_to_t smoother;
         
-        // Запрос на обновление данных
-        void update(bool light)
-        {
-            update_needed = true;
-            light_allowed = light;
-        }
     protected:
         // Событие присоединения к цепочке
         virtual void attached(void) override final
@@ -1214,7 +1217,8 @@ static class display_scene_test_t : public display_scene_t
             // Базовый метод
             source_t::attached();
             // Сброс состояний
-            update(false);
+            for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
+                out_set(i, HMI_SAT_MIN);
         }
         
         // Обновление данных
@@ -1222,25 +1226,24 @@ static class display_scene_test_t : public display_scene_t
         {
             // Базовый метод
             source_t::refresh();
-            
-            // Нужно ли обновлять данные
-            if (!update_needed)
-                return;
-            update_needed = false;
-            
-            // Установка всех разрядов текущей цифрой
-            auto data = neon_data_t(light_allowed ? 
-                HMI_SAT_MAX : 
-                HMI_SAT_MIN);
-            
-            for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
-                out_set(i, data);
+
+            // Обработка эффекта плавного перехода
+            process_smoother(smoother);
         }
+        
     public:
+        // Конструктор по умолчанию
+        neon_source_t(void)
+        {
+            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
+        }
+    
         // Разрешение вывода неонок
         void allow(void)
         {
-            update(true);
+            // Установка состояний
+            for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
+                smoother.start(i, HMI_SAT_MIN, HMI_SAT_MAX);
         }
     } neon_source;
     
@@ -1248,16 +1251,98 @@ static class display_scene_test_t : public display_scene_t
     class led_source_t : public led_model_t::source_t
     {
         // Текущая стадия
-        uint8_t stage : 7;
-        // Нужно ли обновлять данные
-        bool update_needed : 1;
+        uint8_t stage;
+        // Контроллер плавного изменения
+        led_model_t::smoother_to_t smoother;
+        
+        // Устанавливает цвет разряда
+        void rank_set(hmi_rank_t index, hmi_rgb_t color)
+        {
+             smoother.start(index, out_get(index), color);
+        }
         
         // Обнволение с указанием текущей стадии
-        void update(uint8_t _stage)
+        void update(uint8_t value)
         {
-            stage = _stage;
-            update_needed = true;
+            stage = value;
+            
+            // Относительно стадии указываем цвет
+            switch (stage)
+            {
+                // Всё обнулить
+                case 0:
+                case 8:
+                    for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                        rank_set(i, HMI_COLOR_RGB_BLACK);
+                    break;
+                    
+                // Появление красного в центре
+                case 1:
+                    rank_set(0, HMI_COLOR_RGB_GREEN);
+                    rank_set(5, HMI_COLOR_RGB_GREEN);
+                    rank_set(1, HMI_COLOR_RGB_BLUE);
+                    rank_set(4, HMI_COLOR_RGB_BLUE);
+                    rank_set(2, HMI_COLOR_RGB_RED);
+                    rank_set(3, HMI_COLOR_RGB_RED);
+                    break;
+                    
+                // Первый сдвиг
+                case 2:
+                    rank_set(0, HMI_COLOR_RGB_BLUE);
+                    rank_set(5, HMI_COLOR_RGB_BLUE);
+                    rank_set(1, HMI_COLOR_RGB_RED);
+                    rank_set(4, HMI_COLOR_RGB_RED);
+                    rank_set(2, HMI_COLOR_RGB_GREEN);
+                    rank_set(3, HMI_COLOR_RGB_GREEN);
+                    break;
+                    
+                case 3:
+                    rank_set(0, HMI_COLOR_RGB_RED);
+                    rank_set(5, HMI_COLOR_RGB_RED);
+                    rank_set(1, HMI_COLOR_RGB_GREEN);
+                    rank_set(4, HMI_COLOR_RGB_GREEN);
+                    rank_set(2, HMI_COLOR_RGB_BLUE);
+                    rank_set(3, HMI_COLOR_RGB_BLUE);
+                    break;
+                    
+                case 4:
+                    rank_set(0, HMI_COLOR_RGB_RED);
+                    rank_set(1, HMI_COLOR_RGB_RED);
+                    rank_set(2, HMI_COLOR_RGB_GREEN);
+                    rank_set(3, HMI_COLOR_RGB_GREEN);
+                    rank_set(4, HMI_COLOR_RGB_BLUE);
+                    rank_set(5, HMI_COLOR_RGB_BLUE);
+                    break;
+                    
+                case 5:
+                    rank_set(0, HMI_COLOR_RGB_GREEN);
+                    rank_set(1, HMI_COLOR_RGB_GREEN);
+                    rank_set(2, HMI_COLOR_RGB_BLUE);
+                    rank_set(3, HMI_COLOR_RGB_BLUE);
+                    rank_set(4, HMI_COLOR_RGB_RED);
+                    rank_set(5, HMI_COLOR_RGB_RED);
+                    break;
+                    
+                case 6:
+                    rank_set(0, HMI_COLOR_RGB_BLUE);
+                    rank_set(1, HMI_COLOR_RGB_BLUE);
+                    rank_set(2, HMI_COLOR_RGB_RED);
+                    rank_set(3, HMI_COLOR_RGB_RED);
+                    rank_set(4, HMI_COLOR_RGB_GREEN);
+                    rank_set(5, HMI_COLOR_RGB_GREEN);
+                    break;
+                    
+                case 7:
+                    for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                        rank_set(i, HMI_COLOR_RGB_WHITE);
+                    break;
+                    
+                default:
+                    assert(false);
+                    break;
+            }
         }
+        
     protected:
         // Событие присоединения к цепочке
         virtual void attached(void) override final
@@ -1273,81 +1358,18 @@ static class display_scene_test_t : public display_scene_t
         {
             // Базовый метод
             source_t::refresh();
-            
-            // Нужно ли обновлять данные
-            if (!update_needed)
-                return;
-            update_needed = false;
-            
-            // Относительно стадии указываем цвет
-            switch (stage)
-            {
-                // Всё обнулить
-                case 0:
-                case 8:
-                    for (hmi_rank_t i = 0; i < LED_COUNT; i++)
-                        out_set(i, HMI_COLOR_RGB_BLACK);
-                    break;
-                // Появление красного в центре
-                case 1:
-                    out_set(0, HMI_COLOR_RGB_GREEN);
-                    out_set(5, HMI_COLOR_RGB_GREEN);
-                    out_set(1, HMI_COLOR_RGB_BLUE);
-                    out_set(4, HMI_COLOR_RGB_BLUE);
-                    out_set(2, HMI_COLOR_RGB_RED);
-                    out_set(3, HMI_COLOR_RGB_RED);
-                    break;
-                // Первый сдвиг
-                case 2:
-                    out_set(0, HMI_COLOR_RGB_BLUE);
-                    out_set(5, HMI_COLOR_RGB_BLUE);
-                    out_set(1, HMI_COLOR_RGB_RED);
-                    out_set(4, HMI_COLOR_RGB_RED);
-                    out_set(2, HMI_COLOR_RGB_GREEN);
-                    out_set(3, HMI_COLOR_RGB_GREEN);
-                    break;
-                case 3:
-                    out_set(0, HMI_COLOR_RGB_RED);
-                    out_set(5, HMI_COLOR_RGB_RED);
-                    out_set(1, HMI_COLOR_RGB_GREEN);
-                    out_set(4, HMI_COLOR_RGB_GREEN);
-                    out_set(2, HMI_COLOR_RGB_BLUE);
-                    out_set(3, HMI_COLOR_RGB_BLUE);
-                    break;
-                case 4:
-                    out_set(0, HMI_COLOR_RGB_RED);
-                    out_set(1, HMI_COLOR_RGB_RED);
-                    out_set(2, HMI_COLOR_RGB_GREEN);
-                    out_set(3, HMI_COLOR_RGB_GREEN);
-                    out_set(4, HMI_COLOR_RGB_BLUE);
-                    out_set(5, HMI_COLOR_RGB_BLUE);
-                    break;
-                case 5:
-                    out_set(0, HMI_COLOR_RGB_GREEN);
-                    out_set(1, HMI_COLOR_RGB_GREEN);
-                    out_set(2, HMI_COLOR_RGB_BLUE);
-                    out_set(3, HMI_COLOR_RGB_BLUE);
-                    out_set(4, HMI_COLOR_RGB_RED);
-                    out_set(5, HMI_COLOR_RGB_RED);
-                    break;
-                case 6:
-                    out_set(0, HMI_COLOR_RGB_BLUE);
-                    out_set(1, HMI_COLOR_RGB_BLUE);
-                    out_set(2, HMI_COLOR_RGB_RED);
-                    out_set(3, HMI_COLOR_RGB_RED);
-                    out_set(4, HMI_COLOR_RGB_GREEN);
-                    out_set(5, HMI_COLOR_RGB_GREEN);
-                    break;
-                case 7:
-                    for (hmi_rank_t i = 0; i < LED_COUNT; i++)
-                        out_set(i, HMI_COLOR_RGB_WHITE);
-                    break;
-                default:
-                    assert(false);
-                    break;
-            }
+
+            // Обработка эффекта плавного перехода
+            process_smoother(smoother);
         }
+        
     public:
+        // Конструктор по умолчанию
+        led_source_t(void)
+        {
+            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
+        }
+        
         // К следующему состоянию
         bool next(void)
         {
@@ -1359,14 +1381,11 @@ static class display_scene_test_t : public display_scene_t
         }
     } led_source;
     
+    // Счетчик фреймов
+    uint32_t frame;
     // Указывает, был ли показан тест
     bool shown = false;
-    // Фильтр смены цвета светодиодов
-    //display_led_smooth_filter_t led_smooth;
-    // Фильтр смены состояния неонок
-    //display_neon_smooth_filter_t neon_smooth;
-    // Фильтр смены цифр в самом начале
-    //display_nixie_smooth_filter_t nixie_smooth_start;
+    
 protected:
     // Получает, нужно ли отобразить сцену
     virtual bool show_required(void) override final
@@ -1380,10 +1399,20 @@ protected:
         // Базовый метод
         screen_scene_t::activated();
         
-        // Выставление фильтров
-        //nixie.attach(nixie_smooth_start);
-        // Указываем, что тест уже выводили
-        shown = true;
+        // Сброс счетчика
+        frame = 0;
+        // Максимальная яркость
+        light_setup_maximum(true);
+    }
+    
+    // Событие деактивации сцены на дисплее
+    virtual void deactivated(void) override final
+    {
+        // Базовый метод
+        screen_scene_t::deactivated();
+        
+        // Обычная яркость
+        light_setup_maximum(false);
     }
     
     // Обновление сцены
@@ -1392,54 +1421,50 @@ protected:
         // Базовый метод
         screen_scene_t::refresh();
         
-        // Обработка фрейма
-        //frame++;
-        // Если наступило пол секунды
-        //if (frame.half_seconds_period_get() != 0)
-        //    return;
+        // Количество фреймов на половину секунды
+        constexpr const auto HALF_SECOND_FRAME_COUNT = HMI_FRAME_RATE / 2;
+        
+        // Прескалер на половину секунды
+        frame++;
+        if (frame % HALF_SECOND_FRAME_COUNT != 0)
+            return;
+        
         // Номер секунды
-        //auto half_second = frame.half_seconds_get();
+        auto half_second = frame / HALF_SECOND_FRAME_COUNT;
         
         // Обработка первой секунды
-        //if (half_second < 1)
-        //    return;
+        if (half_second < 1)
+            return;
         
-        //if (half_second == 1)
-        //{
-        //    // Убираем эффект появления
-        //    nixie.detach(nixie_smooth_start);
-        //    // Разрешаем вывод неонок
-        //    neon_source.allow();
-        //    return;
-        //}
+        if (half_second == 1)
+        {
+            // Разрешаем вывод неонок
+            neon_source.allow();
+            return;
+        }
         
         // Переход к следующей цифре
         nixie_source.next();
         // Начинаем менять подсветку со второй секунды
-        //if (half_second == 2)
-        //    return;
+        if (half_second == 2)
+            return;
         
         // Переход к следующей стадии подсветки
         if (led_source.next())
             return;
         
         // Конец сцены
+        shown = true;
         display_scene_set_default();
     }
+    
 public:
     // Конструктор по умолчанию
     display_scene_test_t(void)
     {
-        // Лампы
         nixie.attach(nixie_source);
-        // Неонки
         neon.attach(neon_source);
-        //neon.attach(neon_smooth);
-        // Светодиоды
         led.attach(led_source);
-        //led.attach(led_smooth);
-        
-        //led_smooth.smoother.frame_count_set(HMI_FRAME_RATE / 4);
     }
 } display_scene_test;
 
@@ -1450,9 +1475,7 @@ static void display_scene_set_default(void)
     static display_scene_t * const SCENES[] =
     {
         // Тестирование
-        //&display_scene_test,
-        // Репортирование о смене IP
-        //&display_scene_ip_report,
+        &display_scene_test,
         // Своя сеть
         &display_scene_onet,
         // Подключенная сеть
