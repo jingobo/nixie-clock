@@ -78,6 +78,7 @@ static class nixie_display_t : public nixie_model_t::display_t
     {
         8, 3, 1, 6, 9, 0, 4, 2, 7, 5, 10
     };
+    
 protected:
     // Обработчик изменения данных
     virtual void data_changed(hmi_rank_t index, nixie_data_t &data) override final
@@ -122,6 +123,7 @@ protected:
             IRQ_SAFE_LEAVE();
         }
     }
+    
 public:
     // Мультиплексирование
     RAM_IAR

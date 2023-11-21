@@ -153,6 +153,7 @@ class hmi_model_t
     static constexpr const uint8_t PRIORITY_SOURCE = 0;
     // Приоритет дисплея
     static constexpr const uint8_t PRIORITY_DISPLAY = UINT8_MAX;
+    
 public:
     // Тип данных
     using data_t = DATA;
@@ -171,18 +172,112 @@ public:
     // Максимальный приоритет фильтров
     static constexpr const uint8_t PRIORITY_FILTER_MAX = PRIORITY_LIGHT - 1;
 
+    // Класс контроллера плавного изменения данных
+    class smoother_t
+    {
+        // Данные для эффекта
+        struct 
+        {
+            // Начальные данные
+            DATA from;
+            // Текущий фрейм
+            uint32_t frame = 0;
+        } ranks[COUNT];
+        
+        // Общее количество фреймов
+        uint32_t frame_count = 0;
+        
+    public:
+        // Запуск на разряде
+        void start(hmi_rank_t index, DATA from)
+        {
+            index_check(index);
+            
+            ranks[index].from = from;
+            ranks[index].frame = 0;
+        }
+        
+        // Получает необходимость обработки разряда
+        bool process_needed(hmi_rank_t index) const
+        {
+            index_check(index);
+            return ranks[index].frame < frame_count;
+        }
+        
+        // Обработка разряда
+        DATA process(hmi_rank_t index, DATA to)
+        {
+            index_check(index);
+            assert(process_needed(index));
+            
+            // Инкремент фрейма
+            auto& frame = ranks[index].frame;
+            assert(frame < frame_count);
+            frame++;
+
+            // Обработка
+            return ranks[index].from.smooth(to, frame, frame_count);
+        }
+        
+        // Остановка на всех разрядах
+        void stop(void)
+        {
+            for (hmi_rank_t i = 0; i < COUNT; i++)
+                ranks[i].frame = frame_count;
+        }
+
+        // Устанвливает длительность в колчиестве кадров
+        void frame_count_set(uint32_t value)
+        {
+            assert(value > 0);
+            if (frame_count == value)
+                return;
+            
+            frame_count = value;
+            stop();
+        }
+        
+        // Устанвливает длительность в дискретах приведенного времени
+        void time_set(hmi_time_t value)
+        {
+            frame_count_set(maximum<uint32_t>(hmi_time_to_frame_count(value), 1));
+        }
+    };
+    
+    // Класс контроллера плавного изменения данных (с буфером конечного значения)
+    class smoother_to_t : public smoother_t
+    {
+        // Данные по разрядам конечного значения
+        DATA to[COUNT];
+        
+    public:
+        // Запуск на разряде
+        void start(hmi_rank_t index, DATA from, DATA to)
+        {
+            smoother_t::start(index, from);
+            this->to[index] = to;
+        }
+        
+        // Обработка разряда
+        DATA process(hmi_rank_t index)
+        {
+            return smoother_t::process(index, to[index]);
+        }
+    };
+    
     // Базовый класс слоя данных
     class layer_t : protected list_item_t
     {
         friend class hmi_model_t;
         // Входящие данные
         DATA in[COUNT];
+        
     protected:
         // Обработчик события присоединения к цепочке
         virtual void attached(void)
         { }
 
-        // Обнвление данных
+        // Обновление данных
         virtual void refresh(void)
         { }
 
@@ -245,10 +340,6 @@ public:
                 next->input(index, data);
         }
         
-        // Вывод данных
-        void reoutput(void) const
-        {
-        }
     protected:
         // Установка выходных данных
         void out_set(hmi_rank_t index, DATA data)
@@ -264,6 +355,20 @@ public:
         {
             index_check(index);
             return out[index];
+        }
+        
+        // Обработка разрядов контроллером плавности
+        bool process_smoother(smoother_to_t &smoother)
+        {
+            auto transition = false;
+            for (hmi_rank_t i = 0; i < COUNT; i++)
+                if (smoother.process_needed(i))
+                {
+                    transition = true;
+                    out_set(i, smoother.process(i));
+                }
+            
+            return transition;
         }
         
         // Обработчик изменения стороны
@@ -333,6 +438,7 @@ public:
     {
         // Приоритет фильтра
         const uint8_t priority;
+        
     protected:
         // Основой конструктор
         filter_t(uint8_t _priority) : priority(_priority)
@@ -402,97 +508,6 @@ public:
             }
         }
     };
-
-    // Класс контроллера плавного изменения данных
-    class smoother_t
-    {
-        // Данные для эффекта
-        struct 
-        {
-            // Начальные данные
-            DATA from;
-            // Текущий фрейм
-            uint32_t frame = 0;
-        } ranks[COUNT];
-        
-        // Общее количество фреймов
-        uint32_t frame_count = 0;
-    public:
-        // Запуск на разряде
-        void start(hmi_rank_t index, DATA from)
-        {
-            index_check(index);
-            
-            ranks[index].from = from;
-            ranks[index].frame = 0;
-        }
-        
-        // Получает необходимость обработки разряда
-        bool process_needed(hmi_rank_t index) const
-        {
-            index_check(index);
-            return ranks[index].frame < frame_count;
-        }
-        
-        // Обработка разряда
-        DATA process(hmi_rank_t index, DATA to)
-        {
-            index_check(index);
-            assert(process_needed(index));
-            
-            // Инкремент фрейма
-            auto& frame = ranks[index].frame;
-            assert(frame < frame_count);
-            frame++;
-
-            // Обработка
-            return ranks[index].from.smooth(to, frame, frame_count);
-        }
-        
-        // Остановка на всех разрядах
-        void stop(void)
-        {
-            for (hmi_rank_t i = 0; i < COUNT; i++)
-                ranks[i].frame = frame_count;
-        }
-
-        // Устанвливает длительность в колчиестве кадров
-        void frame_count_set(uint32_t value)
-        {
-            assert(value > 0);
-            if (frame_count == value)
-                return;
-            
-            frame_count = value;
-            stop();
-        }
-        
-        // Устанвливает длительность в дискретах приведенного времени
-        void time_set(hmi_time_t value)
-        {
-            frame_count_set(maximum<uint32_t>(hmi_time_to_frame_count(value), 1));
-        }
-    };
-    
-    // Класс контроллера плавного изменения данных (с буфером конечного значения)
-    class smoother_to_t : public smoother_t
-    {
-        // Данные по разрядам конечного значения
-        DATA to[COUNT];
-    public:
-        // Запуск на разряде
-        void start(hmi_rank_t index, DATA from, DATA to)
-        {
-            smoother_t::start(index, from);
-            this->to[index] = to;
-        }
-        
-        // Обработка разряда
-        DATA process(hmi_rank_t index)
-        {
-            return smoother_t::process(index, to[index]);
-        }
-    };
     
 private:
     // Указатель на перенаправляемую модель модель добавление/удаления фильтров
@@ -511,8 +526,9 @@ private:
         if (next != NULL)
             ((layer_t *)next)->side_changed(LIST_SIDE_PREV);
     }
+    
 public:
-    // Обнвление данных
+    // Обновление данных
     void refresh(void) const
     {
         for (auto i = list.head(); i != NULL; i = LIST_ITEM_NEXT(i))

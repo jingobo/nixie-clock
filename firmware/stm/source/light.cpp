@@ -362,7 +362,7 @@ protected:
         base_t::out_set(index, final_data_get(data));
     }
     
-    // Обнвление данных
+    // Обновление данных
     virtual void refresh(void) override final
     {
         // Базовый метод

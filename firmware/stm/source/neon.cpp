@@ -131,9 +131,7 @@ void neon_source_t::refresh(void)
         return;
     
     // Обработка плавности
-    for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
-        if (smoother.process_needed(i))
-            out_set(i, smoother.process(i));
+    process_smoother(smoother);
     
     // Обработка фрейма периода
     if (++frame < frame_count)

@@ -156,8 +156,9 @@ private:
     {
         return settings.effect == EFFECT_NONE;
     }
+    
 protected:
-    // Обнвление данных
+    // Обновление данных
     virtual void refresh(void) override final;
     
     // Событие обработки новых данных
@@ -169,7 +170,6 @@ public:
         nixie_filter_t(nixie_filter_t::PRIORITY_SWITCHER), 
         settings(_settings)
     { }
-    
 };
 
 // Инициализация модуля

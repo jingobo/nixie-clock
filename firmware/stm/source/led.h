@@ -169,7 +169,7 @@ protected:
         set_initial_ranks();
     }
 
-    // Обнвление данных
+    // Обновление данных
     virtual void refresh(void) override final;
 
 public:

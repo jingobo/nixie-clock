@@ -237,18 +237,8 @@ void led_source_t::refresh(void)
         return;
     
     // Обработка эффекта плавного перехода
-    {
-        bool transition = false;
-        for (hmi_rank_t i = 0; i < LED_COUNT; i++)
-            if (smoother.process_needed(i))
-            {
-                transition = true;
-                out_set(i, smoother.process(i));
-            }
-        
-        if (transition)
-            return;
-    }
+    if (process_smoother(smoother))
+        return;
     
     // Цвет
     switch (settings.effect)
