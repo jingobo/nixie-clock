@@ -357,7 +357,7 @@ public:
             return out[index];
         }
         
-        // Обработка разрядов контроллером плавности
+        // Обработка разрядов контроллером плавности по умолчанию
         bool process_smoother(smoother_to_t &smoother)
         {
             auto transition = false;
@@ -432,7 +432,31 @@ public:
             transceiver_t::out_set(index, data);
         }
     };
+    
+    // Базовый класс источника данных с контроллером плавности по умолчанию
+    class source_smoother_t : public source_t
+    {
+    protected:
+        // Контроллер плавного изменения
+        smoother_to_t smoother;
         
+        // Обновление данных
+        virtual void refresh(void) override
+        {
+            // Базовый метод
+            source_t::refresh();
+
+            // Обработка эффекта плавного перехода
+            source_t::process_smoother(smoother);
+        }
+        
+        // Конструктор по умолчанию
+        source_smoother_t(void)
+        {
+            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
+        }
+    };
+    
     // Базовый класс фильтра данных
     class filter_t : public transceiver_t
     {

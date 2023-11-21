@@ -1149,19 +1149,17 @@ static display_scene_network_t<display_command_cnet_get_t, display_command_cnet_
 static class display_scene_test_t : public display_scene_t
 {
     // Источник данных для лмап
-    class nixie_source_t : public nixie_model_t::source_t
+    class nixie_source_t : public nixie_model_t::source_smoother_t
     {
         // Текущая выводимая цифра
         uint8_t digit;
-        // Контроллер плавного изменения
-        nixie_model_t::smoother_to_t smoother;
         
     protected:
         // Событие присоединения к цепочке
         virtual void attached(void) override final
         {
             // Базовый метод
-            source_t::attached();
+            source_smoother_t::attached();
             
             // Начинаем с нулевой цифры
             digit = 0;
@@ -1173,23 +1171,7 @@ static class display_scene_test_t : public display_scene_t
                 smoother.start(i, from, to);
         }
         
-        // Обновление данных
-        virtual void refresh(void) override final
-        {
-            // Базовый метод
-            source_t::refresh();
-
-            // Обработка эффекта плавного перехода
-            process_smoother(smoother);
-        }
-        
     public:
-        // Конструктор по умолчанию
-        nixie_source_t(void)
-        {
-            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
-        }
-    
         // Переход к следующей цифре
         void next(void)
         {
@@ -1205,39 +1187,20 @@ static class display_scene_test_t : public display_scene_t
     } nixie_source;
     
     // Источник данных для неонок
-    class neon_source_t : public neon_model_t::source_t
+    class neon_source_t : public neon_model_t::source_smoother_t
     {
-        // Контроллер плавного изменения
-        neon_model_t::smoother_to_t smoother;
-        
     protected:
         // Событие присоединения к цепочке
         virtual void attached(void) override final
         {
             // Базовый метод
-            source_t::attached();
+            source_smoother_t::attached();
             // Сброс состояний
             for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
                 out_set(i, HMI_SAT_MIN);
         }
         
-        // Обновление данных
-        virtual void refresh(void) override final
-        {
-            // Базовый метод
-            source_t::refresh();
-
-            // Обработка эффекта плавного перехода
-            process_smoother(smoother);
-        }
-        
     public:
-        // Конструктор по умолчанию
-        neon_source_t(void)
-        {
-            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
-        }
-    
         // Разрешение вывода неонок
         void allow(void)
         {
@@ -1248,12 +1211,10 @@ static class display_scene_test_t : public display_scene_t
     } neon_source;
     
     // Источник данных для светодиодов
-    class led_source_t : public led_model_t::source_t
+    class led_source_t : public led_model_t::source_smoother_t
     {
         // Текущая стадия
         uint8_t stage;
-        // Контроллер плавного изменения
-        led_model_t::smoother_to_t smoother;
         
         // Устанавливает цвет разряда
         void rank_set(hmi_rank_t index, hmi_rgb_t color)
@@ -1348,28 +1309,12 @@ static class display_scene_test_t : public display_scene_t
         virtual void attached(void) override final
         {
             // Базовый метод
-            source_t::attached();
+            source_smoother_t::attached();
             // Сброс состояний
             update(0);
         }
         
-        // Обновление данных
-        virtual void refresh(void) override final
-        {
-            // Базовый метод
-            source_t::refresh();
-
-            // Обработка эффекта плавного перехода
-            process_smoother(smoother);
-        }
-        
     public:
-        // Конструктор по умолчанию
-        led_source_t(void)
-        {
-            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
-        }
-        
         // К следующему состоянию
         bool next(void)
         {
