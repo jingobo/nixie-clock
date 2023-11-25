@@ -291,7 +291,7 @@ static class display_scene_time_t : public display_scene_ipc_t<display_settings_
         virtual void attached(void) override final
         { 
             // Базовый метод
-            source_t::attached();
+            nixie_number_source_t::attached();
             
             // Обновление состояния
             second();
@@ -401,7 +401,7 @@ static class display_scene_date_t : public display_scene_timeout_t<display_setti
         virtual void attached(void) override final
         { 
             // Базовый метод
-            source_t::attached();
+            nixie_number_source_t::attached();
 
             // День
             out(0, 2, rtc_time.day);
@@ -1149,7 +1149,7 @@ static display_scene_network_t<display_command_cnet_get_t, display_command_cnet_
 static class display_scene_test_t : public display_scene_t
 {
     // Источник данных для лмап
-    class nixie_source_t : public nixie_model_t::source_smoother_t
+    class nixie_source_t : public nixie_model_t::source_smoother_def_t
     {
         // Текущая выводимая цифра
         uint8_t digit;
@@ -1159,7 +1159,7 @@ static class display_scene_test_t : public display_scene_t
         virtual void attached(void) override final
         {
             // Базовый метод
-            source_smoother_t::attached();
+            source_smoother_def_t::attached();
             
             // Начинаем с нулевой цифры
             digit = 0;
@@ -1187,14 +1187,15 @@ static class display_scene_test_t : public display_scene_t
     } nixie_source;
     
     // Источник данных для неонок
-    class neon_source_t : public neon_model_t::source_smoother_t
+    class neon_source_t : public neon_model_t::source_smoother_def_t
     {
     protected:
         // Событие присоединения к цепочке
         virtual void attached(void) override final
         {
             // Базовый метод
-            source_smoother_t::attached();
+            source_smoother_def_t::attached();
+            
             // Сброс состояний
             for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
                 out_set(i, HMI_SAT_MIN);
@@ -1211,7 +1212,7 @@ static class display_scene_test_t : public display_scene_t
     } neon_source;
     
     // Источник данных для светодиодов
-    class led_source_t : public led_model_t::source_smoother_t
+    class led_source_t : public led_model_t::source_smoother_def_t
     {
         // Текущая стадия
         uint8_t stage;
@@ -1309,7 +1310,7 @@ static class display_scene_test_t : public display_scene_t
         virtual void attached(void) override final
         {
             // Базовый метод
-            source_smoother_t::attached();
+            source_smoother_def_t::attached();
             // Сброс состояний
             update(0);
         }
@@ -1413,6 +1414,305 @@ public:
     }
 } display_scene_test;
 
+// Сцена наступления нового года
+static class display_scene_year_t : public display_scene_t
+{
+    // Управление лампами
+    class nixie_source_t : public nixie_number_source_t
+    {
+        // Смещение надписи
+        uint8_t offset;
+        // Направление
+        bool to_right;
+        // Прескалер фреймов
+        uint32_t frame;
+        // Контроллер плавного изменения
+        nixie_model_t::smoother_to_t smoother;
+        
+        // Очищает разряд
+        void clear_rank(hmi_rank_t index)
+        {
+            out_set(index, nixie_data_t());
+        }
+
+        // Плавно гасит разряд
+        void fade_rank(hmi_rank_t index)
+        {
+            auto data = out_get(index);
+            data.sat = HMI_SAT_MIN;
+            nixie_number_source_t::smoother_start(smoother, index, data);
+        }
+        
+        // Обновление разрядов
+        void update_ranks(void)
+        {
+            // Год
+            out(offset, 4, datetime_t::YEAR_BASE + rtc_time.year);
+            
+            switch (offset)
+            {
+                case 0:
+                    fade_rank(4);
+                    clear_rank(5);
+                    break;
+                    
+                case 1:
+                    fade_rank(0);
+                    fade_rank(5);
+                    break;
+                    
+                case 2:
+                    clear_rank(0);
+                    fade_rank(1);
+                    break;
+                    
+                default:
+                    assert(false);
+            }
+        }
+        
+    protected:
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        { 
+            // Базовый метод
+            nixie_number_source_t::attached();
+
+            // Начальные данные
+            offset = 1;
+            to_right = true;
+            smoother.stop();
+            update_ranks();
+
+            // В первый раз 19 секунд
+            frame = HMI_FRAME_RATE * 13;
+        }
+        
+        // Обновление данных
+        virtual void refresh(void) override final
+        {
+            // Базовый метод
+            nixie_number_source_t::refresh();
+            
+            // Обработка плавности
+            nixie_number_source_t::smoother_process(smoother);
+            
+            // Обработка прескалера
+            if (frame-- > 0)
+                return;
+            frame = HMI_FRAME_RATE * 2;
+            
+            // Обработка направления
+            if (to_right)
+                offset++;
+            else
+                offset--;
+            if (offset != 1)
+                to_right = !to_right;
+            
+            // Обнвление разрядов
+            update_ranks();
+        }
+        
+    public:
+        // Конструктор по умолчанию
+        nixie_source_t(void)
+        {
+            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
+        }
+    } nixie_source;
+    
+    // Источник данных для неонок
+    class neon_source_t : public neon_model_t::source_t
+    {
+    protected:
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        {
+            // Базовый метод
+            source_t::attached();
+            
+            // Сброс состояний
+            for (hmi_rank_t i = 0; i < NEON_COUNT; i++)
+                out_set(i, HMI_SAT_MIN);
+        }
+    } neon_source;
+
+    // Источник данных для светодиодов
+    class led_source_t : public led_model_t::source_animation_t
+    {
+        // Предыдущий выбранный оттенок
+        hmi_sat_t hue_last = 0;
+    protected:
+        // Обработчик заполнения данных ключевого кадра
+        virtual void key_frame_fill(uint32_t &index) override final
+        {
+            const auto SNOW_COLOR = hmi_rgb_init(127, 127, 255);
+            
+            switch (index)
+            {
+                case 0:
+                    smoother.frame_count_set(80);
+                    for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                        smoother_start(i, led_data_t());
+                    delay_frame_count = HMI_SMOOTH_FRAME_COUNT;
+                    return;
+                    
+                case 1:
+                    smoother.frame_count_set(90);
+                    smoother_start(0, HMI_COLOR_RGB_RED);
+                    smoother_start(5, HMI_COLOR_RGB_GREEN);
+                    return;
+                    
+                case 2:
+                    smoother_start(1, HMI_COLOR_RGB_RED);
+                    smoother_start(4, HMI_COLOR_RGB_GREEN);
+                    return;
+
+                case 3:
+                    smoother.frame_count_set(10);
+                    smoother_start(2, hmi_rgb_init(255, 127, 127));
+                    smoother_start(3, hmi_rgb_init(127, 255, 127));
+                    return;
+
+                case 4:
+                    smoother_start(2, HMI_COLOR_RGB_WHITE);
+                    smoother_start(3, HMI_COLOR_RGB_WHITE);
+                    return;
+
+                case 5:
+                    smoother.frame_count_set(20);
+                    smoother_start(1, HMI_COLOR_RGB_WHITE);
+                    smoother_start(4, HMI_COLOR_RGB_WHITE);
+                    return;
+
+                case 6:
+                    smoother_start(0, HMI_COLOR_RGB_WHITE);
+                    smoother_start(5, HMI_COLOR_RGB_WHITE);
+                    delay_frame_count = 60;
+                    return;
+                    
+                case 7:
+                case 9:
+                case 11:
+                    smoother.frame_count_set(60);
+                    smoother_start(0, HMI_COLOR_RGB_BLACK);
+                    smoother_start(5, HMI_COLOR_RGB_BLACK);
+                    for (hmi_rank_t i = 1; i < 5; i++)
+                        smoother_start(i, SNOW_COLOR);
+                    delay_frame_count = 60;
+                    return;
+
+                case 8:
+                case 10:
+                    smoother.frame_count_set(20);
+                    for (hmi_rank_t i = 1; i < 5; i++)
+                        smoother_start(i, HMI_COLOR_RGB_WHITE);
+                    return;
+
+                case 12:
+                    smoother.frame_count_set(90);
+                    smoother_start(1, HMI_COLOR_RGB_RED);
+                    smoother_start(2, HMI_COLOR_RGB_GREEN);
+                    smoother_start(3, HMI_COLOR_RGB_RED);
+                    smoother_start(4, HMI_COLOR_RGB_GREEN);
+                    delay_frame_count = 270;
+                    return;
+
+                case 13:
+                    smoother_start(1, HMI_COLOR_RGB_GREEN);
+                    smoother_start(2, HMI_COLOR_RGB_RED);
+                    smoother_start(3, HMI_COLOR_RGB_GREEN);
+                    smoother_start(4, HMI_COLOR_RGB_RED);
+                    delay_frame_count = 270;
+                    return;
+                    
+                default:
+                    if (index % 2 == 0)
+                    {
+                        delay_frame_count = 160;
+                        smoother.frame_count_set(60);
+                        const auto color = led_random_color_get(hue_last, 160);
+                        for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                            smoother_start(i, color);
+                        
+                        return;
+                    }
+                    
+                    smoother.frame_count_set(20);
+                    for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                        smoother_start(i, HMI_COLOR_RGB_WHITE);
+                    return;
+            }
+        }
+    } led_source;
+    
+    // Таймаут показа в секунда
+    uint8_t show_timeout = 0;
+
+protected:
+    // Получает, нужно ли отобразить сцену
+    virtual bool show_required(void) override final
+    {
+        return show_timeout > 0;
+    }
+
+    // Секундное событие
+    virtual void second(void) override final
+    {
+        // Базовый метод
+        screen_scene_t::second();
+        
+        // Показ 1 минуту
+        if (--show_timeout <= 0)
+            display_scene_set_default();
+    }
+
+    // Событие активации сцены на дисплее
+    virtual void activated(void) override final
+    {
+        // Базовый метод
+        screen_scene_t::activated();
+        
+        // Максимальная яркость
+        light_setup_maximum(true);
+    }
+
+    // Событие деактивации сцены на дисплее
+    virtual void deactivated(void) override final
+    {
+        // Базовый метод
+        screen_scene_t::deactivated();
+        
+        // Обычная яркость
+        light_setup_maximum(false);
+    }
+
+public:
+    // Конструктор по умолчанию
+    display_scene_year_t(void)
+    {
+        nixie.attach(nixie_source);
+        neon.attach(neon_source);
+        led.attach(led_source);
+    }
+
+    // Обработчик секундного события (вызывается всегда)
+    void second_always(void)
+    {
+        // Фильтр на нулевую секунду нового года
+        if (rtc_time.month != datetime_t::MONTH_MIN ||
+            rtc_time.day != datetime_t::DAY_MIN ||
+            rtc_time.hour != datetime_t::HOUR_MIN ||
+            rtc_time.minute != datetime_t::MINUTE_MIN ||
+            rtc_time.second != datetime_t::SECOND_MIN)
+            return;
+        
+        // Запрос на показ
+        show_timeout = datetime_t::SECONDS_PER_MINUTE;
+    }
+} display_scene_year;
+
 // Установка сцены по умолчанию
 static void display_scene_set_default(void)
 {
@@ -1420,7 +1720,9 @@ static void display_scene_set_default(void)
     static display_scene_t * const SCENES[] =
     {
         // Тестирование
-        &display_scene_test,
+        //&display_scene_test,
+        // Новый год
+        &display_scene_year,
         // Своя сеть
         &display_scene_onet,
         // Подключенная сеть
@@ -1450,6 +1752,7 @@ static list_handler_item_t display_second_event([](void)
 {
     display_scene_heat.second_always();
     display_scene_date.second_always();
+    display_scene_year.second_always();
 });
 
 void display_init(void)

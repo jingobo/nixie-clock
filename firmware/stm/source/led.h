@@ -47,7 +47,7 @@ struct led_data_t
 using led_model_t = hmi_model_t<led_data_t, LED_COUNT>;
 
 // Источник данных подсветки по умолчанию
-class led_source_t : public led_model_t::source_t
+class led_source_t : public led_model_t::source_smoother_t
 {
 public:
     // Перечисление эффектов
@@ -101,8 +101,6 @@ private:
     
     // Используемые настройки
     const settings_t &settings;
-    // Контроллер плавного изменения
-    led_model_t::smoother_to_t smoother;
     
     // Предыдущий выбранный оттенок
     hmi_sat_t hue_last = 0;
@@ -132,24 +130,18 @@ private:
         return true;
     }
     
-    // Запуск эффекта плавности на разряде
-    void start_rank_smooth(hmi_rank_t index, led_data_t to)
-    {
-        smoother.start(index, out_get(index), to);
-    }
-        
     // Обработка разряда эффекта вспышки
     void process_rank_flash(hmi_rank_t index)
     {
         // Там может быть переполнение
         if (index < LED_COUNT)
-            start_rank_smooth(index, led_data_t(color_last).smooth(out_get(index), 75, 100));
+            smoother_start(index, led_data_t(color_last).smooth(out_get(index), 75, 100));
     }
 
     // Обработка разряда эффекта по умолчанию
     void process_rank_default(hmi_rank_t index)
     {
-        start_rank_smooth(index, led_data_t(color_last).smooth(out_get(index), 25, 100));
+        smoother_start(index, led_data_t(color_last).smooth(out_get(index), 25, 100));
     }
     
     // Формирует случайный цвет
@@ -163,7 +155,7 @@ protected:
     virtual void attached(void) override final
     {
         // Базовый метод
-        source_t::attached();
+        source_smoother_t::attached();
         
         // Начальные цвета
         set_initial_ranks();
@@ -187,6 +179,9 @@ public:
     // Обработчик применения настроек
     void settings_apply(const settings_t *settings_old);
 };
+
+// Получает случайный цвет
+hmi_rgb_t led_random_color_get(hmi_sat_t &hue_last, hmi_sat_t value = HMI_SAT_MAX);
 
 // Инициализация модуля
 void led_init(void);

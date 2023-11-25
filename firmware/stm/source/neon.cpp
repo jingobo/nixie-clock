@@ -126,12 +126,15 @@ void neon_init(void)
 
 void neon_source_t::refresh(void)
 {
+    // Базовый метод
+    source_smoother_t::refresh();
+    
     // Эффект не обрабатывается если период отсутствует
     if (frame_count <= 0)
         return;
     
     // Обработка плавности
-    process_smoother(smoother);
+    smoother_process();
     
     // Обработка фрейма периода
     if (++frame < frame_count)
@@ -146,7 +149,7 @@ void neon_source_t::refresh(void)
             rank_mask_lsb(mask ^ phase) :
             (rank_mask_lsb(mask) && phase != 0);
         
-        start_rank_smooth(i, data_normal(state));
+        smoother_start(i, data_normal(state));
     }
     
     // Обработка фазы

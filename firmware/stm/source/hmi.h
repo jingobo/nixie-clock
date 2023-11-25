@@ -357,20 +357,6 @@ public:
             return out[index];
         }
         
-        // Обработка разрядов контроллером плавности по умолчанию
-        bool process_smoother(smoother_to_t &smoother)
-        {
-            auto transition = false;
-            for (hmi_rank_t i = 0; i < COUNT; i++)
-                if (smoother.process_needed(i))
-                {
-                    transition = true;
-                    out_set(i, smoother.process(i));
-                }
-            
-            return transition;
-        }
-        
         // Обработчик изменения стороны
         virtual void side_changed(list_side_t side) override
         {
@@ -389,6 +375,26 @@ public:
                 default:
                     assert(false);
             }
+        }
+        
+        // Запуск контроллера плавности на разряде
+        void smoother_start(smoother_to_t &smoother, hmi_rank_t index, data_t to)
+        {
+            smoother.start(index, out_get(index), to);
+        }
+        
+        // Обработка разрядов контроллером плавности
+        bool smoother_process(smoother_to_t &smoother)
+        {
+            auto transition = false;
+            for (hmi_rank_t i = 0; i < COUNT; i++)
+                if (smoother.process_needed(i))
+                {
+                    transition = true;
+                    out_set(i, smoother.process(i));
+                }
+            
+            return transition;
         }
     };
     
@@ -432,28 +438,109 @@ public:
             transceiver_t::out_set(index, data);
         }
     };
-    
-    // Базовый класс источника данных с контроллером плавности по умолчанию
+
+    // Базовый класс источника данных с контроллером плавности
     class source_smoother_t : public source_t
     {
     protected:
         // Контроллер плавного изменения
         smoother_to_t smoother;
         
+        // Событие присоединения к цепочке
+        virtual void attached(void) override
+        { 
+            // Базовый метод
+            source_t::attached();
+            
+            // Остановка эффекта
+            smoother.stop();
+        }
+        
+        // Запуск контроллера плавности на разряде
+        void smoother_start(hmi_rank_t index, data_t to)
+        {
+            source_t::smoother_start(smoother, index, to);
+        }
+        
+        // Обработка разрядов контроллером плавности
+        bool smoother_process(void)
+        {
+            return source_t::smoother_process(smoother);
+        }
+    };
+    
+    // Базовый класс источника данных с плавной анимацией
+    class source_animation_t : public source_smoother_t
+    {
+        // Индекс ключевого кадра
+        uint32_t key_frame;
+        // Текущей фрейм задержки
+        uint32_t delay_frame;
+        
+        // Сброс данных задержки
+        void delay_frame_reset(void)
+        {
+            delay_frame_count = delay_frame = 0;
+        }
+    protected:
+        // Количество кадров задержки
+        uint32_t delay_frame_count;
+    
+        // Обработчик заполнения данных ключевого кадра
+        virtual void key_frame_fill(uint32_t &index) = 0;
+
+        // Событие присоединения к цепочке
+        virtual void attached(void) override final
+        { 
+            // Базовый метод
+            source_smoother_t::attached();
+
+            // Начальный кадр
+            delay_frame_reset();
+            key_frame_fill(key_frame = 0);
+        }
+        
         // Обновление данных
-        virtual void refresh(void) override
+        virtual void refresh(void) override final
         {
             // Базовый метод
-            source_t::refresh();
+            source_smoother_t::refresh();
 
             // Обработка эффекта плавного перехода
-            source_t::process_smoother(smoother);
+            if (source_smoother_t::smoother_process())
+                return;
+            
+            // Обработка задержки
+            if (delay_frame < delay_frame_count)
+            {
+                delay_frame++;
+                return;
+            }
+            
+            // Следующий ключевой кадр
+            delay_frame_reset();
+            key_frame_fill(++key_frame);
+        }
+    };
+
+    // Базовый класс источника данных с обработкой контроллера плавности по умолчанию
+    class source_smoother_def_t : public source_smoother_t
+    {
+    protected:
+        // Обновление данных
+        virtual void refresh(void) override final
+        {
+            // Базовый метод
+            source_smoother_t::refresh();
+
+            // Обработка эффекта плавного перехода
+            source_smoother_t::smoother_process();
         }
         
         // Конструктор по умолчанию
-        source_smoother_t(void)
+        source_smoother_def_t(void)
         {
-            smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
+            source_smoother_t::smoother.frame_count_set(HMI_SMOOTH_FRAME_COUNT);
         }
     };
     

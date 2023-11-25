@@ -164,19 +164,7 @@ void led_source_t::color_last_next(void)
 
         case DATA_SOURCE_ANY_RANDOM:
             // Случайный любой цвет
-            {
-                // Подбор оттенка
-                constexpr const hmi_sat_t DELTA = 32;
-                uint16_t hue = hue_last + DELTA + random_get(HMI_SAT_COUNT - DELTA * 2);
-                while (hue > HMI_SAT_MAX)
-                    hue -= HMI_SAT_MAX;
-                hue_last = (hmi_sat_t)hue;
-                
-                // Цвет в HSV
-                const auto hsv = hmi_hsv_init(hue_last, (hmi_sat_t)random_range_get(220, HMI_SAT_MAX), HMI_SAT_MAX);
-                // Конвертироование
-                color_last = hsv.to_rgb();
-            }
+            color_last = led_random_color_get(hue_last);
             break;
             
         default:
@@ -230,14 +218,14 @@ void led_source_t::set_initial_ranks(void)
 void led_source_t::refresh(void)
 {
     // Базовый метод
-    source_t::refresh();
+    source_smoother_t::refresh();
 
     // Выходим сразу в режиме статичных разрядов
     if (is_static_ranks())
         return;
     
     // Обработка эффекта плавного перехода
-    if (process_smoother(smoother))
+    if (smoother_process())
         return;
     
     // Цвет
@@ -278,7 +266,7 @@ void led_source_t::refresh(void)
     {
         case EFFECT_FILL:
             for (hmi_rank_t i = 0; i < LED_COUNT; i++)
-                start_rank_smooth(i, color_last);
+                smoother_start(i, color_last);
             break;
             
         case EFFECT_FLASH:
@@ -290,33 +278,33 @@ void led_source_t::refresh(void)
             
         case EFFECT_LEFT:
             for (hmi_rank_t i = 0; i < LED_COUNT - 1; i++)
-                start_rank_smooth(i, out_get(i + 1));
+                smoother_start(i, out_get(i + 1));
             process_rank_default(LED_COUNT - 1);
             break;
         
         case EFFECT_RIGHT:
             for (hmi_rank_t i = LED_COUNT - 1; i > 0; i--)
-                start_rank_smooth(i, out_get(i - 1));
+                smoother_start(i, out_get(i - 1));
             process_rank_default(0);
             break;
             
         case EFFECT_IN:
             for (hmi_rank_t i = LED_COUNT_HALF - 1; i > 0; i--)
-                start_rank_smooth(i, out_get(i - 1));
+                smoother_start(i, out_get(i - 1));
             process_rank_default(0);
 
             for (hmi_rank_t i = LED_COUNT_HALF; i < LED_COUNT - 1; i++)
-                start_rank_smooth(i, out_get(i + 1));
+                smoother_start(i, out_get(i + 1));
             process_rank_default(LED_COUNT - 1);
             break;
             
         case EFFECT_OUT:
             for (hmi_rank_t i = LED_COUNT - 1; i > LED_COUNT_HALF; i--)
-                start_rank_smooth(i, out_get(i - 1));
+                smoother_start(i, out_get(i - 1));
             process_rank_default(LED_COUNT_HALF);
 
             for (hmi_rank_t i = 0; i < LED_COUNT_HALF - 1; i++)
-                start_rank_smooth(i, out_get(i + 1));
+                smoother_start(i, out_get(i + 1));
             process_rank_default(LED_COUNT_HALF - 1);
             break;
             
@@ -356,3 +344,17 @@ void led_source_t::settings_apply(const settings_t *settings_old)
         set_initial_ranks();
 }
 
+hmi_rgb_t led_random_color_get(hmi_sat_t &hue_last, hmi_sat_t value)
+{
+    // Подбор оттенка
+    constexpr const hmi_sat_t DELTA = 32;
+    uint16_t hue = hue_last + DELTA + random_get(HMI_SAT_COUNT - DELTA * 2);
+    while (hue > HMI_SAT_MAX)
+        hue -= HMI_SAT_MAX;
+    hue_last = (hmi_sat_t)hue;
+    
+    // Цвет в HSV
+    const auto hsv = hmi_hsv_init(hue_last, (hmi_sat_t)random_range_get(220, HMI_SAT_MAX), value);
+    // Конвертироование
+    return hsv.to_rgb();
+}

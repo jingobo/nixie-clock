@@ -42,7 +42,7 @@ struct neon_data_t
 using neon_model_t = hmi_model_t<neon_data_t, NEON_COUNT>;
 
 // Класс источника неонок по умолчанию
-class neon_source_t : public neon_model_t::source_t
+class neon_source_t : public neon_model_t::source_smoother_t
 {
 public:
     // Тип данных для маски состояния разрядов
@@ -79,8 +79,6 @@ private:
     uint32_t frame_count_sync = 0;
     // Используемые настройки
     const settings_t &settings;
-    // Контроллер плавного изменения
-    neon_model_t::smoother_to_t smoother;
     
     // Получает данные к отображению по состоянию
     neon_data_t data_normal(bool state) const
@@ -88,12 +86,6 @@ private:
         return neon_data_t(state ? HMI_SAT_MAX : HMI_SAT_MIN);
     }
 
-    // Запуск эффекта плавности на разряде
-    void start_rank_smooth(hmi_rank_t index, neon_data_t to)
-    {
-        smoother.start(index, out_get(index), to);
-    }
-    
     // Получает младший бит маски в виде булевы
     static constexpr bool rank_mask_lsb(rank_mask_t mask)
     {
@@ -113,7 +105,7 @@ protected:
     virtual void attached(void) override final
     {
         // Базовый метод
-        source_t::attached();
+        source_smoother_t::attached();
         
         // Начальные цвета
         set_initial_ranks();
