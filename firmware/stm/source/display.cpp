@@ -1484,8 +1484,8 @@ static class display_scene_year_t : public display_scene_t
             smoother.stop();
             update_ranks();
 
-            // В первый раз 19 секунд
-            frame = HMI_FRAME_RATE * 13;
+            // В первый раз 10 секунд
+            frame = HMI_FRAME_RATE * 10;
         }
         
         // Обновление данных
@@ -1500,7 +1500,7 @@ static class display_scene_year_t : public display_scene_t
             // Обработка прескалера
             if (frame-- > 0)
                 return;
-            frame = HMI_FRAME_RATE * 2;
+            frame = HMI_FRAME_RATE * 5;
             
             // Обработка направления
             if (to_right)
@@ -1616,7 +1616,7 @@ static class display_scene_year_t : public display_scene_t
                     smoother_start(2, HMI_COLOR_RGB_GREEN);
                     smoother_start(3, HMI_COLOR_RGB_RED);
                     smoother_start(4, HMI_COLOR_RGB_GREEN);
-                    delay_frame_count = 270;
+                    delay_frame_count = 90;
                     return;
 
                 case 13:
@@ -1624,13 +1624,13 @@ static class display_scene_year_t : public display_scene_t
                     smoother_start(2, HMI_COLOR_RGB_RED);
                     smoother_start(3, HMI_COLOR_RGB_GREEN);
                     smoother_start(4, HMI_COLOR_RGB_RED);
-                    delay_frame_count = 270;
+                    delay_frame_count = 90;
                     return;
                     
                 default:
                     if (index % 2 == 0)
                     {
-                        delay_frame_count = 160;
+                        delay_frame_count = 160 + HMI_FRAME_RATE * 3;
                         smoother.frame_count_set(60);
                         const auto color = led_random_color_get(hue_last, 160);
                         for (hmi_rank_t i = 0; i < LED_COUNT; i++)
@@ -1701,11 +1701,12 @@ public:
     void second_always(void)
     {
         // Фильтр на нулевую секунду нового года
-        if (rtc_time.month != datetime_t::MONTH_MIN ||
+        if (rtc_time.year == datetime_t::YEAR_MIN ||
+            rtc_time.month != datetime_t::MONTH_MIN ||
             rtc_time.day != datetime_t::DAY_MIN ||
             rtc_time.hour != datetime_t::HOUR_MIN ||
             rtc_time.minute != datetime_t::MINUTE_MIN ||
-            rtc_time.second != datetime_t::SECOND_MIN)
+            rtc_time.second > 1)
             return;
         
         // Запрос на показ
@@ -1720,7 +1721,7 @@ static void display_scene_set_default(void)
     static display_scene_t * const SCENES[] =
     {
         // Тестирование
-        //&display_scene_test,
+        &display_scene_test,
         // Новый год
         &display_scene_year,
         // Своя сеть
