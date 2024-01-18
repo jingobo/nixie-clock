@@ -228,26 +228,40 @@ public:
     }
 } ntime_command_handler_hostlist;
 
+// Производит калибровку LSE
+static void ntime_lse_correction(const datetime_t &fresh)
+{
+    // Коррекция частоты если есть секунды с последней синхронизации
+    if (ntime_sync_seconds <= 0)
+        return;
+
+    // Секунд по часам устройства
+    const auto dev_seconds = rtc_uptime_seconds - ntime_sync_seconds;
+    if (dev_seconds < RTC_LSE_FREQ_DEFAULT)
+        return;
+    
+    // Расхождение по времени [сек]
+    const auto nwk_delta = (int64_t)(fresh.utc_to_seconds() - rtc_time.utc_to_seconds());
+    if (nwk_delta < INT16_MIN || nwk_delta > INT16_MAX)
+        return;
+    
+    // Секунд по часам сети
+    const auto nwk_seconds = dev_seconds + (int16_t)nwk_delta;
+    
+    // Расчет итоговой частоты
+    uint64_t freq = dev_seconds;
+    freq *= rtc_lse_freq;
+    freq /= nwk_seconds;
+    
+    // Калибровка
+    rtc_lse_freq_set((uint16_t)freq);
+}
+
 // Применение времени синхронизации
 static void ntime_sync_apply(const datetime_t &fresh)
 {
-    // Коррекция частоты если есть секунды с последней синхронизации
-    if (ntime_sync_seconds > 0)
-    {
-        // Секунд по часам устройства
-        const auto device_seconds = rtc_uptime_seconds - ntime_sync_seconds;
-        
-        // Если дельта секунд достаточная
-        if (device_seconds > RTC_LSE_FREQ_DEFAULT)
-        {
-            auto seconds = device_seconds;
-            seconds =+ rtc_time.utc_to_seconds() - fresh.utc_to_seconds();
-            
-            seconds *= rtc_lse_freq;
-            seconds /= device_seconds;
-            rtc_lse_freq_set((uint16_t)seconds);
-        }
-    }
+    // Калибровка LSE
+    ntime_lse_correction(fresh);
     
     // Приминение времени
     ntime_sync_seconds = rtc_uptime_seconds;
