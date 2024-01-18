@@ -2,9 +2,6 @@
 #include "timer.h"
 #include "system.h"
 
-// Для тестов зависания
-// #define WDT_UNUSED          MACRO_EMPTY
-
 // Ключи для управления IWDG
 #define WDT_KEY_CONFIG      0x5555
 #define WDT_KEY_RELOAD      0xAAAA
@@ -17,7 +14,7 @@ static timer_t wdt_pulse_timer(wdt_pulse);
 
 void wdt_init(void)
 {
-#ifndef WDT_UNUSED
+#ifdef NDEBUG
     // Конфигурирование IWDG
     IWDG->KR = WDT_KEY_CONFIG;                                                  // Enable write access
         IWDG->PR = IWDG_PR_PR_0 | IWDG_PR_PR_1;                                 // Prescaler /32
@@ -31,14 +28,7 @@ void wdt_init(void)
 
 void wdt_pulse(void)
 {
-#ifndef WDT_UNUSED
+#ifdef NDEBUG
     IWDG->KR = WDT_KEY_RELOAD;                                                  // Reload period
-#endif
-}
-
-void wdt_stop(void)
-{
-#ifndef WDT_UNUSED
-    IWDG->KR = WDT_KEY_CONFIG;                                                  // Enable write access
 #endif
 }
