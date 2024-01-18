@@ -143,7 +143,6 @@ int32_t web_slot_socket_t::check_io(int32_t fb)
     // Если нет ошибки
     if (fb > 0)
     {
-        // io_led_green.flash();
         timeout_reset();
         return fb;
     }

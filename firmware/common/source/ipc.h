@@ -14,7 +14,6 @@ constexpr const size_t IPC_PKT_SIZE = IPC_DLL_SIZE + IPC_APL_SIZE;
 // Количество слотов пакетов в одну сторону
 constexpr const auto IPC_SLOT_COUNT = 10;
 
-// TODO: конечная корректировка лимитов
 // Поддерживаемые коды команды
 enum ipc_opcode_t : uint8_t
 {
@@ -94,7 +93,7 @@ enum ipc_opcode_t : uint8_t
         IPC_OPCODE_ESP_TIME_HOSTLIST_SET,
 
     // Не команда, определяет лимит количества команд
-    IPC_OPCODE_LIMIT = 50,
+    IPC_OPCODE_LIMIT = 32,
 };
 
 // Тип направления

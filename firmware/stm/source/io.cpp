@@ -30,7 +30,7 @@ void io_init(void)
         IO_INIT(IO_RSV1,        IO_MODE_INPUT_PULL);
         IO_INIT(IO_DBG_TX,      IO_MODE_OUTPUT_APP);    IO_HIGH(IO_DBG_TX);
         IO_INIT(IO_DBG_RX,      IO_MODE_INPUT_PULL);    IO_HIGH(IO_DBG_RX);
-        IO_INIT(IO_RSV4,        IO_MODE_OUTPUT_PP); // TODO: в IO_MODE_INPUT_PULL
+        IO_INIT(IO_RSV4,        IO_MODE_INPUT_PULL);
         IO_INIT(IO_TSELA0,      IO_MODE_OUTPUT_PP);
         IO_INIT(IO_TSELA1,      IO_MODE_OUTPUT_PP);
         IO_INIT(IO_TSELA2,      IO_MODE_OUTPUT_PP);
