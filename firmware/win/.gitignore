@@ -1,7 +1,6 @@
 # Visual Studio Internal
 .vs
 *.user
-*/output/
 
 # Compiled Object files
 obj

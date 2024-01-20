@@ -7,12 +7,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "romfs", "romfs.vcxproj", "{
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		debug|x86 = debug|x86
 		release|x86 = release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{50CE11ED-26E4-48C2-BB72-E49909665CFF}.debug|x86.ActiveCfg = debug|Win32
-		{50CE11ED-26E4-48C2-BB72-E49909665CFF}.debug|x86.Build.0 = debug|Win32
 		{50CE11ED-26E4-48C2-BB72-E49909665CFF}.release|x86.ActiveCfg = release|Win32
 		{50CE11ED-26E4-48C2-BB72-E49909665CFF}.release|x86.Build.0 = release|Win32
 	EndGlobalSection
