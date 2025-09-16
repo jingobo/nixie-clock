@@ -440,9 +440,18 @@ static class display_scene_date_t : public display_scene_timeout_t<display_setti
     
     // Текущий день недели
     uint8_t week_day;
+    // Задержка до активации сцены
+    uint8_t second_delay;
     
     // Текущие настройки
     static display_settings_timeout_t settings;
+    
+    // Производит сброс задержки
+    void second_delay_reset()
+    {
+        second_delay = 1;
+        week_day = rtc_week_day;
+    }
     
 public:
     // Конструктор по умолчанию
@@ -452,7 +461,7 @@ public:
         nixie.attach(nixie_source);
         
         // Изначально не показываем
-        week_day = rtc_week_day;
+        second_delay_reset();
         // Финальное применение настроек
         settings_apply(true);
     }
@@ -464,7 +473,10 @@ public:
             return;
 
         // Если наступил новый день
-        week_day = rtc_week_day;
+        if (second_delay-- > 0)
+            return;
+        
+        second_delay_reset();
         show_request();
     }    
 } display_scene_date;
@@ -549,6 +561,8 @@ static class display_scene_heat_t : public display_scene_t
     {
         // Прескалер секунд
         uint32_t frame;
+        // Сцена
+        display_scene_heat_t &scene;
         // Данные по разрядам
         rank_t rank_data[NIXIE_COUNT];
         
@@ -612,10 +626,19 @@ static class display_scene_heat_t : public display_scene_t
             
             // Если не все разряды завершены
             if (done_count < NIXIE_COUNT)
+            {
                 flush_ranks();
-            else
-                display_scene_set_default();
+                return;
+            }
+            
+            // Выход из текущей сцены
+            scene.pending = false;
+            display_scene_set_default();
         }
+    public:
+        // Конструктор по умолчанию
+        nixie_source_t(display_scene_heat_t &_scene) : scene(_scene)
+        { }
     } nixie_source;
     
     // Источник данных для неонок
@@ -950,8 +973,6 @@ protected:
         
         // Максимальная яркость
         light_setup_maximum(true);
-        // Сброс признака ожидания вывода сцены
-        pending = false;
     }
 
     // Событие деактивации сцены на дисплее
@@ -967,8 +988,9 @@ protected:
 public:
     // Конструктор по умолчанию
     display_scene_heat_t(void) 
-        : nixie_switcher(nixie_switcher_settings), 
+        : nixie_switcher(nixie_switcher_settings),
           settings_setter(*this),
+          nixie_source(*this),
           launch_now(*this)
     {
         // Лампы
@@ -989,7 +1011,7 @@ public:
         {
             // Расчет случайной минуты
             week_day = rtc_week_day;
-            output_minute = random_get(datetime_t::MINUTE_MAX);
+            output_minute = random_get(datetime_t::MINUTES_PER_HOUR - TOTAL_TIME / datetime_t::SECONDS_PER_MINUTE);
         }
         
         // Если в текущих сутках вывод уже был
@@ -1005,7 +1027,7 @@ public:
             return;
         
         // Если случайная минута еще не наступила
-        if (output_minute < rtc_time.minute)
+        if (output_minute > rtc_time.minute)
             return;
         
         // Запрос на вывод сцены
