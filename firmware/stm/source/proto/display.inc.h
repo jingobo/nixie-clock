@@ -66,8 +66,37 @@ struct display_settings_timeout_t
 
 STATIC_ASSERT(sizeof(display_settings_timeout_t) == 27);
 
+// Структура настроек сцены времени
+struct display_settings_time_t
+{
+    // Базовые настройки
+    display_settings_t base;
+    
+    // Режим отображения секунд
+    enum : uint8_t
+    {
+        // Отключено
+        SECONDS_NONE = 0,
+        // Отображать секунды
+        SECONDS_DEFAULT,
+        // Отображать день месяца
+        SECONDS_OVERRIDE_DAY,
+        // Отображать день месяца с точкой
+        SECONDS_OVERRIDE_DAY_POINT,
+    } seconds;
+
+    // Проверка полей
+    bool check(void) const
+    {
+        return base.check() && 
+               seconds <= SECONDS_OVERRIDE_DAY_POINT;
+    }
+};
+
+STATIC_ASSERT(sizeof(display_settings_time_t) == 26);
+
 // Команда запрос настроек сцены времени
-class display_command_time_get_t : public ipc_command_get_t<display_settings_t>
+class display_command_time_get_t : public ipc_command_get_t<display_settings_time_t>
 {
 public:
     // Конструктор по умолчанию
@@ -76,7 +105,7 @@ public:
 };
 
 // Команда установки настроек сцены времени
-class display_command_time_set_t : public ipc_command_set_t<display_settings_t>
+class display_command_time_set_t : public ipc_command_set_t<display_settings_time_t>
 {
 public:
     // Конструктор по умолчанию

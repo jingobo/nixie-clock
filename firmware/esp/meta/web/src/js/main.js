@@ -1578,6 +1578,24 @@ app.page =
             // Инициализация слейдеров продолжительности
             this.dom.find(".labeled-slider").setupDurationSlider();
             
+            // Режим вывода секунд
+            {
+                // Панель по умолчанию скрыта
+                const secondsModeRow = this.dom.find(".disp-class-digit-seconds-row");
+                secondsModeRow.hide();
+
+                // Выпадающий список режима вывода
+                const secondsMode = this.dom.find(".disp-class-digit-seconds");
+                secondsMode.change(fire);
+
+                // Активирует панель и возвращает выпадающий список
+                this.secondsMode = () =>
+                {
+                    secondsModeRow.show();
+                    return secondsMode;
+                };
+            }
+
             // Режим эффекта цифр
             const digitEffect = this.dom.find(".disp-class-digit-effect");
             digitEffect.change(fire);
@@ -2072,6 +2090,9 @@ app.page =
                 // Настройки дисплея
                 const settings = new DisplaySettings();
                 app.dom.disp.time.holder.after(settings.dom);
+
+                // Активация поля выбора режима вывода секунд
+                const secondsMode = settings.secondsMode();
                 
                 // Пакетная передача
                 const packeting = new Packeting(
@@ -2079,13 +2100,21 @@ app.page =
                     {
                         code: app.opcode.STM_DISPLAY_TIME_GET,
                         name: "запрос настроек сцены времени",
-                        processing: data => settings.read(data),
+                        processing: data =>
+                        {
+                            settings.read(data);
+                            secondsMode.val(data.uint8());
+                        },
                     },
                     // Передача
                     {
                         code: app.opcode.STM_DISPLAY_TIME_SET,
                         name: "применение настроек сцены времени",
-                        processing: data => settings.write(data),
+                        processing: data =>
+                        {
+                            settings.write(data);
+                            data.uint8(secondsMode.val());
+                        },
                     });
                     
                 // Загрузка сцены
@@ -2892,7 +2921,7 @@ app.session = new function ()
         {
             const wsHost = app.debug ?
                 // Отладочный адрес
-                "192.168.3.2" :
+                "192.168.88.2" :
                 // Реальный адрес
                 window.location.hostname;
             

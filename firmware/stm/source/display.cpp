@@ -279,7 +279,7 @@ public:
 };
 
 // Сцена отображения времени
-static class display_scene_time_t : public display_scene_ipc_t<display_settings_t, display_command_time_get_t, display_command_time_set_t>
+static class display_scene_time_t : public display_scene_ipc_t<display_settings_time_t, display_command_time_get_t, display_command_time_set_t>
 {
     // Управление лампами
     class nixie_source_t : public nixie_number_source_t
@@ -315,7 +315,28 @@ static class display_scene_time_t : public display_scene_ipc_t<display_settings_
             // Минуты
             out(2, 2, rtc_time.minute);
             // Секунды
-            out(4, 2, rtc_time.second);
+            switch (settings.seconds)
+            {
+                case display_settings_time_t::SECONDS_NONE:
+                    out_set(4, nixie_data_t());
+                    out_set(5, nixie_data_t());
+                    break;
+                    
+                case display_settings_time_t::SECONDS_DEFAULT:
+                    out(4, 2, rtc_time.second);
+                    break;
+                    
+                case display_settings_time_t::SECONDS_OVERRIDE_DAY:
+                    out(4, 2, rtc_time.day);
+                    break;
+                    
+                case display_settings_time_t::SECONDS_OVERRIDE_DAY_POINT:
+                    out(4, 2, rtc_time.day, true);
+                    break;
+                    
+                default:
+                    assert(false);
+            }
         }
     public:
         // Секундное событие
@@ -326,7 +347,7 @@ static class display_scene_time_t : public display_scene_ipc_t<display_settings_
     } nixie_source;
     
     // Текущие настройки
-    static display_settings_t settings;
+    static display_settings_time_t settings;
     
 protected:
     // Получает, нужно ли отобразить сцену
@@ -358,36 +379,41 @@ public:
 } display_scene_time;
 
 // Настройки сцены времени
-display_settings_t display_scene_time_t::settings @ STORAGE_SECTION =
+display_settings_time_t display_scene_time_t::settings @ STORAGE_SECTION =
 {
-    .led =
+    .base =
     {
-        .effect = led_source_t::EFFECT_FLASH,
-        .smooth = 20,
-        .source = led_source_t::DATA_SOURCE_ANY_RANDOM,
-        .rgb =
+        .led =
         {
-            hmi_rgb_init(255, 0, 0),
-            hmi_rgb_init(255, 255, 0),
-            hmi_rgb_init(0, 255, 0),
-            hmi_rgb_init(0, 255, 255),
-            hmi_rgb_init(0, 0, 255),
-            hmi_rgb_init(255, 0, 255),
+            .effect = led_source_t::EFFECT_FLASH,
+            .smooth = 20,
+            .source = led_source_t::DATA_SOURCE_ANY_RANDOM,
+            .rgb =
+            {
+                hmi_rgb_init(255, 0, 0),
+                hmi_rgb_init(255, 255, 0),
+                hmi_rgb_init(0, 255, 0),
+                hmi_rgb_init(0, 255, 255),
+                hmi_rgb_init(0, 0, 255),
+                hmi_rgb_init(255, 0, 255),
+            },
         },
+        
+        .neon =
+        {
+            .mask = neon_source_t::RANK_MASK_ALL,
+            .period = 4,
+            .smooth = 3,
+            .inversion = false,
+        },
+        
+        .nixie =
+        {
+            .effect = nixie_switcher_t::EFFECT_SWITCH_OUT,
+        },        
     },
     
-    .neon =
-    {
-        .mask = neon_source_t::RANK_MASK_ALL,
-        .period = 4,
-        .smooth = 3,
-        .inversion = false,
-    },
-    
-    .nixie =
-    {
-        .effect = nixie_switcher_t::EFFECT_SWITCH_OUT,
-    },
+    .seconds = display_settings_time_t::SECONDS_DEFAULT,
 };
 
 // Сцена отображения даты
