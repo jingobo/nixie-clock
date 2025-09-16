@@ -369,7 +369,7 @@ protected:
             return;
         
         // Установка даты/времени
-        rtc_time = command.request;
+        rtc_time_set(command.request);
         // Сброс данных синхронизации
         ntime_sync_time_clear();
         ntime_sync_seconds_reset();

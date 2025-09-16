@@ -118,9 +118,17 @@ static list_handler_t rtc_second_event_handlers;
 // Обработчик события инкремента секунды
 static event_t rtc_second_event([](void)
 {
-    // Инкремент секунды
+    // Инкремент рабочего времени
     rtc_uptime_seconds++;
+    
+    // Инкремент локального времени
+    const auto day = rtc_time.day;
     rtc_time.inc_second();
+    
+    // Инкремент дня недели
+    if (day != rtc_time.day)
+        if (++rtc_week_day >= datetime_t::WDAY_COUNT)
+            rtc_week_day = 0;
     
     // Вызов цепочки обработчиков
     rtc_second_event_handlers();
@@ -131,7 +139,7 @@ void rtc_second_event_add(list_handler_item_t &handler)
     handler.link(rtc_second_event_handlers);
 }
 
-void rtc_time_set(datetime_t value)
+void rtc_time_set(const datetime_t &value)
 {
     rtc_time = value;
     rtc_week_day = value.day_week();

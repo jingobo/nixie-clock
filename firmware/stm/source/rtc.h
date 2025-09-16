@@ -24,7 +24,7 @@ void rtc_clock_output(bool enabled);
 void rtc_second_event_add(list_handler_item_t &handler);
 
 // Задает локальное время
-void rtc_time_set(datetime_t value);
+void rtc_time_set(const datetime_t &value);
 // Задает частота кварца LSE
 void rtc_lse_freq_set(uint16_t value);
 
