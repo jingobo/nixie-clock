@@ -16,7 +16,7 @@ static time_sync_settings_t ntime_sync_settings @ STORAGE_SECTION =
     // Стандартное время
     .offset = 0,
     // Список хостов по умолчанию
-    .hosts = "ntp1.stratum2.ru\n0.pool.ntp.org"
+    .hosts = "0.ru.pool.ntp.org\n1.ru.pool.ntp.org\nntp1.stratum2.ru\n0.pool.ntp.org\ntime.google.com\nntp2.vniiftri.ru\nntps1-1.cs.tu-berlin.de\nntp.ix.runtp1.stratum2.ru\n0.pool.ntp.org"
 };
 
 // Время последней синхронизации
