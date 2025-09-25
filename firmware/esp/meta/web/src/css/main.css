@@ -90,6 +90,11 @@ template
     color: #6c757d;
 }
 
+.row.form-part
+{
+    font-weight: 500;
+}
+
 .disabled-label
 {
     color: #6c757d;
@@ -218,6 +223,11 @@ button > .spinner-inline
     border: 0;
     outline: 0;
     border-radius: 0;
+}
+
+.col-form-label
+{
+    padding-right: 0;
 }
 
 /* Loader */
@@ -486,6 +496,11 @@ button > .spinner-inline
 .disp-class-neon-state:disabled+label::before 
 {
     opacity: 0.5;
+}
+
+#disp-light-current
+{
+    font-weight: normal;
 }
 
 /* Overlay */

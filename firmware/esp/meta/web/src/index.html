@@ -402,10 +402,10 @@
                                 <!-- Враппер аккардиона -->
                                 <div id="disp-opts-lamps" data-parent="#disp-opts-parent" class="collapse">
                                     <div class="card-body">
-                                        <div class="form-part">Цифры</div>
-                                        <!-- Эффект -->
+                                        <div class="form-part">Эффект переключения цифр</div>
+                                        <!-- Основной эффект -->
                                         <div class="row">
-                                            <label for="disp-opts-digit-effect" class="col-md-2 col-form-label">Эффект</label>
+                                            <label for="disp-opts-digit-effect" class="col-md-2 col-form-label">Основной</label>
                                             <div class="col-md-10">
                                                 <select class="custom-select disp-class-digit-effect" id="disp-opts-digit-effect">
                                                     <option value="0">Отсутствует</option>
@@ -418,20 +418,22 @@
                                             </div>
                                         </div>
 
-                                        <!-- Секунды -->
-                                        <div class="row disp-class-digit-seconds-row">
-                                            <label for="disp-opts-digit-seconds" class="col-md-2 col-form-label">Секунды</label>
+                                        <!-- Секундный эффект -->
+                                        <div class="row disp-class-digit-effect-second-row">
+                                            <label for="disp-opts-digit-effect-second" class="col-md-2 col-form-label">Секундный</label>
                                             <div class="col-md-10">
-                                                <select class="custom-select disp-class-digit-seconds" id="disp-opts-digit-seconds">
-                                                    <option value="0">Отключено</option>
-                                                    <option value="1">Отображать секунды</option>
-                                                    <option value="2">Отображать день месяца</option>
-                                                    <option value="3">Отображать день месяца с точкой</option>
+                                                <select class="custom-select disp-class-digit-effect-second" id="disp-opts-digit-effect-second">
+                                                    <option value="0">Отсутствует</option>
+                                                    <option value="1">Плавно по очереди</option>
+                                                    <option value="2">Плавно одновременно</option>
+                                                    <option value="3">Переключение по цифрам</option>
+                                                    <option value="4">Переключение в глубину от себя</option>
+                                                    <option value="5">Переключение в глубину на себя</option>
                                                 </select>
                                             </div>
                                         </div>
                                         
-                                        <div class="form-part">Подсветка</div>
+                                        <div class="form-part">Параметры фоновой подсветки</div>
                                         <!-- Эффект -->
                                         <div class="row">
                                             <label for="disp-opts-led-effect" class="col-md-2 col-form-label">Эффект</label>
@@ -459,9 +461,9 @@
                                             </div>
                                         </div>
 
-                                        <!-- Режим -->
+                                        <!-- Источник -->
                                         <div class="row">
-                                            <label for="disp-opts-led-mode" class="col-md-2 col-form-label disp-class-led-mode-label">Режим</label>
+                                            <label for="disp-opts-led-mode" class="col-md-2 col-form-label disp-class-led-mode-label">Источник</label>
                                             <div class="col-md-10">
                                                 <select class="custom-select disp-class-led-mode" id="disp-opts-led-mode">
                                                     <option value="0">Указанные цвета по очереди</option>

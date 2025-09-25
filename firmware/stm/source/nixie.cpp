@@ -224,126 +224,20 @@ static uint8_t nixie_next_digit_in_depth(uint8_t digit)
     return NIXIE_DIGITS_BY_PLACES[place];
 }
 
-void nixie_switcher_t::refresh_smooth_default(nixie_data_t &data, effect_data_t &effect)
-{
-    // Количество фреймов одной цифры
-    constexpr const auto FRAME_COUNT = HMI_SMOOTH_FRAME_COUNT / 2;
-    
-    // Фреймы исчезновения старой цифры
-    if (effect.frame < FRAME_COUNT)
-    {
-        data.sat = math_value_ratio<hmi_sat_t>(data.sat, HMI_SAT_MIN, effect.frame, FRAME_COUNT);
-        data.digit = effect.digit_from;
-        return;
-    }
-    
-    // Фреймы появления новой цифры
-    if (effect.frame < HMI_SMOOTH_FRAME_COUNT)
-    {
-        data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, effect.frame - FRAME_COUNT, FRAME_COUNT);
-        return;
-    }
-    
-    // Завершение эффекта
-    effect.stop();
-}
-
-void nixie_switcher_t::refresh_smooth_substitution(nixie_data_t &data, effect_data_t &effect)
-{
-    // Количество фреймов одной цифры
-    constexpr const auto FRAME_COUNT = HMI_SMOOTH_FRAME_COUNT * 2;
-        
-    // Фреймы смены цифры
-    if (effect.frame < FRAME_COUNT)
-    {
-        const auto sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, HMI_SAT_MAX, effect.frame, FRAME_COUNT);
-        if (effect.frame & 1)
-            data.sat = sat;
-        else
-        {
-            data.sat = HMI_SAT_MAX - sat;
-            data.digit = effect.digit_from;
-        }
-        
-        return;
-    }
-    
-    // Фреймы довода насыщенности
-    if (effect.frame < FRAME_COUNT * 2)
-    {
-        const auto sat = math_value_ratio<hmi_sat_t>(180, HMI_SAT_MAX, effect.frame - FRAME_COUNT, FRAME_COUNT);
-        data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, sat, data.sat, HMI_SAT_MAX);
-        return;
-    }
-    
-    // Завершение эффекта
-    effect.stop();
-}
-
-void nixie_switcher_t::refresh_switch(nixie_data_t &data, effect_data_t &effect)
-{
-    // Прескалер фреймов эффекта
-    constexpr const auto FRAME_PRECALER = HMI_SMOOTH_FRAME_COUNT * 2 / NIXIE_DIGIT_SPACE;
-
-    // Текущая изменяемая цифра
-    auto &digit = effect.digit_from;
-    
-    // Прескалер смены
-    if (effect.frame % FRAME_PRECALER != 0)
-    {
-        data.digit = digit;
-        return;
-    }
-    
-    // Признак приблежения к нормальной цифре
-    const auto to_normal = effect.digit_to != NIXIE_DIGIT_SPACE;
-    
-    uint8_t place;
-    switch (settings.effect)
-    {
-        case EFFECT_SWITCH_DEF:
-            if (++digit >= NIXIE_DIGIT_SPACE && to_normal)
-                digit = 0;
-            break;
-            
-        case EFFECT_SWITCH_IN:
-            place = NIXIE_PLACES_BY_DIGITS[digit];
-            if (place != 9 || to_normal)
-                digit = nixie_next_digit_in_depth(digit);
-            else
-                digit = NIXIE_DIGIT_SPACE;
-            break;
-            
-        case EFFECT_SWITCH_OUT:
-            place = NIXIE_PLACES_BY_DIGITS[digit];
-            if (place != 0 || to_normal)
-                digit = nixie_next_digit_out_depth(digit);
-            else
-                digit = NIXIE_DIGIT_SPACE;
-            break;
-            
-        default:
-            assert(false);
-            break;
-    }
-    
-    data.digit = digit;
-}
-
 void nixie_switcher_t::refresh(void)
 {
     // Базовый метод
     nixie_filter_t::refresh();
     
-    // Выход если эффект не выбран
-    if (is_effect_empty())
-        return;
-
     // Обход разрядов
     for (hmi_rank_t i = 0; i < NIXIE_COUNT; i++)
     {
+        // Выход если эффект не выбран
+        if (is_effect_empty(i))
+            continue;
+
         // Пропуск если эффект не запущен
-        auto &effect = effects[i];
+        auto &effect = effect_ranks[i];
         if (effect.inactive())
             continue;
         
@@ -351,20 +245,117 @@ void nixie_switcher_t::refresh(void)
         auto data = in_get(i);
         
         // Выполнение эффекта
-        switch (settings.effect)
+        switch (effects[i])
         {
             case EFFECT_SMOOTH_DEF:
-                refresh_smooth_default(data, effect);
+                {
+                    // Количество фреймов одной цифры
+                    constexpr const auto FRAME_COUNT = HMI_SMOOTH_FRAME_COUNT / 2;
+                    
+                    // Фреймы исчезновения старой цифры
+                    if (effect.frame < FRAME_COUNT)
+                    {
+                        data.sat = math_value_ratio<hmi_sat_t>(data.sat, HMI_SAT_MIN, effect.frame, FRAME_COUNT);
+                        data.digit = effect.digit_from;
+                        break;
+                    }
+                    
+                    // Фреймы появления новой цифры
+                    if (effect.frame < HMI_SMOOTH_FRAME_COUNT)
+                    {
+                        data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, effect.frame - FRAME_COUNT, FRAME_COUNT);
+                        break;
+                    }
+                    
+                    // Завершение эффекта
+                    effect.stop();
+                }
                 break;
                 
             case EFFECT_SMOOTH_SUB:
-                refresh_smooth_substitution(data, effect);
+                {
+                    // Количество фреймов одной цифры
+                    constexpr const auto FRAME_COUNT = HMI_SMOOTH_FRAME_COUNT * 2;
+                        
+                    // Фреймы смены цифры
+                    if (effect.frame < FRAME_COUNT)
+                    {
+                        const auto sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, HMI_SAT_MAX, effect.frame, FRAME_COUNT);
+                        if (effect.frame & 1)
+                            data.sat = sat;
+                        else
+                        {
+                            data.sat = HMI_SAT_MAX - sat;
+                            data.digit = effect.digit_from;
+                        }
+                        
+                        break;
+                    }
+                    
+                    // Фреймы довода насыщенности
+                    if (effect.frame < FRAME_COUNT * 2)
+                    {
+                        const auto sat = math_value_ratio<hmi_sat_t>(180, HMI_SAT_MAX, effect.frame - FRAME_COUNT, FRAME_COUNT);
+                        data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, sat, data.sat, HMI_SAT_MAX);
+                        break;
+                    }
+                    
+                    // Завершение эффекта
+                    effect.stop();
+                }
                 break;
                 
             case EFFECT_SWITCH_DEF:
             case EFFECT_SWITCH_IN:
             case EFFECT_SWITCH_OUT:
-                refresh_switch(data, effect);
+                {
+                    // Прескалер фреймов эффекта
+                    constexpr const auto FRAME_PRECALER = HMI_SMOOTH_FRAME_COUNT * 2 / NIXIE_DIGIT_SPACE;
+
+                    // Текущая изменяемая цифра
+                    auto &digit = effect.digit_from;
+                    
+                    // Прескалер смены
+                    if (effect.frame % FRAME_PRECALER != 0)
+                    {
+                        data.digit = digit;
+                        break;
+                    }
+                    
+                    // Признак приблежения к нормальной цифре
+                    const auto to_normal = effect.digit_to != NIXIE_DIGIT_SPACE;
+                    
+                    uint8_t place;
+                    switch (effects[i])
+                    {
+                        case EFFECT_SWITCH_DEF:
+                            if (++digit >= NIXIE_DIGIT_SPACE && to_normal)
+                                digit = 0;
+                            break;
+                            
+                        case EFFECT_SWITCH_IN:
+                            place = NIXIE_PLACES_BY_DIGITS[digit];
+                            if (place != 9 || to_normal)
+                                digit = nixie_next_digit_in_depth(digit);
+                            else
+                                digit = NIXIE_DIGIT_SPACE;
+                            break;
+                            
+                        case EFFECT_SWITCH_OUT:
+                            place = NIXIE_PLACES_BY_DIGITS[digit];
+                            if (place != 0 || to_normal)
+                                digit = nixie_next_digit_out_depth(digit);
+                            else
+                                digit = NIXIE_DIGIT_SPACE;
+                            break;
+                            
+                        default:
+                            assert(false);
+                            break;
+                    }
+                    
+                    data.digit = digit;
+                }
                 break;
                 
             default:
@@ -383,7 +374,7 @@ void nixie_switcher_t::data_changed(hmi_rank_t index, nixie_data_t &data)
     // Реакция только на изменение цифры
     auto last = in_get(index).digit;
     const auto current = data.digit;
-    if (last == current || is_effect_empty())
+    if (last == current || is_effect_empty(index))
     {
         // Базовый метод
         nixie_filter_t::data_changed(index, data);
@@ -391,7 +382,7 @@ void nixie_switcher_t::data_changed(hmi_rank_t index, nixie_data_t &data)
     }
     
     // Старт эффекта
-    switch (settings.effect)
+    switch (effects[index])
     {
         case EFFECT_SMOOTH_DEF:
         case EFFECT_SMOOTH_SUB:
@@ -426,5 +417,5 @@ void nixie_switcher_t::data_changed(hmi_rank_t index, nixie_data_t &data)
             break;
     }
     
-    effects[index].start(last, current);
+    effect_ranks[index].start(last, current);
 }

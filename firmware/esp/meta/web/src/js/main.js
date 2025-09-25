@@ -1578,21 +1578,21 @@ app.page =
             // Инициализация слейдеров продолжительности
             this.dom.find(".labeled-slider").setupDurationSlider();
             
-            // Режим вывода секунд
+            // Режим эфеекта цифр для секунд
             {
                 // Панель по умолчанию скрыта
-                const secondsModeRow = this.dom.find(".disp-class-digit-seconds-row");
-                secondsModeRow.hide();
+                const digitEffectSecondRow = this.dom.find(".disp-class-digit-effect-second-row");
+                digitEffectSecondRow.hide();
 
-                // Выпадающий список режима вывода
-                const secondsMode = this.dom.find(".disp-class-digit-seconds");
-                secondsMode.change(fire);
+                // Режим эффекта цифр
+                const digitEffectSecond = this.dom.find(".disp-class-digit-effect-second");
+                digitEffectSecond.change(fire);
 
                 // Активирует панель и возвращает выпадающий список
-                this.secondsMode = () =>
+                this.digitEffectSecond = () =>
                 {
-                    secondsModeRow.show();
-                    return secondsMode;
+                    digitEffectSecondRow.show();
+                    return digitEffectSecond;
                 };
             }
 
@@ -2091,8 +2091,8 @@ app.page =
                 const settings = new DisplaySettings();
                 app.dom.disp.time.holder.after(settings.dom);
 
-                // Активация поля выбора режима вывода секунд
-                const secondsMode = settings.secondsMode();
+                // Активация поля выбора эффекта цифр для секунд
+                const digitEffectSecond = settings.digitEffectSecond();
                 
                 // Пакетная передача
                 const packeting = new Packeting(
@@ -2103,7 +2103,7 @@ app.page =
                         processing: data =>
                         {
                             settings.read(data);
-                            secondsMode.val(data.uint8());
+                            digitEffectSecond.val(data.uint8());
                         },
                     },
                     // Передача
@@ -2113,7 +2113,7 @@ app.page =
                         processing: data =>
                         {
                             settings.write(data);
-                            data.uint8(secondsMode.val());
+                            data.uint8(digitEffectSecond.val());
                         },
                     });
                     
@@ -2546,12 +2546,12 @@ app.page =
             this.mainTemplate = app.dom.disp.template.main.makeTemplate(
                 "disp-opts-parent", "disp-opts-lamps",
                 "disp-opts-neons", "disp-opts-digit-effect",
-                "disp-opts-led-one-color", "disp-opts-led-mode",
-                "disp-opts-led-effect", "disp-opts-led-speed",
-                "disp-opts-neon-state-lt", "disp-opts-neon-state-rt",
-                "disp-opts-neon-state-lb", "disp-opts-neon-state-rb",
-                "disp-opts-neon-smooth", "disp-opts-neon-period", 
-                "disp-opts-neon-inversion");
+                "disp-opts-digit-effect-second", "disp-opts-led-one-color", 
+                "disp-opts-led-mode", "disp-opts-led-effect", 
+                "disp-opts-led-speed", "disp-opts-neon-state-lt", 
+                "disp-opts-neon-state-rt", "disp-opts-neon-state-lb", 
+                "disp-opts-neon-state-rb", "disp-opts-neon-smooth", 
+                "disp-opts-neon-period", "disp-opts-neon-inversion");
 
             // Шаблон настроек дисплея с опцией таймаута
             this.timeoutTemplate = app.dom.disp.template.timeout.makeTemplate("disp-opts-timeout-slider");

@@ -98,21 +98,9 @@ public:
         EFFECT_SWITCH_OUT,
     };
     
-    // Структура настроек
-    struct settings_t
-    {
-        // Эффект смены
-        effect_t effect;
-    };
-    
-    STATIC_ASSERT(sizeof(settings_t) == 1);
-
 private:
-    // Используемые настройки
-    const settings_t &settings;
-
-    // Данные для эффекта
-    struct effect_data_t
+    // Данные эффекта по разрядам
+    struct effect_rank_t
     {
         // На какую цифры изменение
         uint8_t digit_from = NIXIE_DIGIT_SPACE;
@@ -140,21 +128,13 @@ private:
         {
             return digit_to == digit_from;
         }
-    } effects[NIXIE_COUNT];
-        
-    // Обновление цифр с плавным эффектом по умолчанию
-    void refresh_smooth_default(nixie_data_t &data, effect_data_t &effect);
+    } effect_ranks[NIXIE_COUNT];
     
-    // Обновление цифр с плавным эффектом замещения
-    void refresh_smooth_substitution(nixie_data_t &data, effect_data_t &effect);
-    
-    // Обнволение цифр с эффектом переключения
-    void refresh_switch(nixie_data_t &data, effect_data_t &effect);
-
     // Получает признак отсутствия эффекта
-    bool is_effect_empty(void) const
+    bool is_effect_empty(hmi_rank_t index) const
     {
-        return settings.effect == EFFECT_NONE;
+        assert(index < NIXIE_COUNT);
+        return effects[index] == EFFECT_NONE;
     }
     
 protected:
@@ -165,11 +145,21 @@ protected:
     virtual void data_changed(hmi_rank_t index, nixie_data_t &data) override final;
     
 public:
+    // Режим эффекта по разрядам
+    effect_t effects[NIXIE_COUNT];
+
+    // Устанавливает режим эффекта на все разряды
+    void effects_set(effect_t effect)
+    {
+        for (auto i = 0; i < NIXIE_COUNT; i++)
+            effects[i] = effect;
+    }
+    
     // Конструктор по умолчанию
-    nixie_switcher_t(const settings_t &_settings) : 
-        nixie_filter_t(nixie_filter_t::PRIORITY_SWITCHER), 
-        settings(_settings)
-    { }
+    nixie_switcher_t(effect_t effect) : nixie_filter_t(nixie_filter_t::PRIORITY_SWITCHER)
+    {
+        effects_set(effect);
+    }
 };
 
 // Инициализация модуля

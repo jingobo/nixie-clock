@@ -5,19 +5,19 @@ struct display_settings_t
     led_source_t::settings_t led;
     // Неонки
     neon_source_t::settings_t neon;
-    // Лампы
-    nixie_switcher_t::settings_t nixie;
+    // Эффект ламп
+    nixie_switcher_t::effect_t nixie;
 
     // Проверка полей
     bool check(void) const
     {
         return 
-            // Лампы
-           nixie.effect <= nixie_switcher_t::EFFECT_SWITCH_OUT &&
            // Светодиоды
            led.source <= led_source_t::DATA_SOURCE_ANY_RANDOM &&
            led.effect <= led_source_t::EFFECT_OUT &&
            led.smooth <= HMI_TIME_COUNT &&
+            // Лампы
+           nixie <= nixie_switcher_t::EFFECT_SWITCH_OUT &&
            // Неонки
            neon.mask <= neon_source_t::RANK_MASK_ALL &&
            neon.smooth <= HMI_TIME_COUNT &&
@@ -71,25 +71,14 @@ struct display_settings_time_t
 {
     // Базовые настройки
     display_settings_t base;
-    
-    // Режим отображения секунд
-    enum : uint8_t
-    {
-        // Отключено
-        SECONDS_NONE = 0,
-        // Отображать секунды
-        SECONDS_DEFAULT,
-        // Отображать день месяца
-        SECONDS_OVERRIDE_DAY,
-        // Отображать день месяца с точкой
-        SECONDS_OVERRIDE_DAY_POINT,
-    } seconds;
+    // Эффект ламп для секунд
+    nixie_switcher_t::effect_t nixie_second;
 
     // Проверка полей
     bool check(void) const
     {
         return base.check() && 
-               seconds <= SECONDS_OVERRIDE_DAY_POINT;
+               nixie_second <= nixie_switcher_t::EFFECT_SWITCH_OUT;
     }
 };
 

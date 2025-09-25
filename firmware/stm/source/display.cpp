@@ -98,8 +98,6 @@ class display_scene_ipc_t : public display_scene_t
     led_source_t led_source;
     // Источник неонок
     neon_source_t neon_source;
-    // Фильтр плавной смены цифр на лампах
-    nixie_switcher_t nixie_switcher;
     // Таймаут предварительного просмотра в секундах
     uint8_t show_preview_timeout = 0;
 
@@ -115,16 +113,20 @@ protected:
     // Ссылка на предыдущие настройки
     SETTINGS settings_old;
 
+    // Фильтр плавной смены цифр на лампах
+    nixie_switcher_t nixie_switcher;
+
     // Обработчик примнения настроек
     virtual void settings_apply(bool initial)
     {
         const auto &old = settings_get(settings_old);
         led_source.settings_apply(initial ? NULL : &old.led);
         neon_source.settings_apply(initial ? NULL : &old.neon);
+        nixie_switcher.effects_set(settings_get(settings).nixie);
     }
     
     // Обработчик изменения настроек
-    virtual void settings_changed(void)
+    void settings_changed(void)
     {
         // Приминение настроек
         settings_apply(false);
@@ -165,7 +167,7 @@ public:
         settings_old(_settings),
         setter(*this), getter(*this), 
         led_source(settings_get(_settings).led),
-        neon_source(settings_get(_settings).neon), 
+        neon_source(settings_get(_settings).neon),
         nixie_switcher(settings_get(_settings).nixie)
     {
         led.attach(led_source);
@@ -286,6 +288,9 @@ static class display_scene_time_t : public display_scene_ipc_t<display_settings_
     {
         // Признак вывода данных
         bool updated = false;
+        // Родительская сцена
+        display_scene_time_t &scene;
+        
     protected:
         // Событие присоединения к цепочке
         virtual void attached(void) override final
@@ -294,7 +299,7 @@ static class display_scene_time_t : public display_scene_ipc_t<display_settings_
             nixie_number_source_t::attached();
             
             // Обновление состояния
-            second();
+            refresh_request();
         }
         
         // Обновление данных
@@ -315,34 +320,27 @@ static class display_scene_time_t : public display_scene_ipc_t<display_settings_
             // Минуты
             out(2, 2, rtc_time.minute);
             // Секунды
-            switch (settings.seconds)
-            {
-                case display_settings_time_t::SECONDS_NONE:
-                    out_set(4, nixie_data_t());
-                    out_set(5, nixie_data_t());
-                    break;
-                    
-                case display_settings_time_t::SECONDS_DEFAULT:
-                    out(4, 2, rtc_time.second);
-                    break;
-                    
-                case display_settings_time_t::SECONDS_OVERRIDE_DAY:
-                    out(4, 2, rtc_time.day);
-                    break;
-                    
-                case display_settings_time_t::SECONDS_OVERRIDE_DAY_POINT:
-                    out(4, 2, rtc_time.day, true);
-                    break;
-                    
-                default:
-                    assert(false);
-            }
+            out(4, 2, rtc_time.second);
         }
     public:
-        // Секундное событие
-        void second(void)
+        // Конструктор по умолчанию
+        nixie_source_t(display_scene_time_t &_scene) : scene(_scene)
+        { }
+    
+        // Запрос на обновление
+        void refresh_request(void)
         {
+            // Запрос на обновление
             updated = false;
+            
+            // Применение переключения секунд
+            auto effects = scene.nixie_switcher.effects;
+            const auto effect = rtc_time.second != 0 ?
+                scene.settings.nixie_second :
+                scene.settings.base.nixie;
+            
+            effects[4] = effect;
+            effects[5] = effect;
         }
     } nixie_source;
     
@@ -350,6 +348,16 @@ static class display_scene_time_t : public display_scene_ipc_t<display_settings_
     static display_settings_time_t settings;
     
 protected:
+    // Обработчик примнения настроек
+    virtual void settings_apply(bool initial) override final
+    {
+        // Базовый метод
+        display_scene_ipc_t::settings_apply(initial);
+        
+        // Обновление состояния
+        nixie_source.refresh_request();
+    }
+
     // Получает, нужно ли отобразить сцену
     virtual bool show_required(void) override final
     {
@@ -362,13 +370,15 @@ protected:
     {
         // Базовый метод
         display_scene_ipc_t::second();
-        // Оповещение источников
-        nixie_source.second();
+        // Обновление состояния
+        nixie_source.refresh_request();
     }
     
 public:
     // Конструктор по умолчанию
-    display_scene_time_t(void) : display_scene_ipc_t(settings)
+    display_scene_time_t(void) : 
+        nixie_source(*this),
+        display_scene_ipc_t(settings)
     {
         // Лампы
         nixie.attach(nixie_source);
@@ -407,13 +417,10 @@ display_settings_time_t display_scene_time_t::settings @ STORAGE_SECTION =
             .inversion = false,
         },
         
-        .nixie =
-        {
-            .effect = nixie_switcher_t::EFFECT_SWITCH_OUT,
-        },        
+        .nixie = nixie_switcher_t::EFFECT_SWITCH_OUT,
     },
     
-    .seconds = display_settings_time_t::SECONDS_DEFAULT,
+    .nixie_second = nixie_switcher_t::EFFECT_SWITCH_OUT,
 };
 
 // Сцена отображения даты
@@ -512,10 +519,7 @@ display_settings_timeout_t display_scene_date_t::settings @ STORAGE_SECTION =
                 .inversion = false,
             },
             
-            .nixie =
-            {
-                .effect = nixie_switcher_t::EFFECT_SMOOTH_SUB,
-            },
+            .nixie = nixie_switcher_t::EFFECT_SMOOTH_SUB,
         },
         .allow = true,
     },
@@ -831,8 +835,6 @@ static class display_scene_heat_t : public display_scene_t
     
     // Фильтр плавной смены цифр на лампах
     nixie_switcher_t nixie_switcher;
-    // Настройки фильтра плавной смены цифр на лампах
-    nixie_switcher_t::settings_t nixie_switcher_settings;
     
     // Команда запрос настроек
     class command_settings_get_t : public ipc_command_get_t<settings_t>
@@ -988,15 +990,14 @@ protected:
 public:
     // Конструктор по умолчанию
     display_scene_heat_t(void) 
-        : nixie_switcher(nixie_switcher_settings),
-          settings_setter(*this),
+        : settings_setter(*this),
           nixie_source(*this),
-          launch_now(*this)
+          launch_now(*this),
+          nixie_switcher(nixie_switcher_t::EFFECT_SMOOTH_DEF)
     {
         // Лампы
         nixie.attach(nixie_source);
         nixie.attach(nixie_switcher);
-        nixie_switcher_settings.effect = nixie_switcher_t::EFFECT_SMOOTH_DEF;
         // Неонки
         neon.attach(neon_source);
         // Светодиоды
@@ -1134,10 +1135,7 @@ static display_settings_timeout_t display_scene_onet_settings @ STORAGE_SECTION 
                 .inversion = false,
             },
             
-            .nixie =
-            {
-                .effect = nixie_switcher_t::EFFECT_SMOOTH_SUB,
-            },
+            .nixie = nixie_switcher_t::EFFECT_SMOOTH_SUB,
         },
         .allow = true,
     },
@@ -1179,10 +1177,7 @@ static display_settings_timeout_t display_scene_cnet_settings @ STORAGE_SECTION 
                 .inversion = false,
             },
             
-            .nixie =
-            {
-                .effect = nixie_switcher_t::EFFECT_SMOOTH_SUB,
-            },
+            .nixie = nixie_switcher_t::EFFECT_SMOOTH_SUB,
         },
         .allow = true,
     },
