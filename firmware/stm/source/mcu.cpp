@@ -97,14 +97,6 @@ __noreturn void mcu_halt(mcu_halt_reason_t reason)
     { }
 }
 
-void mcu_debug_pulse(void)
-{
-#ifdef DEBUG
-    IO_PORT_SET(IO_RSV4);
-    IO_PORT_RESET(IO_RSV4);
-#endif
-}
-
 void mcu_mco_output(mcu_mco_source_t source)
 {
     RCC->CFGR &= ~RCC_CFGR_MCO;

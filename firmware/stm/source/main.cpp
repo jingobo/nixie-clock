@@ -10,6 +10,7 @@
 #include "neon.h"
 #include "ntime.h"
 #include "nixie.h"
+#include "debug.h"
 #include "event.h"
 #include "light.h"
 #include "timer.h"
@@ -29,6 +30,7 @@ __task __noreturn void main(void)
     rtc_init();
     io_init();
     timer_init();
+    debug_init();
     
     // Остальные модули
     esp_init();

@@ -7,6 +7,7 @@
 #include "rtc.h"
 #include "led.h"
 #include "temp.h"
+#include "debug.h"
 #include "timer.h"
 #include "storage.h"
 
@@ -105,7 +106,7 @@ extern "C"
             nvic_interrupt_dummy,                   // DMA1 Channel 4
             temp_interrupt_dma,                     // DMA1 Channel 5
             led_interrupt_dma,                      // DMA1 Channel 6
-            nvic_interrupt_dummy,                   // DMA1 Channel 7
+            debug_interrupt_dma,                    // DMA1 Channel 7
             nvic_interrupt_dummy,                   // ADC1 & ADC2
             nvic_interrupt_dummy,                   // USB High Priority or CAN1 TX
             nvic_interrupt_dummy,                   // USB Low  Priority or CAN1 RX0

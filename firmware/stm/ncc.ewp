@@ -2248,6 +2248,9 @@
         <name>$PROJ_DIR$\..\common\source\datetime.cpp</name>
     </file>
     <file>
+        <name>$PROJ_DIR$\source\debug.cpp</name>
+    </file>
+    <file>
         <name>$PROJ_DIR$\source\event.cpp</name>
     </file>
     <file>

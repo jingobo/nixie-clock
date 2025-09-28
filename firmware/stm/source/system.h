@@ -15,19 +15,25 @@
    esp - SPI1 (master), DMA1 (CH2, CH3)
    temp - USART1 (TX), DMA1 (CH4, CH5)
    light - I2C1
+   debug - USART2 (TX), DMA1 (CH7)
 */
 
 // Частота ядра при старте
-#define FMCU_STARTUP_MHZ    8
-#define FMCU_STARTUP_KHZ    XK(FMCU_STARTUP_MHZ)
-#define FMCU_STARTUP_HZ     XM(FMCU_STARTUP_MHZ)
+constexpr uint32_t FMCU_STARTUP_MHZ = 8;
+constexpr uint32_t FMCU_STARTUP_KHZ = XK(FMCU_STARTUP_MHZ);
+constexpr uint32_t FMCU_STARTUP_HZ = XM(FMCU_STARTUP_MHZ);
+
 // Частота ядра после инициализации
-#define FMCU_NORMAL_MHZ     96
-#define FMCU_NORMAL_KHZ     XK(FMCU_NORMAL_MHZ)
-#define FMCU_NORMAL_HZ      XM(FMCU_NORMAL_MHZ)
+constexpr uint32_t FMCU_NORMAL_MHZ = 96;
+constexpr uint32_t FMCU_NORMAL_KHZ = XK(FMCU_NORMAL_MHZ);
+constexpr uint32_t FMCU_NORMAL_HZ = XM(FMCU_NORMAL_MHZ);
+
+// Частота шин после инициализации
+constexpr uint32_t FPCLK1_HZ = FMCU_NORMAL_HZ / 2;
+constexpr uint32_t FPCLK2_HZ = FMCU_NORMAL_HZ;
 
 // Частота LSI [Гц]
-#define FLSI_KHZ            40
-#define FLSI_HZ             XK(FLSI_KHZ)
+constexpr uint32_t FLSI_KHZ = 40;
+constexpr uint32_t FLSI_HZ = XK(FLSI_KHZ);
 
 #endif // __SYSTEM_H

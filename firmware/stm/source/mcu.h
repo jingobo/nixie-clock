@@ -40,8 +40,6 @@ typedef bool (*mcu_pool_handler_ptr)(void);
 
 // Инициализация модуля
 void mcu_init(void);
-// Импульс на выводе для отладки
-void mcu_debug_pulse(void);
 // Вывод частоты на IO MCO
 void clk_mco_output(mcu_mco_source_t source);
 // Обработчик аварийной остановки приложения
@@ -66,17 +64,33 @@ inline void mcu_reg_update_32(volatile uint32_t *reg, uint32_t value_bits, uint3
     *reg = buffer;
 }
 
+// Установка указателя на память каналу DMA
+inline void mcu_dma_channel_setup_m(DMA_Channel_TypeDef *channel, const void *mem)
+{
+    // Проверка аргументов
+    assert(mem != NULL);
+    assert(channel != NULL);
+    
+    WARNING_SUPPRESS(Pa039)
+        channel->CMAR = (uint32_t)mem;                                          // Memory address
+    WARNING_DEFAULT(Pa039)
+}
+
+// Установка указателя на периферию каналу DMA
+inline void mcu_dma_channel_setup_p(DMA_Channel_TypeDef *channel, volatile uint32_t &reg)
+{
+    channel->CCR = 0;                                                           // Channel reset
+    
+    WARNING_SUPPRESS(Pa039)
+        channel->CPAR = (uint32_t)&reg;                                         // Peripheral address
+    WARNING_DEFAULT(Pa039)
+}
+
 // Установка указателей каналу DMA (переферия <-> память)
 inline void mcu_dma_channel_setup_pm(DMA_Channel_TypeDef *channel, volatile uint32_t &reg, const void *mem)
 {
-    // Проверка аргументов
-    assert(channel != NULL && mem != NULL);
-    // Инициализация канала
-    channel->CCR = 0;                                                           // Channel reset
-    WARNING_SUPPRESS(Pa039)
-        channel->CPAR = (uint32_t)&reg;                                         // Peripheral address
-        channel->CMAR = (uint32_t)mem;                                          // Memory address
-    WARNING_DEFAULT(Pa039)
+    mcu_dma_channel_setup_p(channel, reg);
+    mcu_dma_channel_setup_m(channel, mem);
 }
 
 // Обработчик прерывания системного таймера
