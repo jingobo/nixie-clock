@@ -244,6 +244,9 @@ void nixie_switcher_t::refresh(void)
         // Входные данные
         auto data = in_get(i);
         
+        // Минимальное значение свечения для плавных переходов
+        constexpr const auto SMOOTH_SAT_MIN = 25;
+        
         // Выполнение эффекта
         switch (effects[i])
         {
@@ -255,7 +258,7 @@ void nixie_switcher_t::refresh(void)
                     // Фреймы исчезновения старой цифры
                     if (effect.frame < FRAME_COUNT)
                     {
-                        data.sat = math_value_ratio<hmi_sat_t>(data.sat, HMI_SAT_MIN, effect.frame, FRAME_COUNT);
+                        data.sat = math_value_ratio<hmi_sat_t>(data.sat, SMOOTH_SAT_MIN, effect.frame, FRAME_COUNT);
                         data.digit = effect.digit_from;
                         break;
                     }
@@ -263,7 +266,42 @@ void nixie_switcher_t::refresh(void)
                     // Фреймы появления новой цифры
                     if (effect.frame < HMI_SMOOTH_FRAME_COUNT)
                     {
-                        data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, data.sat, effect.frame - FRAME_COUNT, FRAME_COUNT);
+                        data.sat = math_value_ratio<hmi_sat_t>(SMOOTH_SAT_MIN, data.sat, effect.frame - FRAME_COUNT, FRAME_COUNT);
+                        break;
+                    }
+                    
+                    // Завершение эффекта
+                    effect.stop();
+                }
+                break;
+
+            case EFFECT_SMOOTH_OLD:
+                {
+                    // Количество фреймов исчезновения старой цифры
+                    constexpr const auto FRAME_COUNT = HMI_SMOOTH_FRAME_COUNT * 3 / 2;
+                    
+                    // Фреймы исчезновения старой цифры
+                    if (effect.frame < FRAME_COUNT)
+                    {
+                        data.sat = math_value_ratio<hmi_sat_t>(data.sat, SMOOTH_SAT_MIN, effect.frame, FRAME_COUNT);
+                        data.digit = effect.digit_from;
+                        break;
+                    }
+                    
+                    // Завершение эффекта
+                    effect.stop();
+                }
+                break;
+
+            case EFFECT_SMOOTH_NEW:
+                {
+                    // Количество фреймов появления новой цифры
+                    constexpr const auto FRAME_COUNT = HMI_SMOOTH_FRAME_COUNT * 3 / 2;
+                    
+                    // Фреймы исчезновения старой цифры
+                    if (effect.frame < FRAME_COUNT)
+                    {
+                        data.sat = math_value_ratio<hmi_sat_t>(SMOOTH_SAT_MIN, data.sat, effect.frame, FRAME_COUNT);
                         break;
                     }
                     
@@ -280,7 +318,7 @@ void nixie_switcher_t::refresh(void)
                     // Фреймы смены цифры
                     if (effect.frame < FRAME_COUNT)
                     {
-                        const auto sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, HMI_SAT_MAX, effect.frame, FRAME_COUNT);
+                        const auto sat = math_value_ratio<hmi_sat_t>(SMOOTH_SAT_MIN, HMI_SAT_MAX, effect.frame, FRAME_COUNT);
                         if (effect.frame & 1)
                             data.sat = sat;
                         else
@@ -296,7 +334,7 @@ void nixie_switcher_t::refresh(void)
                     if (effect.frame < FRAME_COUNT * 2)
                     {
                         const auto sat = math_value_ratio<hmi_sat_t>(180, HMI_SAT_MAX, effect.frame - FRAME_COUNT, FRAME_COUNT);
-                        data.sat = math_value_ratio<hmi_sat_t>(HMI_SAT_MIN, sat, data.sat, HMI_SAT_MAX);
+                        data.sat = math_value_ratio<hmi_sat_t>(SMOOTH_SAT_MIN, sat, data.sat, HMI_SAT_MAX);
                         break;
                     }
                     
@@ -385,6 +423,8 @@ void nixie_switcher_t::data_changed(hmi_rank_t index, nixie_data_t &data)
     switch (effects[index])
     {
         case EFFECT_SMOOTH_DEF:
+        case EFFECT_SMOOTH_OLD:
+        case EFFECT_SMOOTH_NEW:
         case EFFECT_SMOOTH_SUB:
             // Ничего
             break;
