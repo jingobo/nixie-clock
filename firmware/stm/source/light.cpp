@@ -209,11 +209,10 @@ static void light_state_timer_cb(void)
     {
         case LIGHT_STATE_CONGIF:
             // Питание, тайминг, измерение
-            if (light_wire_write(0x01) && 
-                light_wire_write(0x47) &&
-                light_wire_write(0x47) &&
-                light_wire_write(0x7E) &&
-                light_wire_write(0x11))
+            if (light_wire_write(0x01) &&                                       // Power On
+                light_wire_write(0x47) &&                                       // Measurement time MSB
+                light_wire_write(0x7E) &&                                       // Measurement time LSB
+                light_wire_write(0x11))                                         // Continuous Hi-Res 2 
                 // Ожидание 200 мС
             {
                 // Переход к чтению
