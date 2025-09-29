@@ -101,9 +101,13 @@ app.overlay = new function ()
 
     const errorClass = "error";
     
+    // Устанавливает текст прогресса
+    this.setProgress = msg => app.dom.overlay.progress.text(msg + "...");
+
     // Показать/скрыть как обычная загрузка
     this.asLoader = show =>
     {
+        this.setProgress("подключение");
         app.dom.overlay.container.removeClass(errorClass);
         toggle(show);
     };
@@ -195,6 +199,7 @@ app.dom = new function ()
         overlay:
         {
             container: "#overlay",
+            progress: "#overlay .text-info",
             message: "#overlay .text-danger",
         },
         
@@ -2151,7 +2156,7 @@ app.page =
 
                 // Время выдержки
                 const changeExposure = app.dom.disp.light.exposure.slider;
-                app.dom.disp.light.exposure.carrier.setupSlider(0, 9, (val) => parseInt(val) + 1);
+                app.dom.disp.light.exposure.carrier.setupSlider(0, 9, (val) => (parseInt(val) + 1) + "c");
                 changeExposure.on("input", settingsChanged);
                 
                 // Плавность изменения
@@ -2777,6 +2782,7 @@ app.session = new function ()
             // Передача
             try
             {
+                app.overlay.setProgress(current.packet.name);
                 ws.send(current.packet.data.toArray());
             }
             catch

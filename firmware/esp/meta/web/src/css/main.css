@@ -508,19 +508,30 @@ button > .spinner-inline
 #overlay > div
 {
     padding: 1rem;
-    padding-bottom: 0;
+}
+
+#overlay h4
+{
+    margin-bottom: 0;
+    margin-top: -0.25rem;
+}
+
+#overlay > div > div:first-child
+{
+    margin: 0rem 1rem 0rem 0rem;
+}
+
+#overlay .col-auto > div
+{
+    line-height: 1.2rem;
 }
 
 #overlay > div > div:last-child
 {
-    padding-left: 1.5rem;
     position: relative;
+    width: 12rem;
     top: 0.1rem;
-}
-
-#overlay div.col-auto
-{
-    margin-bottom: 1rem;
+    padding: 0;
 }
 
 #overlay svg
