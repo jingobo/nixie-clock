@@ -437,6 +437,12 @@ $.fn.extend(
         };
     },
 
+    // Инициализация кастомного слайдера
+    setupSlider(minimum, maximum, toString)
+    {
+        this.each((i, e) => setupCommonSlider(e, minimum, maximum, toString));
+    },
+
     // Инициализация слайдера периода
     setupPeriodSlider()
     {

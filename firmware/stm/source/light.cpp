@@ -14,14 +14,10 @@ static light_settings_t light_settings @ STORAGE_SECTION =
 {
     .level = 80,
     .smooth = 2,
+    .exposure = 4,
     .autoset = true,
     .nightmode = false,
 };
-
-// Количество измерений в секунду (не менять)
-constexpr const uint8_t LIGHT_MSR_PER_SECOND = 5;
-// Количество секунд обновления уровня освещенности
-constexpr const uint16_t LIGHT_LEVEL_UPDATE_SECONDS = 5;
 
 // Генерация начала транзакции
 static bool light_wire_start(bool is_read)
@@ -137,8 +133,8 @@ static __no_init float_t light_max_lux;
 static __no_init float_t light_current_lux;
 // Текущее показание уровня освещенности
 static __no_init uint8_t light_current_level;
-// Прескалер обновления уровня освещенности
-static __no_init uint16_t light_level_update_prescaler;
+// Время выдержки уровня освещенности
+static __no_init uint16_t light_exposure_time;
 
 // Таймер автомата состояний
 static timer_t light_state_timer(light_state_timer_cb);
@@ -147,17 +143,18 @@ static timer_t light_state_timer(light_state_timer_cb);
 static void light_level_update(void)
 {
     // Откладываем обновление
-    light_level_update_prescaler = 0;
+    light_exposure_time = 0;
     
     // Точки линеаризации
     static const math_point2d_t<float_t, uint8_t> POINTS[] =
     {
         { 0.0f,     0 },
-        { 5.0f,     20 },
-        { 10.0f,    40 },
-        { 20.0f,    60 },
-        { 40.0f,    80 },
-        { 70.0f,    100 },
+        { 1.125f,   10 },
+        { 2.5f,     20 },
+        { 5.0f,     40 },
+        { 10.0f,    60 },
+        { 20.0f,    80 },
+        { 40.0f,    100 },
     };
     
     // Интерполяция
@@ -166,16 +163,11 @@ static void light_level_update(void)
     light_max_lux = 0.0f;
 }
 
-// Повтор выполнения текущего состояния
-static void light_state_retry(void)
+// Переход к состоянию конфигурирования
+static void light_state_config(void)
 {
     light_state_timer.start_us(TIMER_US_MIN);
-}
-
-// Установка таймера для задержки состояния
-static void light_state_delay(void)
-{
-    light_state_timer.start_hz(LIGHT_MSR_PER_SECOND);
+    light_state = LIGHT_STATE_CONGIF;
 }
 
 // Обрабогтчик ошибки измерения
@@ -183,10 +175,9 @@ static void light_measure_error(void)
 {
     // Текущее значение не известно
     light_current_lux = NAN;
+    light_current_level = LIGHT_LEVEL_MAX;
     // Переход к конфигурированию
-    light_state = LIGHT_STATE_CONGIF;
-    // Задержка обработки
-    light_state_delay();
+    light_state_config();
 }
 
 // Обработчик таймера автомата состояний
@@ -196,7 +187,7 @@ static void light_state_timer_cb(void)
      * В Errata запрещено использование SPI1 и I2C в случае ремапа */
     if (esp_wire_active())
     {
-        light_state_retry();
+        light_state_config();
         return;
     }
     
@@ -212,13 +203,13 @@ static void light_state_timer_cb(void)
             if (light_wire_write(0x01) &&                                       // Power On
                 light_wire_write(0x47) &&                                       // Measurement time MSB
                 light_wire_write(0x7E) &&                                       // Measurement time LSB
-                light_wire_write(0x11))                                         // Continuous Hi-Res 2 
+                light_wire_write(0x21))                                         // Single Hi-Res 2 
                 // Ожидание 200 мС
             {
                 // Переход к чтению
                 light_state = LIGHT_STATE_READING;
                 // Задержка обработки
-                light_state_delay();
+                light_state_timer.start_hz(1);
                 break;
             }
             
@@ -265,8 +256,8 @@ static void light_state_timer_cb(void)
                     lux = raw * COEFF;
                 }
                 
-                // Задержка обработки
-                light_state_delay();
+                // Следующее измерение
+                light_state_config();
                 
                 // Если текущее значение не определенно или больше
                 if (isnan(light_current_lux) || light_current_lux < lux)
@@ -281,8 +272,7 @@ static void light_state_timer_cb(void)
                     light_max_lux = lux;
                 
                 // Прескалер обновления
-                if (++light_level_update_prescaler >= 
-                    LIGHT_MSR_PER_SECOND * LIGHT_LEVEL_UPDATE_SECONDS)
+                if (++light_exposure_time > light_settings.exposure)
                     light_level_update();
             }
             break;
@@ -504,12 +494,8 @@ protected:
 
 void light_init(void)
 {
-    // Изначально счтиаем что максимально
-    light_current_level = LIGHT_LEVEL_MAX;
     // Изначально в состояние ошибки
     light_measure_error();
-    // Форсирование первого измерения
-    light_state_retry();
     
     // Монтирование управления в экран
     screen.led.attach(light_control_led);

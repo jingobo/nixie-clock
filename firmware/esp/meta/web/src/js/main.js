@@ -272,6 +272,12 @@ app.dom = new function ()
                 auto: "#disp-light-auto",
                 night: "#disp-light-night",
                 current: "#disp-light-current",
+                exposure:
+                {
+                    slider: "#disp-light-exposure",
+                    carrier: "#disp-light-exposure-carrier",
+                    label: "#disp-light-exposure-carrier label",
+                },
                 manual:
                 {
                     slider: "#disp-light-manual",
@@ -2142,6 +2148,11 @@ app.page =
                 // Ночной режим
                 const nightMode = app.dom.disp.light.night;
                 nightMode.change(settingsChanged);
+
+                // Время выдержки
+                const changeExposure = app.dom.disp.light.exposure.slider;
+                app.dom.disp.light.exposure.carrier.setupSlider(0, 9, (val) => parseInt(val) + 1);
+                changeExposure.on("input", settingsChanged);
                 
                 // Плавность изменения
                 const changeSmooth = app.dom.disp.light.smooth.slider;
@@ -2160,7 +2171,10 @@ app.page =
                     
                     changeSmooth.disabled(!state);
                     app.dom.disp.light.smooth.label.setClass("disabled-label", !state);
-                };
+
+                    changeExposure.disabled(!state);
+                    app.dom.disp.light.exposure.label.setClass("disabled-label", !state);
+               };
                 levelAutoChanged();
                 levelAuto.change(() =>
                 {
@@ -2178,6 +2192,7 @@ app.page =
                         {
                             levelManual.valSlider(data.uint8());
                             changeSmooth.valSlider(data.uint8());
+                            changeExposure.valSlider(data.uint8());
                             levelAuto.checked(data.bool());
                             nightMode.checked(data.bool());
                         },
@@ -2190,6 +2205,7 @@ app.page =
                         {
                             data.uint8(levelManual.val());
                             data.uint8(changeSmooth.val());
+                            data.uint8(changeExposure.val());
                             data.bool(levelAuto.checked());
                             data.bool(nightMode.checked());
                         },

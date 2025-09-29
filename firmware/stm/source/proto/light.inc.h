@@ -1,5 +1,7 @@
 ﻿// Максимальное значение уровня освещенности
 constexpr const uint8_t LIGHT_LEVEL_MAX = 100;
+// Максимальное значение времени выбрежки
+constexpr const uint8_t LIGHT_EXPOSURE_MAX = 9;
 
 // Структура настроек освещенности
 struct light_settings_t
@@ -8,6 +10,8 @@ struct light_settings_t
     uint8_t level;
     // Плавность смены
     uint8_t smooth;
+    // Выдержка
+    uint8_t exposure;
     // Автоподстройка
     bool autoset;
     // Ночной режим
@@ -16,7 +20,8 @@ struct light_settings_t
     // Проверка полей
     bool check(void) const
     {
-        return level <= LIGHT_LEVEL_MAX &&
+        return exposure <= LIGHT_EXPOSURE_MAX &&
+               level <= LIGHT_LEVEL_MAX &&
                smooth <= HMI_TIME_COUNT &&
                ipc_bool_check(autoset) &&
                ipc_bool_check(nightmode);
