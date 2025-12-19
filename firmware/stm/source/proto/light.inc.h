@@ -6,6 +6,8 @@ constexpr const uint8_t LIGHT_EXPOSURE_MAX = 9;
 // Структура настроек освещенности
 struct light_settings_t
 {
+    // Усиление
+    int8_t gain;
     // Ручной уровень
     uint8_t level;
     // Плавность смены

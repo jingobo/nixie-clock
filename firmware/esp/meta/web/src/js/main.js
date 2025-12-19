@@ -277,6 +277,12 @@ app.dom = new function ()
                 auto: "#disp-light-auto",
                 night: "#disp-light-night",
                 current: "#disp-light-current",
+                gain:
+                {
+                    slider: "#disp-light-gain",
+                    carrier: "#disp-light-gain-carrier",
+                    label: "#disp-light-gain-carrier label",
+                },
                 exposure:
                 {
                     slider: "#disp-light-exposure",
@@ -2158,6 +2164,11 @@ app.page =
                 const changeExposure = app.dom.disp.light.exposure.slider;
                 app.dom.disp.light.exposure.carrier.setupSlider(0, 9, (val) => (parseInt(val) + 1) + "c");
                 changeExposure.on("input", settingsChanged);
+
+                // Усиление значения
+                const changeGain = app.dom.disp.light.gain.slider;
+                app.dom.disp.light.gain.carrier.setupSlider(-30, 30, (val) => val > 0 ? "+" + val : val);
+                changeGain.on("input", settingsChanged);
                 
                 // Плавность изменения
                 const changeSmooth = app.dom.disp.light.smooth.slider;
@@ -2179,7 +2190,10 @@ app.page =
 
                     changeExposure.disabled(!state);
                     app.dom.disp.light.exposure.label.setClass("disabled-label", !state);
-               };
+
+                    changeGain.disabled(!state);
+                    app.dom.disp.light.gain.label.setClass("disabled-label", !state);
+                };
                 levelAutoChanged();
                 levelAuto.change(() =>
                 {
@@ -2195,6 +2209,7 @@ app.page =
                         name: "запрос настроек освещенности",
                         processing: data =>
                         {
+                            changeGain.valSlider(data.int8());
                             levelManual.valSlider(data.uint8());
                             changeSmooth.valSlider(data.uint8());
                             changeExposure.valSlider(data.uint8());
@@ -2208,6 +2223,7 @@ app.page =
                         name: "применение настроек освещенности",
                         processing: data =>
                         {
+                            data.int8(changeGain.val());
                             data.uint8(levelManual.val());
                             data.uint8(changeSmooth.val());
                             data.uint8(changeExposure.val());

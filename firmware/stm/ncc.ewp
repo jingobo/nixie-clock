@@ -2207,20 +2207,17 @@
     </group>
     <group>
         <name>periphery</name>
-        <group>
-            <name>sensors</name>
-            <file>
-                <name>$PROJ_DIR$\source\light.cpp</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\source\temp.cpp</name>
-            </file>
-        </group>
         <file>
             <name>$PROJ_DIR$\source\esp.cpp</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\source\i2c.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\source\io.cpp</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\source\light.cpp</name>
         </file>
         <file>
             <name>$PROJ_DIR$\source\mcu.cpp</name>
@@ -2232,16 +2229,10 @@
             <name>$PROJ_DIR$\source\rtc.cpp</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\source\temp.cpp</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\source\wdt.cpp</name>
-        </file>
-    </group>
-    <group>
-        <name>service</name>
-        <file>
-            <name>$PROJ_DIR$\source\ntime.cpp</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\source\wifi.cpp</name>
         </file>
     </group>
     <file>
@@ -2263,6 +2254,9 @@
         <name>$PROJ_DIR$\source\main.cpp</name>
     </file>
     <file>
+        <name>$PROJ_DIR$\source\ntime.cpp</name>
+    </file>
+    <file>
         <name>$PROJ_DIR$\source\random.cpp</name>
     </file>
     <file>
@@ -2270,5 +2264,8 @@
     </file>
     <file>
         <name>$PROJ_DIR$\source\timer.cpp</name>
+    </file>
+    <file>
+        <name>$PROJ_DIR$\source\wifi.cpp</name>
     </file>
 </project>

@@ -138,6 +138,9 @@
 
 #define IO_LS_SCL                       8
 #define IO_LS_SCL_PORT                  GPIOB
+// Errata
+#define IO_LS_SCL_CR                    GPIOB->CRH
+#define IO_LS_SCL_ALT                   (1 << 3)
 
 #define IO_LS_SDA                       9
 #define IO_LS_SDA_PORT                  GPIOB

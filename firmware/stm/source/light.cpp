@@ -1,5 +1,6 @@
 ﻿#include "esp.h"
-#include "mcu.h"
+#include "i2c.h"
+#include "debug.h"
 #include "light.h"
 #include "timer.h"
 #include "xmath.h"
@@ -12,6 +13,7 @@
 // Настройки освещенности
 static light_settings_t light_settings @ STORAGE_SECTION =
 {
+    .gain = 0,
     .level = 80,
     .smooth = 2,
     .exposure = 4,
@@ -19,101 +21,322 @@ static light_settings_t light_settings @ STORAGE_SECTION =
     .nightmode = false,
 };
 
-// Генерация начала транзакции
-static bool light_wire_start(bool is_read)
+// Базовый класс датчика освещенности
+struct light_sensor_t
 {
-    // Софтовый сброс I2C
-    I2C1->CR1 |= I2C_CR1_SWRST;                                                 // SW reset
-    I2C1->CR1 &= ~I2C_CR1_SWRST;                                                // SW unreset
+    // Производит детектирование
+    virtual bool detect(void) const = 0;
+    // Производит начальное конфигурирование
+    virtual bool config(void) const = 0;
+    // Подготовка к чтению (возращает время)
+    virtual uint32_t measure(void) const = 0;
+    // Производит чтение результата
+    virtual float_t read(void) const = 0;
+};
 
-    // Конфигурирование I2C1
-    I2C1->CR2 = I2C_CR2_FREQ_4 | I2C_CR2_FREQ_5;                                // APB 48 MHz
-    I2C1->CCR = (I2C_CCR_CCR & 5) | I2C_CCR_DUTY | I2C_CCR_FS;                  // 400 KHz @ APB 48 MHz, FM, 16:9
-    I2C1->CR1 = I2C_CR1_PE;                                                     // I2C on
+// Режим усиления для датчика TSL2591
+#define LIGHT_TSL_GAIN      2
+
+// Определение коофициента усиления
+#if LIGHT_TSL_GAIN == 0
+    constexpr const auto LIGHT_TSL_GAIN_F = 1.0f;
+#elif LIGHT_TSL_GAIN == 1
+    constexpr const auto LIGHT_TSL_GAIN_F = 25.0f;
+#elif LIGHT_TSL_GAIN == 2
+    constexpr const auto LIGHT_TSL_GAIN_F = 428.0f;
+#elif LIGHT_TSL_GAIN == 3
+    constexpr const auto LIGHT_TSL_GAIN_F = 9876.0f;
+#else
+    #error unknown gain mode
+#endif
+
+// Режим времени интеграции для датчика TSL2591
+#define LIGHT_TSL_ATIME     3
     
-    // Фаза старта
-    I2C1->CR1 |= I2C_CR1_START | I2C_CR1_ACK;                                   // Start, ACK
-    if (is_read)
-        I2C1->CR1 |= I2C_CR1_POS;                                               // NACK on 2nd byte
-    if (!mcu_pool_ms([](void) -> bool
-        {
-            return (I2C1->SR1 & I2C_SR1_SB) != 0;                               // Check SB
-        }))
-        return false;
-    
-    // Фаза адреса
-    I2C1->DR = 0x46 | is_read;                                                  // Send address
-    if (!mcu_pool_ms([](void) -> bool
-        {
-            return I2C1->SR1 != 0;                                              // Check SR1
-        }))
-        return false;
+// Определение коофициента усиления
+#if LIGHT_TSL_ATIME == 0
+    constexpr const auto LIGHT_TSL_ATIME_F = 100.0f;
+#elif LIGHT_TSL_ATIME == 1
+    constexpr const auto LIGHT_TSL_ATIME_F = 200.0f;
+#elif LIGHT_TSL_ATIME == 2
+    constexpr const auto LIGHT_TSL_ATIME_F = 300.0f;
+#elif LIGHT_TSL_ATIME == 3
+    constexpr const auto LIGHT_TSL_ATIME_F = 400.0f;
+#elif LIGHT_TSL_ATIME == 4
+    constexpr const auto LIGHT_TSL_ATIME_F = 500.0f;
+#elif LIGHT_TSL_ATIME == 5
+    constexpr const auto LIGHT_TSL_ATIME_F = 600.0f;
+#else
+    #error unknown gain mode
+#endif
 
-    return ((I2C1->SR1 & I2C_SR1_AF) == 0) &&                                   // Check ACK
-           ((I2C1->SR2 & I2C_SR2_MSL) != 0);                                    // Check master mode
-}
-
-// Генерация завершения транзакции
-static bool light_wire_stop(void)
+// Класс датчика освещенности TSL2591
+static const class light_sensor_tsl_t final : public light_sensor_t
 {
-    // Ожидание передачи данных
-    if (!mcu_pool_ms([](void) -> bool
+    // Адрес устройства
+    static constexpr const uint8_t ADDRESS = 0x29;
+    
+    // Производит установку регистра
+    static bool write(uint8_t reg)
+    {
+        // Старт на запись
+        if (!i2c_start(ADDRESS, I2C_MODE_WRITE))
+            return false;
+        
+        // Ожидание передачи адреса
+        if (!i2c_wait_txe())
+            return false;
+        
+        // Передача регистра
+        i2c_write(0xA0 | reg);
+        return true;
+    }
+
+    // Производит запись регистра
+    static bool write(uint8_t reg, uint8_t arg)
+    {
+        if (!write(reg))
+            return false;
+        
+        // Ожидание передачи регистра
+        if (!i2c_wait_txe())
+            return false;
+        
+        // Передача аргумента
+        i2c_write(arg);
+        
+        // Ожидание передачи данных
+        if (!i2c_wait_btf())
+            return false;
+        
+        // Фаза стопа
+        i2c_stop();
+        return i2c_finalize();
+    }
+    
+public:    
+    // Производит детектирование
+    virtual bool detect(void) const override
+    {
+        // Начальный регистр
+        if (!write(0x11))
+            return false;
+
+        // Ожидание передачи регистра
+        if (!i2c_wait_btf())
+            return false;
+        
+        // Чтение регистров
+        uint8_t dummy, id;
+        if (!i2c_read_x2(ADDRESS, dummy, id))
+            return false;
+        
+        // Проверка идентификатора
+        return id == 0x50;
+    }
+    
+    // Производит начальное конфигурирование
+    virtual bool config(void) const override
+    {
+        if (!write(0x00, 0x03))                                                 // Power On
+            return false;
+        
+        return write(0x01, LIGHT_TSL_ATIME << 0 | LIGHT_TSL_GAIN << 4);         // Interpolation/Gain
+    }
+    
+    // Подготовка к чтению
+    virtual uint32_t measure(void) const override
+    {
+        return XK((uint32_t)LIGHT_TSL_ATIME_F);
+    }
+
+    // Производит чтение результата
+    virtual float_t read(void) const override
+    {
+        if (!write(0x14))
+            return NAN;
+
+        // Ожидание передачи регистра
+        if (!i2c_wait_btf())
+            return NAN;
+        
+        // Переоткрытие на чтение
+        if (!i2c_start(ADDRESS, I2C_MODE_READ))
+            return NAN;
+        
+        // Ожидание приёма
+        if (!i2c_wait_rxne())
+            return NAN;
+
+        // Данные каналов
+        union
         {
-            return (I2C1->SR1 & I2C_SR1_BTF) != 0;                              // Check BTF
-        }))
-        return false;
-    
-    // Фаза стопа
-    I2C1->CR1 |= I2C_CR1_STOP;
-    return mcu_pool_ms([](void) -> bool
+            uint16_t ch[2];
+            uint8_t data[4];
+        };
+        
+        // Чтение первого байта
+        data[0] = i2c_read();
+        
+        // Ожидание приёма 2 байт
+        if (!i2c_wait_btf())
+            return NAN;
+
+        // NAK N-2
+        i2c_nack();
+        
+        // Errata
+        i2c_scl_low();
+        
+        // Чтение второго байта
+        data[1] = i2c_read();
+        
+        // NAK N-1
+        i2c_stop();
+        
+        // Чтение третьего байта и запуск чтения послнего
+        data[2] = i2c_read();
+        
+        // Errata
+        i2c_scl_alt();
+        
+        // Ожидание приёма последнего байта
+        if (!i2c_wait_rxne())
+            return NAN;
+
+        // Чтение послнего байта
+        data[3] = i2c_read();
+        
+        // Завершение
+        if (!i2c_finalize())
+            return NAN;
+        
+        // В рандом младший бит
+        random_noise_bit((data[0] & 2) != 0);
+        
+        // Конвертирование
+        float_t lux;
         {
-            return (I2C1->SR2 & I2C_SR2_BUSY) == 0;                             // Check BUSY
-        });
-}
+            // Учет деления на ноль
+            if (ch[0] <= 0)
+                ch[0] = 1;
+            
+            // Перевод каналов в вещественное число
+            const float_t ch0 = ch[0];
+            const float_t ch1 = ch[1];
+            
+            // Количество люкс на отсчет
+            constexpr const auto CPL = (LIGHT_TSL_ATIME_F * LIGHT_TSL_GAIN_F) / 408.0f;
+            
+            // Пересчет
+            lux = ((ch0 - ch1)) * (1.0f - (ch1 / ch0)) / CPL;
+        }
+        
+        return lux;
+    }
+} LIGHT_SENSOR_TSL;
 
-// Проверка завыершения транзакции
-static bool light_wire_finalize(void)
+// Класс датчика освещенности BH1750
+static const class light_sensor_bh_t final : public light_sensor_t
 {
-    return (I2C1->SR2 == 0) && (I2C1->SR1 == 0);                                // Check SR1/2
-}
-
-// Чтение данных по I2C
-static bool light_wire_read(uint8_t &dr0, uint8_t &dr1)
-{
-    if (!light_wire_start(true))
-        return false;
+    // Адрес устройства
+    static constexpr const uint8_t ADDRESS = 0x23;
     
-    // Сброс подтверждения
-    I2C1->CR1 &= ~I2C_CR1_ACK;                                                  // Clear ACK
+    // Производит установку команды
+    static bool write(uint8_t opcode)
+    {
+        // Старт на запись
+        if (!i2c_start(ADDRESS, I2C_MODE_WRITE))
+            return false;
+        
+        // Ожидание передачи адреса
+        if (!i2c_wait_txe())
+            return false;
+        
+        // Передача команды
+        i2c_write(opcode);
+        
+        // Ожидание передачи команды
+        if (!i2c_wait_btf())
+            return false;
+        
+        // Фаза стопа
+        i2c_stop();
+        return i2c_finalize();
+    }
     
-    if (!light_wire_stop())
-        return false;
-
-    dr0 = I2C1->DR;                                                             // Read first byte
-    dr1 = I2C1->DR;                                                             // Read second byte
-
-    return light_wire_finalize();
-}
-
-// Запись байта данных по I2C
-static bool light_wire_write(uint8_t opcode)
-{
-    if (!light_wire_start(false))
-        return false;
+public:    
+    // Производит детектирование
+    virtual bool detect(void) const override
+    {
+        return write(0x00);
+    }
     
-    // Ожидание байта
-    if (!mcu_pool_ms([](void) -> bool
+    // Производит начальное конфигурирование
+    virtual bool config(void) const override
+    {
+        // Нет предварительной конфигурации
+        return true;
+    }
+    
+    // // Подготовка к чтению
+    virtual uint32_t measure(void) const override
+    {
+        if (!write(0x01))                                                       // Power On
+            return 0;
+        
+        if (!write(0x42))                                                       // Measurement time MSB
+            return 0;
+
+        if (!write(0x65))                                                       // Measurement time LSB
+            return 0;
+
+        if (!write(0x21))                                                       // Single Hi-Res 2 
+            return 0;
+
+        // 1 секунда
+        return XK(120);
+    }
+    
+    // Производит чтение результата
+    virtual float_t read(void) const override
+    {
+        union
         {
-            return (I2C1->SR1 & I2C_SR1_TXE) != 0;                              // Check TXE
-        }))
-        return false;
-    
-    I2C1->DR = opcode;                                                          // Write TX byte
-    
-    // Завершение
-    return light_wire_stop() && 
-           light_wire_finalize();
-}
+            uint16_t raw;
+            struct
+            {
+                uint8_t lsb, msb;
+            };
+        };
+        
+        // Чтение
+        if (!i2c_read_x2(ADDRESS, msb, lsb))
+            return NAN;
+
+        // В рандом младший бит
+        random_noise_bit((lsb & 2) != 0);
+        
+        // Точность
+        constexpr const auto ACCURACY = 1.2f;
+        // Делитель при высокой точности
+        constexpr const auto HIRES_DIV = 2.0f;
+        // Коофициент калибровки 
+        constexpr const auto CALIB_DIV = 1.5f;
+        // Количество люкс на отсчет
+        constexpr const auto CPL = ACCURACY * HIRES_DIV * CALIB_DIV;
+
+        // Пересчет
+        return raw / CPL;
+    }
+} LIGHT_SENSOR_BH;
+
+// Список поддерживаемых датчиков
+static const light_sensor_t * const LIGHT_SENSORS[]
+{
+    &LIGHT_SENSOR_BH,
+    &LIGHT_SENSOR_TSL,
+};
 
 // Обработчик таймера автомата состояний (предварительное объявление)
 static void light_state_timer_cb(void);
@@ -122,62 +345,100 @@ static void light_state_timer_cb(void);
 static __no_init enum light_state_t
 {
     // Конфигурирование
-    LIGHT_STATE_CONGIF,
+    LIGHT_STATE_DETECT,
+    // Конфигурирование
+    LIGHT_STATE_CONFIG,
+    // Запуск измерения
+    LIGHT_STATE_MEASURE,
     // Чтение результатов
     LIGHT_STATE_READING,
 } light_state;
+
+// Текущий используемый датчик
+static uint8_t light_sensor = array_length(LIGHT_SENSORS);
 
 // Максимальное покзаание в люксах
 static __no_init float_t light_max_lux;
 // Текущее покзаание в люксах
 static __no_init float_t light_current_lux;
+// Коофициент усиления значения освещенности
+static __no_init float32_t light_gain_coef_lux;
+
 // Текущее показание уровня освещенности
 static __no_init uint8_t light_current_level;
 // Время выдержки уровня освещенности
-static __no_init uint16_t light_exposure_time;
+static __no_init uint32_t light_exposure_time;
+// Максимальное время выдержки уровня освещенности
+static __no_init uint32_t light_exposure_time_max;
 
 // Таймер автомата состояний
 static timer_t light_state_timer(light_state_timer_cb);
+
+// Пересчет значения уровня освещенности
+static void light_level_flush(void)
+{
+    if (isnan(light_current_lux))
+    {
+        light_current_level = LIGHT_LEVEL_MAX;
+        return;
+    }
+
+    // Точки линеаризации
+    static const math_point2d_t<float_t, uint8_t> POINTS[] =
+    {
+        { 0.0f,   0 },
+        { 5.0f,   10 },
+        { 10.0f,  24 },
+        { 15.0f,  34 },
+        { 20.0f,  50 },
+        { 30.0f,  61 },
+        { 50.0f,  77 },
+        { 70.0f,  89 },
+        { 100.0f, 100 },
+    };
+
+    // Интерполяция
+    light_current_level = math_linear_interpolation(light_current_lux, POINTS, array_length(POINTS));
+    // Усидение
+    light_current_level *= light_gain_coef_lux;
+    if (light_current_level > LIGHT_LEVEL_MAX)
+        light_current_level = LIGHT_LEVEL_MAX;
+}
 
 // Обновление уровня освещенности
 static void light_level_update(void)
 {
     // Откладываем обновление
-    light_exposure_time = 0;
+    light_exposure_time = mcu_tick_get();
     
-    // Точки линеаризации
-    static const math_point2d_t<float_t, uint8_t> POINTS[] =
-    {
-        { 0.0f,     0 },
-        { 1.125f,   10 },
-        { 2.5f,     20 },
-        { 5.0f,     40 },
-        { 10.0f,    60 },
-        { 20.0f,    80 },
-        { 40.0f,    100 },
-    };
-    
-    // Интерполяция
+    // Максимальное значение за выдержку
     light_current_lux = light_max_lux;
-    light_current_level = math_linear_interpolation(light_current_lux, POINTS, array_length(POINTS));
     light_max_lux = 0.0f;
+    
+    // Обновление уровня
+    light_level_flush();
 }
 
-// Переход к состоянию конфигурирования
-static void light_state_config(void)
+// Производит переход к указанному состоянию автомата
+static void light_state_next_set(light_state_t state, uint32_t us = TIMER_US_MIN)
 {
-    light_state_timer.start_us(TIMER_US_MIN);
-    light_state = LIGHT_STATE_CONGIF;
+    light_state_timer.start_us(us);
+    light_state = state;
 }
 
 // Обрабогтчик ошибки измерения
 static void light_measure_error(void)
 {
+    // Переход к следующему датчику
+    if (++light_sensor >= array_length(LIGHT_SENSORS))
+        light_sensor = 0;
+    
     // Текущее значение не известно
     light_current_lux = NAN;
-    light_current_level = LIGHT_LEVEL_MAX;
-    // Переход к конфигурированию
-    light_state_config();
+    light_level_flush();
+    
+    // Переход к детектированию
+    light_state_next_set(LIGHT_STATE_DETECT);
 }
 
 // Обработчик таймера автомата состояний
@@ -187,77 +448,76 @@ static void light_state_timer_cb(void)
      * В Errata запрещено использование SPI1 и I2C в случае ремапа */
     if (esp_wire_active())
     {
-        light_state_config();
+        // Повтор через 10 мС
+        light_state_timer.start_us(XK(10));
         return;
     }
     
-    // Включение I2C1
-    RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;                                         // I2C1 clock enable
-    RCC->APB1RSTR |= RCC_APB1RSTR_I2C1RST;                                      // I2C1 reset
-    RCC->APB1RSTR &= ~RCC_APB1RSTR_I2C1RST;                                     // I2C1 unreset
+    // Текущий датчик
+    const auto &sensor = *LIGHT_SENSORS[light_sensor];
     
+    // Запуск I2C
+    i2c_init();
+        
     switch (light_state)
     {
-        case LIGHT_STATE_CONGIF:
-            // Питание, тайминг, измерение
-            if (light_wire_write(0x01) &&                                       // Power On
-                light_wire_write(0x47) &&                                       // Measurement time MSB
-                light_wire_write(0x7E) &&                                       // Measurement time LSB
-                light_wire_write(0x21))                                         // Single Hi-Res 2 
-                // Ожидание 200 мС
+        case LIGHT_STATE_DETECT:
+            // Детектирование
+            if (!sensor.detect())
             {
-                // Переход к чтению
-                light_state = LIGHT_STATE_READING;
-                // Задержка обработки
-                light_state_timer.start_hz(1);
+                light_measure_error();
                 break;
             }
             
-            // Опа...
-            light_measure_error();
+            // Переход к конфигурированию
+            light_state_next_set(LIGHT_STATE_CONFIG);
             break;
             
-        case LIGHT_STATE_READING:
+        case LIGHT_STATE_CONFIG:
+            // Конфигурирование
+            if (!sensor.config())
             {
-                // Чтение результатов
-                union
-                {
-                    uint16_t raw;
-                    struct
-                    {
-                        uint8_t lsb, msb;
-                    };
-                };
-                
-                if (!light_wire_read(msb, lsb))
+                light_measure_error();
+                break;
+            }
+            
+            // Переход к измерению
+            light_state_next_set(LIGHT_STATE_MEASURE);
+            break;
+
+        case LIGHT_STATE_MEASURE:
+            {
+                const auto delay = sensor.measure();
+                if (delay <= 0)
                 {
                     light_measure_error();
                     break;
                 }
-
-                // В рандом младший бит
-                random_noise_bit((raw & 2) != 0);
                 
-                // Конвертирование
-                float_t lux;
+                // Переход к чтению
+                light_state_next_set(LIGHT_STATE_READING, delay + 50);
+            }
+            break;
+            
+        case LIGHT_STATE_READING:
+            {
+                // Чтение
+                const auto lux = sensor.read();
+                if (isnan(lux))
                 {
-                    // Точность
-                    constexpr const auto ACCURACY = 1.2f;
-                    // Значение регистра тайминга по умолчанию
-                    constexpr const auto MTREG_DEF = 69.0f;
-                    // Текущее значение регистра тайминга
-                    constexpr const auto MTREG_CUR = 254.0f;
-                    // Делитель при высокой точности
-                    constexpr const auto HIRES_DIV = 2.0f;
-                    // Коофициент трансформации
-                    constexpr const auto COEFF = 1.0f / ACCURACY * (MTREG_DEF / MTREG_CUR) / HIRES_DIV;
-
-                    // Пересчет
-                    lux = raw * COEFF;
+                    light_measure_error();
+                    break;
+                }
+                
+                // Отладка
+                {
+                    //static uint8_t packet[6]= { 0xAA, 0xBB };
+                    //memcpy(packet + 2, &lux, 4);
+                    //debug_write(packet, sizeof(packet));
                 }
                 
                 // Следующее измерение
-                light_state_config();
+                light_state_next_set(LIGHT_STATE_MEASURE);
                 
                 // Если текущее значение не определенно или больше
                 if (isnan(light_current_lux) || light_current_lux < lux)
@@ -270,16 +530,16 @@ static void light_state_timer_cb(void)
                 // Определение минимума
                 if (light_max_lux < lux)
                     light_max_lux = lux;
-                
-                // Прескалер обновления
-                if (++light_exposure_time > light_settings.exposure)
-                    light_level_update();
             }
+
+            // Обработка выдержки
+            if (mcu_tick_get() - light_exposure_time >= light_exposure_time_max)
+                light_level_update();
             break;
     }
     
-    // Отключение I2C1
-    RCC->APB1ENR &= ~RCC_APB1ENR_I2C1EN;                                        // I2C1 clock disable
+    // Отключение I2C
+    i2c_deinit();
 }
 
 // Признак нобходимости установки максимального уровня
@@ -436,6 +696,14 @@ static void light_control_reset_smoothers(void)
     light_control_nixie.reset_smoother();
 }
 
+// Применение настроек в начале и при изменении
+static void light_settings_apply(void)
+{
+    light_exposure_time_max = XK(light_settings.exposure);
+    light_gain_coef_lux = powf(1.0570180416107177734375f, light_settings.gain);
+    light_level_flush();
+}
+
 // Обработчик команды получения настроек освещенности
 static class light_command_handler_settings_get_t : public ipc_responder_template_t<light_command_settings_get_t>
 {
@@ -467,6 +735,7 @@ protected:
         // Применение настроек
         light_settings = command.request;
         light_control_reset_smoothers();
+        light_settings_apply();
         storage_modified();
         
         // Передача
@@ -494,8 +763,9 @@ protected:
 
 void light_init(void)
 {
-    // Изначально в состояние ошибки
+    // Установка начального состояния
     light_measure_error();
+    light_settings_apply();
     
     // Монтирование управления в экран
     screen.led.attach(light_control_led);
