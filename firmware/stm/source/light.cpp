@@ -10,6 +10,9 @@
 #include "storage.h"
 #include "proto/light.inc.h"
 
+// Значение в люксах при полной яркости 
+constexpr const auto LIGHT_LUX_MAX = 100.0f;
+
 // Настройки освещенности
 static light_settings_t light_settings @ STORAGE_SECTION =
 {
@@ -35,7 +38,7 @@ struct light_sensor_t
 };
 
 // Режим усиления для датчика TSL2591
-#define LIGHT_TSL_GAIN      2
+#define LIGHT_TSL_GAIN      1
 
 // Определение коофициента усиления
 #if LIGHT_TSL_GAIN == 0
@@ -217,6 +220,10 @@ public:
         // Конвертирование
         float_t lux;
         {
+            // Учет переосвещенности
+            if (ch[0] >= UINT16_MAX)
+                return LIGHT_LUX_MAX;
+            
             // Учет деления на ноль
             if (ch[0] <= 0)
                 ch[0] = 1;
@@ -362,7 +369,7 @@ static __no_init float_t light_max_lux;
 // Текущее покзаание в люксах
 static __no_init float_t light_current_lux;
 // Коофициент усиления значения освещенности
-static __no_init float32_t light_gain_coef_lux;
+static __no_init float_t light_gain_coef_lux;
 
 // Текущее показание уровня освещенности
 static __no_init uint8_t light_current_level;
@@ -394,15 +401,12 @@ static void light_level_flush(void)
         { 30.0f,  61 },
         { 50.0f,  77 },
         { 70.0f,  89 },
-        { 100.0f, 100 },
+        // Ограничение
+        { LIGHT_LUX_MAX, LIGHT_LEVEL_MAX },
     };
 
     // Интерполяция
-    light_current_level = math_linear_interpolation(light_current_lux, POINTS, array_length(POINTS));
-    // Усидение
-    light_current_level *= light_gain_coef_lux;
-    if (light_current_level > LIGHT_LEVEL_MAX)
-        light_current_level = LIGHT_LEVEL_MAX;
+    light_current_level = math_linear_interpolation(light_current_lux * light_gain_coef_lux, POINTS, array_length(POINTS));
 }
 
 // Обновление уровня освещенности
