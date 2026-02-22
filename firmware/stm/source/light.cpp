@@ -704,7 +704,7 @@ static void light_control_reset_smoothers(void)
 static void light_settings_apply(void)
 {
     light_exposure_time_max = XK(light_settings.exposure);
-    light_gain_coef_lux = powf(1.0570180416107177734375f, light_settings.gain);
+    light_gain_coef_lux = powf(1.0615449167090511883376601260215f, light_settings.gain);
     light_level_flush();
 }
 
