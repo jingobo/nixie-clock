@@ -515,9 +515,9 @@ static void light_state_timer_cb(void)
                 
                 // Отладка
                 {
-                    //static uint8_t packet[6]= { 0xAA, 0xBB };
-                    //memcpy(packet + 2, &lux, 4);
-                    //debug_write(packet, sizeof(packet));
+                    // static uint8_t packet[6]= { 0xAA, 0xBB };
+                    // memcpy(packet + 2, &lux, 4);
+                    // debug_write(packet, sizeof(packet));
                 }
                 
                 // Следующее измерение
@@ -560,26 +560,42 @@ protected:
     using base_t = typename model_t::transceiver_t;
 
     // Текущее значение яркости
-    uint8_t level = LIGHT_LEVEL_MAX;
+    uint8_t level;
+    // Целевое значение яркости
+    uint8_t level_target;
     
-    // Получает финальные данные относительно освещенности
-    virtual data_t final_data_get(data_t source) const = 0;
+    // Текущее количество фреймов
+    uint32_t frame;
+    // Конечное количество фреймов
+    uint32_t frame_count;
+    
+    // Получает данные относительно освещенности
+    virtual data_t data_get(data_t source, uint8_t level) const = 0;
 public:
-    // Контроллер плавного изменения
-    typename model_t::smoother_t smoother;
-    
-    // Конструктор по умолчанию
-    light_control_t(void)
+    // Получает конечный уровень освещенности
+    static uint8_t level_next_get()
     {
-        reset_smoother();
+        auto result = light_settings.level;
+        if (light_setup_maximum_count > 0)
+            result = LIGHT_LEVEL_MAX;
+        else if (light_settings.autoset)
+            result = light_current_level;
+        
+        return result;
     }
     
-    // Сброс контроллера плавного изменения
-    void reset_smoother(void)
+    // Сброс контроллера
+    void reset(void)
     {
-        smoother.time_set(light_settings.autoset && light_setup_maximum_count <= 0 ? 
-            light_settings.smooth : 
-            0);
+        level = level_target = level_next_get();
+        
+        // Конечное количество фреймов
+        frame_count = light_settings.autoset && light_setup_maximum_count <= 0 ? 
+            hmi_time_to_frame_count(light_settings.smooth) : 
+            0;
+        
+        frame = 0;
+        frame_count = maximum<uint32_t>(frame_count, 1);
     }
     
 protected:
@@ -597,22 +613,14 @@ protected:
         return model_t::PRIORITY_LIGHT;
     }
         
-    // Обработчик изменения стороны
-    virtual void side_changed(list_side_t side) override final
-    {
-        // Базовый метод
-        base_t::side_changed(side);
-        
-        // Передача напрямую если подключились перед нами
-        if (side == LIST_SIDE_PREV)
-            smoother.stop();
-    }
-    
     // Обработчик изменения данных
     virtual void data_changed(hmi_rank_t index, data_t &data) override final
     {
+        if (frame != frame_count)
+            return;
+
         // Базовый метод
-        base_t::out_set(index, final_data_get(data));
+        base_t::out_set(index, data_get(data, level_target));
     }
     
     // Обновление данных
@@ -621,33 +629,29 @@ protected:
         // Базовый метод
         base_t::refresh();
         
-        // Следущий уровень освещенности
-        auto level_next = light_settings.level;
-        if (light_setup_maximum_count > 0)
-            level_next = LIGHT_LEVEL_MAX;
-        else if (light_settings.autoset)
-            level_next = light_current_level;
+        // Следущий уровень яркости
+        auto level_next = level_next_get();
+        if (level_target != level_next)
+        {
+            level = math_value_ratio(level, level_target, frame, frame_count);
+            level_target = level_next;
+            frame = 0;
+        }
         
-        // Если уровень освещения изменился
-        const bool start_effect = level != level_next;
-        if (start_effect)
-            level = level_next;
+        // Если фрейм конечный
+        if (frame == frame_count)
+            return;
+        
+        // Переход к следующему фрейму
+        frame++;
         
         // Обработка разрядов
         for (hmi_rank_t i = 0; i < model_t::RANK_COUNT; i++)
         {
-            // Если уровень освещения изменился
-            if (start_effect)
-                smoother.start(i, base_t::out_get(i));
-
-            // Конечные данные
-            const auto to = final_data_get(base_t::in_get(i));
+            auto data = base_t::in_get(i);
+            data = data_get(data, level).smooth(data_get(data, level_target), frame, frame_count);
             
-            // Если эффект перехода активен
-            if (smoother.process_needed(i))
-                base_t::out_set(i, smoother.process(i, to));
-            else
-                base_t::out_set(i, to);
+            base_t::out_set(i, data);
         }
     }
 };
@@ -656,8 +660,8 @@ protected:
 static class light_control_led_t : public light_control_t<led_model_t>
 {
 protected:
-    // Получает финальные данные относительно освещенности
-    virtual data_t final_data_get(data_t source) const override final
+    // Получает данные относительно освещенности
+    virtual data_t data_get(data_t source, uint8_t level) const override final
     {
         // Обработка отключения подсветки
         if (light_settings.autoset && light_settings.nightmode && level < 5)
@@ -672,8 +676,8 @@ protected:
 static class light_control_neon_t : public light_control_t<neon_model_t>
 {
 protected:
-    // Получает финальные данные относительно освещенности
-    virtual data_t final_data_get(data_t source) const override final
+    // Получает данные относительно освещенности
+    virtual data_t data_get(data_t source, uint8_t level) const override final
     {
         const uint8_t DX = 17;
         return data_t().smooth(source, level + DX, LIGHT_LEVEL_MAX + DX);
@@ -684,20 +688,20 @@ protected:
 static class light_control_nixie_t : public light_control_t<nixie_model_t>
 {
 protected:
-    // Получает финальные данные относительно освещенности
-    virtual data_t final_data_get(data_t source) const override final
+    // Получает данные относительно освещенности
+    virtual data_t data_get(data_t source, uint8_t level) const override final
     {
         const uint8_t DX = 19;
         return data_t().smooth(source, level + DX, LIGHT_LEVEL_MAX + DX);
     }
 } light_control_nixie;
 
-// Обновление всех контроллеров плавности
-static void light_control_reset_smoothers(void)
+// Сброс контроллеров
+static void light_control_reset()
 {
-    light_control_led.reset_smoother();
-    light_control_neon.reset_smoother();
-    light_control_nixie.reset_smoother();
+    light_control_led.reset();
+    light_control_neon.reset();
+    light_control_nixie.reset();
 }
 
 // Применение настроек в начале и при изменении
@@ -706,6 +710,9 @@ static void light_settings_apply(void)
     light_exposure_time_max = XK(light_settings.exposure);
     light_gain_coef_lux = powf(1.0615449167090511883376601260215f, light_settings.gain);
     light_level_flush();
+
+    // Сброс контроллеров
+    light_control_reset();
 }
 
 // Обработчик команды получения настроек освещенности
@@ -738,7 +745,6 @@ protected:
 
         // Применение настроек
         light_settings = command.request;
-        light_control_reset_smoothers();
         light_settings_apply();
         storage_modified();
         
@@ -796,5 +802,5 @@ void light_setup_maximum(bool state)
             return;
     }
     
-    light_control_reset_smoothers();
+    light_control_reset();
 }

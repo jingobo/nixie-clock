@@ -420,7 +420,7 @@ display_settings_time_t display_scene_time_t::settings @ STORAGE_SECTION =
         .nixie = nixie_switcher_t::EFFECT_SWITCH_OUT,
     },
     
-    .nixie_second = nixie_switcher_t::EFFECT_SWITCH_OUT,
+    .nixie_second = nixie_switcher_t::EFFECT_SMOOTH_SUB,
 };
 
 // Сцена отображения даты
