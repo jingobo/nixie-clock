@@ -84,8 +84,6 @@ public:
     void start_us(uint32_t us, timer_flag_t flags = TIMER_FLAG_NONE);
     // Стоп таймера
     bool stop(void);
-    // Вынужденное срабатывание
-    void raise(void);
     
     // Обработка таймеров в прерывании
     static void interrupt_htim(void);

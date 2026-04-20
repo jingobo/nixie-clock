@@ -58,11 +58,11 @@ void timer_t::start(uint32_t interval, timer_flag_t flags)
         reload = (flags & TIMER_FLAG_LOOP) ? interval : 0;
         // Вызов из прерывания?
         call_from_irq = (flags & TIMER_FLAG_CIRQ) > 0;
+
+        // Форсирование срабатывания прерывания
+        timer_ccr_inc(TIMER_PERIOD_MIN);
     // Восстановление прерываний
     IRQ_SAFE_LEAVE();
-    
-    // Форсирование срабатывания прерывания
-    timer_ccr_inc(TIMER_PERIOD_MIN);
 }
 
 void timer_t::start_hz(float_t hz, timer_flag_t flags)
@@ -92,30 +92,10 @@ bool timer_t::stop(void)
     return result;
 }
 
-void timer_t::raise(void)
-{
-    // Отключаем все прерывания
-    IRQ_SAFE_ENTER();
-        if (!active.linked())
-        {
-            // Таймер не запущен
-            IRQ_SAFE_LEAVE();
-            return;
-        }
-        // Сброс времени до срабатывания
-        current = 0;
-    // Восстановление прерываний
-    IRQ_SAFE_LEAVE();
-    
-    // Форсирование срабатывания прерывания
-    timer_ccr_inc(TIMER_PERIOD_MIN);
-}
-
 void timer_t::call_event_cb(void)
 {
     // Отключаем все прерывания
-    IRQ_CTX_SAVE();
-        IRQ_CTX_DISABLE();
+    IRQ_SAFE_ENTER();
         for (auto wrap = timer_list.raised.head(); wrap != NULL;)
         {
             auto &timer = wrap->timer;
@@ -127,7 +107,7 @@ void timer_t::call_event_cb(void)
             IRQ_CTX_DISABLE();
         }
     // Восстановление прерываний
-    IRQ_CTX_RESTORE();
+    IRQ_SAFE_LEAVE();
 }
 
 RAM_IAR
