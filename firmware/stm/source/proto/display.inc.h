@@ -14,7 +14,7 @@ struct display_settings_t
         return 
            // Светодиоды
            led.source <= led_source_t::DATA_SOURCE_ANY_RANDOM &&
-           led.effect <= led_source_t::EFFECT_OUT &&
+           led.effect <= led_source_t::EFFECT_RAND &&
            led.smooth <= HMI_TIME_COUNT &&
             // Лампы
            nixie <= nixie_switcher_t::EFFECT_SWITCH_OUT &&
@@ -26,7 +26,7 @@ struct display_settings_t
     }
 };
 
-STATIC_ASSERT(sizeof(display_settings_t) == 25);
+STATIC_ASSERT(sizeof(display_settings_t) == 26);
 
 // Структура настроек дисплея с опцией показа
 struct display_settings_arm_t
@@ -45,7 +45,7 @@ struct display_settings_arm_t
     }
 };
 
-STATIC_ASSERT(sizeof(display_settings_arm_t) == 26);
+STATIC_ASSERT(sizeof(display_settings_arm_t) == 27);
 
 // Структура настроек дисплея с опцией таймаута
 struct display_settings_timeout_t
@@ -64,7 +64,7 @@ struct display_settings_timeout_t
     }
 };
 
-STATIC_ASSERT(sizeof(display_settings_timeout_t) == 27);
+STATIC_ASSERT(sizeof(display_settings_timeout_t) == 28);
 
 // Структура настроек сцены времени
 struct display_settings_time_t
@@ -82,7 +82,7 @@ struct display_settings_time_t
     }
 };
 
-STATIC_ASSERT(sizeof(display_settings_time_t) == 26);
+STATIC_ASSERT(sizeof(display_settings_time_t) == 27);
 
 // Команда запрос настроек сцены времени
 class display_command_time_get_t : public ipc_command_get_t<display_settings_time_t>

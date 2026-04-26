@@ -58,7 +58,15 @@ public:
         // Заливка
         EFFECT_FILL,
         // Вспышка
+        EFFECT_FUSION,
+        // Вспышка 2
         EFFECT_FLASH,
+        // Градиент
+        EFFECT_GRAD,
+        // Разные разряды
+        EFFECT_RANKS,
+        // Зебра
+        EFFECT_ZEBRA,
         // Влево
         EFFECT_LEFT,
         // Вправо
@@ -66,7 +74,9 @@ public:
         // К центру
         EFFECT_IN,
         // От центра
-        EFFECT_OUT
+        EFFECT_OUT,
+        // Случайный
+        EFFECT_RAND
     };
 
     // Перечисление источника данных
@@ -85,6 +95,8 @@ public:
     {
         // Эффект смены
         effect_t effect;
+        // Задержка
+        hmi_time_t delay;
         // Плавность
         hmi_time_t smooth : 6;
         // Источник данных
@@ -93,7 +105,7 @@ public:
         hmi_rgb_t rgb[LED_COUNT];
     };
     
-    STATIC_ASSERT(sizeof(settings_t) == 20);
+    STATIC_ASSERT(sizeof(settings_t) == 21);
 
 private:
     // Половина количества разрядов
@@ -113,11 +125,35 @@ private:
     // Таймаут предварительного просмотра в секундах
     uint8_t rgb_preview_timeout = 0;
     
-    // Получает признак неизменяемых разрядов
-    bool is_static_ranks(void) const
+    // Текущий случайный эффект
+    effect_t rand_effect = EFFECT_NONE;
+    // Текущая фаза случайного эффекта
+    uint8_t rand_effect_phase = 0;
+    // Количество фаз случайного эффекта
+    uint8_t rand_effect_phase_count = 0;
+    
+    // Текущий кадр задержки
+    uint32_t delay_frame = 0;
+    // Количество кадров задержки
+    uint32_t delay_frame_count = 0;
+    
+    // Получает текущий эффект
+    effect_t effect_get() const
     {
-        return rgb_preview_timeout > 0 || 
-               settings.effect == EFFECT_NONE;
+        if (settings.effect != EFFECT_RAND)
+            return settings.effect;
+        
+        assert(rand_effect != EFFECT_RAND);
+        return rand_effect;
+    }
+    
+    // Получает следующий случайный эффект
+    void rand_effect_next();
+    
+    // Получает признак активности предварительного просмотра цветов
+    bool is_rgb_preview() const
+    {
+        return rgb_preview_timeout > 0;
     }
     
     // Сравнение RGB данных
@@ -135,13 +171,22 @@ private:
     {
         // Там может быть переполнение
         if (index < LED_COUNT)
-            smoother_start(index, led_data_t(color_last).smooth(out_get(index), 75, 100));
+            smoother_start(index, led_data_t(color_last).smooth(out_get(index), 80, 100));
     }
 
+    // Обработка разряда эффекта вспышки 2
+    void process_rank_flash2(hmi_rank_t index, const hmi_rgb_t& to)
+    {
+        // Там может быть переполнение
+        if (index < LED_COUNT)
+            smoother_start(index, led_data_t(color_last).smooth(to, 50, 100));
+    }
+    
     // Обработка разряда эффекта по умолчанию
     void process_rank_default(hmi_rank_t index)
     {
-        smoother_start(index, led_data_t(color_last).smooth(out_get(index), 25, 100));
+        if (index < LED_COUNT)
+            smoother_start(index, color_last);
     }
     
     // Формирует случайный цвет
@@ -172,8 +217,9 @@ public:
     // Обработчик секундного события
     void second(void)
     {
-        if (rgb_preview_timeout > 0 && --rgb_preview_timeout <= 0)
-            set_initial_ranks();
+        if (is_rgb_preview())
+            if (--rgb_preview_timeout <= 0)
+                set_initial_ranks();
     }
     
     // Обработчик применения настроек

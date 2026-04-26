@@ -175,18 +175,21 @@ void led_source_t::color_last_next(void)
 void led_source_t::set_initial_ranks(void)
 {
     // Установка цветов
-    if (is_static_ranks())
+    if (is_rgb_preview() || settings.effect == EFFECT_NONE)
     {
-        // Настройки светодиодов
-        const auto &rgb = settings.rgb;
-        
         // Установка данных по разрядам
         for (hmi_rank_t i = 0; i < LED_COUNT; i++)
-            out_set(i, rgb[i]);
+            out_set(i, settings.rgb[i]);
         return;
     }
     
-    switch (settings.effect)
+    // Следующий эффект
+    rand_effect_next();
+    
+    // Временное значение цвета
+    hmi_rgb_t color_temp;
+    
+    switch (effect_get())
     {
         case EFFECT_LEFT:
         case EFFECT_RIGHT:
@@ -201,13 +204,37 @@ void led_source_t::set_initial_ranks(void)
             
             break;
             
-        case EFFECT_FLASH:
+        case EFFECT_RANKS:
+        case EFFECT_FUSION:
+            rank_last = random_get(LED_COUNT);
             for (hmi_rank_t i = 0; i < LED_COUNT; i++)
             {
-                rank_last = i;
                 color_last_next();
                 out_set(i, color_last);
             }
+            break;
+
+        case EFFECT_FLASH:
+            color_last_next();
+            rank_last = random_get(LED_COUNT + 1);
+            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                out_set(i, HMI_COLOR_RGB_BLACK);
+            break;
+
+        case EFFECT_GRAD:
+            color_last_next();
+            rank_last = random_get(LED_COUNT + 1);
+            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                out_set(i, color_last);
+            break;
+
+        case EFFECT_ZEBRA:
+            color_last_next();
+            color_temp = color_last;
+            color_last_next();
+            
+            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                out_set(i, i % 2 != 0 ? color_last : color_temp);
             break;
             
         default:
@@ -220,20 +247,35 @@ void led_source_t::refresh(void)
     // Базовый метод
     source_smoother_t::refresh();
 
-    // Выходим сразу в режиме статичных разрядов
-    if (is_static_ranks())
+    // Выходим в режиме просмотра цветов
+    if (is_rgb_preview())
         return;
     
     // Обработка эффекта плавного перехода
     if (smoother_process())
         return;
     
+    // Задержка между этапами эффекта
+    if (++delay_frame < delay_frame_count)
+        return;
+    delay_frame = 0;
+    
+    // Следующий эффект
+    if (++rand_effect_phase >= rand_effect_phase_count)
+        rand_effect_next();
+    
     // Цвет
-    switch (settings.effect)
+    switch (effect_get())
     {
+        case EFFECT_NONE:
+            // Ничего не меняется
+            break;
+        
         // Подбор цвета всегда
         case EFFECT_FILL:
+        case EFFECT_GRAD:
         case EFFECT_FLASH:
+        case EFFECT_FUSION:
             {
                 hmi_rank_t rank;
                 do
@@ -252,7 +294,10 @@ void led_source_t::refresh(void)
         case EFFECT_OUT:
             if (++rank_last < LED_COUNT_HALF)
                 break;
+            // Нет опечатки break
             
+        case EFFECT_RANKS:
+        case EFFECT_ZEBRA:
             rank_last = 0;
             color_last_next();
             break;
@@ -260,20 +305,60 @@ void led_source_t::refresh(void)
         default:
             assert(false);
     }
-                
+    
+    // Временное значение цвета
+    hmi_rgb_t color_temp = HMI_COLOR_RGB_BLACK;
+    
     // Обработка эффекта
-    switch (settings.effect)
+    switch (effect_get())
     {
+        case EFFECT_NONE:
+            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                smoother_start(i, settings.rgb[i]);
+            break;
+        
         case EFFECT_FILL:
             for (hmi_rank_t i = 0; i < LED_COUNT; i++)
-                smoother_start(i, color_last);
+                process_rank_default(i);
             break;
             
-        case EFFECT_FLASH:
+        case EFFECT_FUSION:
             // Установка трех разрядов
             process_rank_flash(rank_last - 1);
             process_rank_flash(rank_last + 1);
             process_rank_default(rank_last);
+            break;
+
+        case EFFECT_GRAD:
+            color_temp = color_last;
+            color_last_next();
+            // Нет опечатки break
+            
+        case EFFECT_FLASH:
+            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                smoother_start(i, color_temp);
+            
+            // Установка четырех разрядов
+            process_rank_flash2(rank_last - 2, color_temp);
+            process_rank_default(rank_last - 1);
+            process_rank_default(rank_last + 0);
+            process_rank_flash2(rank_last + 1, color_temp);
+            break;
+
+        case EFFECT_RANKS:
+            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+            {
+                process_rank_default(i);
+                color_last_next();
+            }
+            break;
+            
+        case EFFECT_ZEBRA:
+            color_temp = color_last;
+            color_last_next();
+            
+            for (hmi_rank_t i = 0; i < LED_COUNT; i++)
+                smoother_start(i, i % 2 != 0 ? color_last : color_temp);
             break;
             
         case EFFECT_LEFT:
@@ -313,23 +398,49 @@ void led_source_t::refresh(void)
     }
 }
 
+void led_source_t::rand_effect_next()
+{
+    rand_effect_phase = 0;
+    rand_effect = (effect_t)(random_get(EFFECT_RAND - 1) + 1);
+    
+    switch (rand_effect)
+    {
+        case EFFECT_FILL:
+        case EFFECT_RANKS:
+            rand_effect_phase_count = 1;
+            break;
+            
+        case EFFECT_LEFT:
+        case EFFECT_RIGHT:
+        case EFFECT_FUSION:
+            rand_effect_phase_count = LED_COUNT;
+            break;
+            
+        case EFFECT_IN:
+        case EFFECT_OUT:
+        case EFFECT_GRAD:
+        case EFFECT_ZEBRA:
+        case EFFECT_FLASH:
+            rand_effect_phase_count = LED_COUNT / 2;
+            break;
+        
+        default:
+            assert(false);
+    }
+}
+
 void led_source_t::settings_apply(const settings_t *settings_old)
 {
     // Признак начальной установки
     const auto initial = settings_old == NULL;
     
-    // Признак 
+    // Признак установки начальных разрядов
     auto is_set_initial_ranks = initial;
     
     // Плавность
     smoother.time_set(settings.smooth);
-    
-    // Эффект и источник
-    if (initial || 
-        settings_old->effect != settings.effect || 
-        settings_old->source != settings.source)
-        is_set_initial_ranks = true;
-    
+    delay_frame = delay_frame_count = hmi_time_to_frame_count(settings.delay);
+
     // Подсветка
     if (initial || rgb_equals(settings_old->rgb, settings.rgb))
         rgb_preview_timeout = 0;
@@ -354,7 +465,7 @@ hmi_rgb_t led_random_color_get(hmi_sat_t &hue_last, hmi_sat_t value)
     hue_last = (hmi_sat_t)hue;
     
     // Цвет в HSV
-    const auto hsv = hmi_hsv_init(hue_last, (hmi_sat_t)random_range_get(220, HMI_SAT_MAX), value);
+    const auto hsv = hmi_hsv_init(hue_last, HMI_SAT_MAX, value);
     // Конвертироование
     return hsv.to_rgb();
 }

@@ -395,8 +395,9 @@ display_settings_time_t display_scene_time_t::settings @ STORAGE_SECTION =
     {
         .led =
         {
-            .effect = led_source_t::EFFECT_FLASH,
-            .smooth = 20,
+            .effect = led_source_t::EFFECT_FUSION,
+            .delay = 20,
+            .smooth = 6,
             .source = led_source_t::DATA_SOURCE_ANY_RANDOM,
             .rgb =
             {
@@ -498,6 +499,7 @@ display_settings_timeout_t display_scene_date_t::settings @ STORAGE_SECTION =
             .led =
             {
                 .effect = led_source_t::EFFECT_FILL,
+                .delay = 0,
                 .smooth = 4,
                 .source = led_source_t::DATA_SOURCE_CUR_RANDOM,
                 .rgb =
@@ -1114,6 +1116,7 @@ static display_settings_timeout_t display_scene_onet_settings @ STORAGE_SECTION 
             .led =
             {
                 .effect = led_source_t::EFFECT_NONE,
+                .delay = 0,
                 .smooth = 4,
                 .source = led_source_t::DATA_SOURCE_CUR_RANDOM,
                 .rgb =
@@ -1156,6 +1159,7 @@ static display_settings_timeout_t display_scene_cnet_settings @ STORAGE_SECTION 
             .led =
             {
                 .effect = led_source_t::EFFECT_NONE,
+                .delay = 0,
                 .smooth = 4,
                 .source = led_source_t::DATA_SOURCE_CUR_RANDOM,
                 .rgb =

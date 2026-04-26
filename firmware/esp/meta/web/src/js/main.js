@@ -1816,7 +1816,11 @@ app.page =
             // Плавность подсветки
             const ledSmooth = this.dom.find(".disp-class-led-smooth");
             ledSmooth.on("input", fire);
-                
+
+            // Задержка подсветки
+            const ledDelay = this.dom.find(".disp-class-led-delay");
+            ledDelay.on("input", fire);
+            
             // Эффект подсветки
             const ledEffect = this.dom.find(".disp-class-led-effect");
             const ledEffectChanged = () =>
@@ -1825,8 +1829,6 @@ app.page =
                 const state = ledEffect.val() == 0;
                 ledMode.disabled(state);
                 ledModeLabel.setClass("disabled-label", state);
-                ledSmooth.disabled(state);
-                ledSmoothLabel.setClass("disabled-label", state);
                 // Если эффект отсутствует, то только выбранные цвета
                 if (state && ledModeUsingRandom())
                     ledMode.val(0).change();
@@ -1880,6 +1882,9 @@ app.page =
                     // Эффект
                     ledEffect.val(data.uint8());
                     
+                    // Задержка
+                    ledDelay.valSlider(data.uint8());
+
                     // Плавность и режим
                     {
                         const temp = data.uint8();
@@ -1936,6 +1941,9 @@ app.page =
                     // Эффект
                     data.uint8(ledEffect.val());
                     
+                    // Задержка
+                    data.uint8(ledDelay.val());
+
                     // Плавность и режим
                     {
                         let temp = ledSmooth.val(); // Младшие 6 бит
