@@ -510,6 +510,11 @@ button > .spinner-inline
     padding: 1rem;
 }
 
+#overlay .text-muted
+{
+    background: linear-gradient(166deg, rgb(255, 255, 255) 15%, rgb(247 247 247) 95%);
+}
+
 #overlay h4
 {
     margin-bottom: 0;
@@ -557,6 +562,28 @@ button > .spinner-inline
 #overlay .text-danger:after
 {
     content: "!";
+}
+
+#overlay .progress
+{
+    background: transparent;
+    position: absolute;
+    height: 0.1rem;
+    width: 100%;
+    left: 0;
+    bottom: 4px;
+}
+
+#overlay.error .progress
+{
+    display: none;
+}
+
+#overlay .progress > div
+{
+    border-radius: 0.25rem;
+    margin: 0 4px;
+    background: linear-gradient(90deg, rgb(0, 157, 255) 5%, rgb(37, 212, 74) 95%);
 }
 
 /* Color Picker */
@@ -674,12 +701,7 @@ button > .spinner-inline
     .container
     {
         max-width: 720px !important;
-    }
-    
-    #display 
-    {
-        width: 700px;
-    }
+    }    
 }
 
 

@@ -13,13 +13,18 @@
     <body>
         <!-- Оверлей окна -->
         <div class="center-panel" id="overlay">
-            <div class="row justify-content-center justify-content-md-start  border rounded text-muted">
+            <div class="row justify-content-center justify-content-md-start position-relative border rounded text-muted">
                 <div class="col-auto no-padding">
                     <div class="loader"></div>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke="currentcolor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2">
                         <path d="M16 3 L30 29 2 29 Z M16 11 L16 19 M16 23 L16 25" />
                     </svg>
                 </div>
+                <!-- Прогресс загрузки -->
+                <div class="progress">
+                    <div></div>
+                </div>
+                <!-- Состояние -->
                 <div class="col-auto">
                     <h4>Nixie Clock</h4>
                     <div class="text-info">подключение...</div>

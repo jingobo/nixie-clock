@@ -92,24 +92,48 @@ app.opcode =
 // Оверлей
 app.overlay = new function ()
 {
+    // Параметры прогресса загрузки
+    let progressMsg;
+    let progressCount;
+
+    // Производит пересчет прогресса загрузки
+    const updateProgress = () => 
+        app.dom.overlay.progress.width(Math.min(progressCount / 14, 1) * 100  + "%");
+
     // Показывает/скрывает панель оверлея
     function toggle(show)
     {
         app.dom.container.visible(!show);
         app.dom.overlay.container.visible(show);
-    };
+    }
 
     const errorClass = "error";
     
-    // Устанавливает текст прогресса
-    this.setProgress = msg => app.dom.overlay.progress.text(msg + "...");
+    // Устанавливает текст статуса
+    this.setStatus = msg =>
+    {
+        if (progressMsg != msg)
+        {
+            progressMsg = msg;
+            progressCount++;
+            updateProgress();
+        }
+
+        app.dom.overlay.status.text(msg + "...");
+    };
 
     // Показать/скрыть как обычная загрузка
     this.asLoader = show =>
     {
-        this.setProgress("подключение");
+        // Настройка панели
+        this.setStatus("подключение");
         app.dom.overlay.container.removeClass(errorClass);
         toggle(show);
+
+        // Сброс прогресса загрузки
+        progressCount = 0;
+        progressMsg = null;
+        updateProgress();
     };
     
     // Показать как фатальную ошибку
@@ -199,8 +223,9 @@ app.dom = new function ()
         overlay:
         {
             container: "#overlay",
-            progress: "#overlay .text-info",
+            status: "#overlay .text-info",
             message: "#overlay .text-danger",
+            progress: "#overlay .progress > div",
         },
         
         time:
@@ -2806,7 +2831,7 @@ app.session = new function ()
             // Передача
             try
             {
-                app.overlay.setProgress(current.packet.name);
+                app.overlay.setStatus(current.packet.name);
                 ws.send(current.packet.data.toArray());
             }
             catch
