@@ -1,6 +1,7 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 # Настольные часы на ИН-12
+<img src="https://github.com/jingobo/nixie-clock/blob/master/meta/Images/logo.png?raw=true" height="120"></img>
 ## Ключевые особенности
 * Связка STM32F103 (Master) + ESP8266 (Slave) по SPI
 * ~~Датчик температуры (DS18B20)~~
@@ -24,8 +25,13 @@
 ![Основная плата снизу](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/pcb_primary_bottom.jpg?raw=true)
 ![Вторичная плата в 3D](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/pcb_secondary_3d.jpg?raw=true)
 ![Корпус из оргстекла](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/case_perspective.jpg?raw=true)
+## Скрины админки
+![Настройка часов](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/web_1.png?raw=true)
+![Настройка WiFi](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/web_2.png?raw=true)
+![Настройка дисплея](https://github.com/jingobo/nixie-clock/blob/master/meta/Images/web_3.png?raw=true)
 ## Статус проекта
-PCB не финальные, есть небольшой TODO список по доработкам, но схема и размеры меняться не будут).
+Полностью завершено.
+По PCB есть небольшой косметический техдолг, но схема и размеры меняться не будут.
 Измерение температуры происходит не корректно из-за не удачного расположения датчика и конструктива корпуса.
 - [x] Платы закончены
 - [x] ~~Запущно измерение температуры~~
